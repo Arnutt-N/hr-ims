@@ -1,0 +1,279 @@
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        Int       @id @default(autoincrement())
+  email     String    @unique
+  password  String
+  role      String    @default("user") // admin, hr, user
+  name      String?
+  department String?
+  status    String    @default("active")
+  avatar    String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  requests  Request[]
+  history   History[]
+  notifications Notification[]
+}
+
+model InventoryItem {
+  id        Int       @id @default(autoincrement())
+  name      String
+  category  String
+  type      String    // durable, consumable
+  serial    String?   @unique
+  status    String    @default("available") // available, borrowed, maintenance
+  image     String?
+  stock     Int       @default(1)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+model Request {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id])
+  items     String   // JSON string or simple text for now to match mock
+  date      DateTime @default(now())
+  status    String   @default("pending") // pending, approved, rejected
+  type      String   // withdraw, borrow, return
+  assetId   Int?     // For return requests
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model History {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id])
+  action    String
+  item      String
+  status    String
+  date      DateTime @default(now())
+  createdAt DateTime @default(now())
+}
+
+model Notification {
+  id        Int      @id @default(autoincrement())
+  userId    Int?     // Optional: if null, global notification
+  user      User?    @relation(fields: [userId], references: [id])
+  text      String
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+model Settings {
+  id               Int     @id @default(autoincrement())
+  orgName          String  @default("IMS Corporation")
+  borrowLimit      Int     @default(7)
+  checkInterval    Int     @default(7)
+  maintenanceAlert Boolean @default(true)
+}
+
+// ==========================================
+// Organization Structure (โครงสร้างหน่วยงาน)
+// ==========================================
+
+// กระทรวง
+model Ministry {
+  id          Int          @id @default(autoincrement())
+  name        String       // ชื่อกระทรวง
+  abbr        String?      // ชื่อย่อ
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  departments Department[]
+}
+
+// กรม
+model Department {
+  id          Int        @id @default(autoincrement())
+  name        String     // ชื่อกรม
+  abbr        String?    // ชื่อย่อ
+  ministryId  Int
+  ministry    Ministry   @relation(fields: [ministryId], references: [id])
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  divisions   Division[]
+}
+
+// กอง
+model Division {
+  id           Int         @id @default(autoincrement())
+  name         String      // ชื่อกอง
+  abbr         String?     // ชื่อย่อ
+  departmentId Int
+  department   Department  @relation(fields: [departmentId], references: [id])
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  workGroups1  WorkGroup1[]
+}
+
+// กลุ่มงาน ระดับ 1
+model WorkGroup1 {
+  id          Int         @id @default(autoincrement())
+  name        String
+  divisionId  Int
+  division    Division    @relation(fields: [divisionId], references: [id])
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  workGroups2 WorkGroup2[]
+}
+
+// กลุ่มงาน ระดับ 2
+model WorkGroup2 {
+  id           Int        @id @default(autoincrement())
+  name         String
+  workGroup1Id Int
+  workGroup1   WorkGroup1 @relation(fields: [workGroup1Id], references: [id])
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+}
+
+// จังหวัด
+model Province {
+  id               Int               @id @default(autoincrement())
+  name             String            // ชื่อจังหวัด
+  code             String?           // รหัสจังหวัด
+  regionId         Int?
+  region           Region?           @relation(fields: [regionId], references: [id])
+  inspectionZoneId Int?
+  inspectionZone   InspectionZone?   @relation(fields: [inspectionZoneId], references: [id])
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  customZones      CustomProvinceZone[]
+}
+
+// เขตจังหวัด (ภาค)
+model Region {
+  id        Int        @id @default(autoincrement())
+  name      String     // เช่น ภาคเหนือ, ภาคกลาง
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  provinces Province[]
+}
+
+// เขตตรวจราชการ
+model InspectionZone {
+  id        Int        @id @default(autoincrement())
+  name      String     // เช่น เขตตรวจราชการที่ 1
+  code      String?
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  provinces Province[]
+}
+
+// เขตจังหวัด (กำหนดเอง)
+model CustomProvinceZone {
+  id         Int      @id @default(autoincrement())
+  name       String   // ชื่อเขตที่กำหนดเอง
+  provinceId Int
+  province   Province @relation(fields: [provinceId], references: [id])
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+// ==========================================
+// Personnel Management (บุคลากร)
+// ==========================================
+
+// ประเภทบุคลากร
+model PersonnelType {
+  id        Int         @id @default(autoincrement())
+  name      String      // ข้าราชการ, ลูกจ้างประจำ, พนักงานราชการ, etc.
+  createdAt DateTime    @default(now())
+  personnel Personnel[]
+}
+
+// คำนำหน้าชื่อ
+model NamePrefix {
+  id        Int         @id @default(autoincrement())
+  name      String      // นาย, นาง, นางสาว, ดร., etc.
+  createdAt DateTime    @default(now())
+  personnel Personnel[]
+}
+
+// ประเภทตำแหน่ง/ประเภทกลุ่มงาน
+model PositionCategory {
+  id        Int         @id @default(autoincrement())
+  name      String      // วิชาการ, ทั่วไป, อำนวยการ, etc.
+  createdAt DateTime    @default(now())
+  personnel Personnel[]
+}
+
+// ระดับตำแหน่ง
+model PositionLevel {
+  id        Int         @id @default(autoincrement())
+  name      String      // ปฏิบัติการ, ชำนาญการ, ชำนาญการพิเศษ, etc.
+  rank      Int?        // ลำดับขั้น
+  createdAt DateTime    @default(now())
+  personnel Personnel[]
+}
+
+// หน่วยงาน (Organization Unit) - สำหรับเชื่อมกับบุคลากร
+model OrganizationUnit {
+  id            Int      @id @default(autoincrement())
+  name          String
+  code          String?
+  unitType      String   // ministry, department, division, workgroup1, workgroup2
+  parentId      Int?     // For hierarchy
+  isLegal       Boolean  @default(true)  // ตามกฎหมาย
+  isAssigned    Boolean  @default(false) // ตามมอบหมายงาน
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  personnelLegal    Personnel[] @relation("LegalOrg")
+  personnelAssigned Personnel[] @relation("AssignedOrg")
+}
+
+// บุคลากร (Personnel)
+model Personnel {
+  id                  Int       @id @default(autoincrement())
+  
+  // ประเภทบุคลากร
+  personnelTypeId     Int
+  personnelType       PersonnelType @relation(fields: [personnelTypeId], references: [id])
+  
+  // ชื่อ-นามสกุล
+  prefixId            Int
+  prefix              NamePrefix @relation(fields: [prefixId], references: [id])
+  firstName           String    // ชื่อตัว
+  middleName          String?   // ชื่อรอง
+  lastName            String    // ชื่อสกุล
+  nickName            String?   // ชื่อเล่น
+  
+  // ข้อมูลทะเบียน
+  citizenId           String    @unique // เลขประจำตัวประชาชน (13 หลัก)
+  
+  // ตำแหน่ง
+  positionNumber      String?   // เลขที่ตำแหน่ง
+  positionName        String?   // ชื่อตำแหน่ง
+  positionCategoryId  Int?
+  positionCategory    PositionCategory? @relation(fields: [positionCategoryId], references: [id])
+  positionLevelId     Int?
+  positionLevel       PositionLevel? @relation(fields: [positionLevelId], references: [id])
+  
+  // หน่วยงาน
+  legalOrgId          Int?      // หน่วยงาน ตามกฎหมาย
+  legalOrg            OrganizationUnit? @relation("LegalOrg", fields: [legalOrgId], references: [id])
+  assignedOrgId       Int?      // หน่วยงาน ตามมอบหมายงาน
+  assignedOrg         OrganizationUnit? @relation("AssignedOrg", fields: [assignedOrgId], references: [id])
+  
+  // สถานะ
+  status              String    @default("active") // active, pending, terminated
+  
+  // ติดต่อ
+  email               String?
+  phoneNumber         String?
+  
+  // Timestamps
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+}
