@@ -72,6 +72,11 @@ temp/
 *.tmp
 *.bak
 *.swp
+diagnose-db.ts
+test-db.ts
+auth_debug.log
+auth_debug.txt
+auth_success.txt
 
 # Parcel-cache (if using parcel)
 .parcel-cache
@@ -79,6 +84,18 @@ temp/
 # TypeScript
 *.tsbuildinfo
 next-env.d.ts
+
+# Database (Prisma)
+backend/prisma/dev.db
+backend/prisma/dev.db-journal
+prisma/dev.db
+prisma/dev.db-journal
+*.db
+*.db-journal
+
+# Monorepo (Turbo/PNPM)
+.turbo/
+.cache/
 
 # Optional: npm pack
 *.tgz

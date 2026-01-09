@@ -10,7 +10,7 @@ async function main() {
     // Users
     const admin = await prisma.user.upsert({
         where: { email: 'admin@ims.pro' },
-        update: {},
+        update: { password },
         create: {
             email: 'admin@ims.pro',
             password,
@@ -23,7 +23,7 @@ async function main() {
 
     const staff = await prisma.user.upsert({
         where: { email: 'somchai@ims.pro' },
-        update: {},
+        update: { password },
         create: {
             email: 'somchai@ims.pro',
             password,
@@ -35,6 +35,7 @@ async function main() {
     });
 
     // Inventory
+    await prisma.inventoryItem.deleteMany({});
     await prisma.inventoryItem.createMany({
         data: [
             { name: 'MacBook Pro M2', category: 'IT Equipment', type: 'durable', serial: 'MBP-2023-001', status: 'available', image: '💻', stock: 1 },
