@@ -21,18 +21,26 @@ const UpdateInventory = InventorySchema;
 export async function fetchInventoryItems(
     query: string,
     currentPage: number,
+    type?: string,
 ) {
-    const ITEMS_PER_PAGE = 10;
+    const ITEMS_PER_PAGE = 12; // Increased for grid view
     const offset = (currentPage - 1) * ITEMS_PER_PAGE;
+
+    const typeFilter = type && type !== 'all' ? { type: type } : {};
 
     try {
         const items = await prisma.inventoryItem.findMany({
             where: {
-                OR: [
-                    { name: { contains: query } },
-                    { category: { contains: query } },
-                    { serial: { contains: query } },
-                ],
+                AND: [
+                    typeFilter,
+                    {
+                        OR: [
+                            { name: { contains: query } },
+                            { category: { contains: query } },
+                            { serial: { contains: query } },
+                        ],
+                    }
+                ]
             },
             orderBy: { updatedAt: 'desc' },
             take: ITEMS_PER_PAGE,
@@ -46,16 +54,23 @@ export async function fetchInventoryItems(
     }
 }
 
-export async function fetchInventoryPages(query: string) {
-    const ITEMS_PER_PAGE = 10;
+export async function fetchInventoryPages(query: string, type?: string) {
+    const ITEMS_PER_PAGE = 12;
+    const typeFilter = type && type !== 'all' ? { type: type } : {};
+
     try {
         const count = await prisma.inventoryItem.count({
             where: {
-                OR: [
-                    { name: { contains: query } },
-                    { category: { contains: query } },
-                    { serial: { contains: query } },
-                ],
+                AND: [
+                    typeFilter,
+                    {
+                        OR: [
+                            { name: { contains: query } },
+                            { category: { contains: query } },
+                            { serial: { contains: query } },
+                        ],
+                    }
+                ]
             },
         });
         return Math.ceil(count / ITEMS_PER_PAGE);

@@ -1,24 +1,63 @@
-import { Bell } from 'lucide-react';
+import { auth } from '@/auth';
+import { Bell, Search, ChevronDown, User as UserIcon } from 'lucide-react';
+import { redirect } from 'next/navigation';
+import { formatThaiDate } from '@/lib/date-utils';
 
-export function Header() {
+export async function Header() {
+    const session = await auth();
+
+    // if (!session?.user) {
+    //     redirect('/login');
+    // }
+
+    const user = session?.user;
+    const today = formatThaiDate(new Date());
+
     return (
-        <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 md:px-8 sticky top-0 z-20">
-            <div className="md:hidden" /> {/* Spacer for mobile menu button */}
+        <header className="h-20 bg-white/80 backdrop-blur-md border-b border-slate-200/60 flex items-center justify-between px-6 md:px-8 sticky top-0 z-20 transition-all duration-300">
+            {/* Left: Title or Breadcrumbs */}
+            <div className="flex flex-col ml-12 md:ml-0">
+                <h2 className="text-xl font-bold text-slate-800 tracking-tight">Dashboard Overview</h2>
+                <p className="text-xs text-slate-500 font-medium mt-0.5">{today}</p>
+            </div>
 
+            {/* Right: Actions & Profile */}
             <div className="flex items-center gap-4 ml-auto">
-                <button className="p-2 text-slate-400 hover:text-indigo-600 transition-colors relative">
+                {/* Search Bar (Hidden on mobile) */}
+                <div className="hidden md:flex items-center bg-slate-100/50 rounded-xl px-4 py-2.5 border border-slate-200 focus-within:ring-2 focus-within:ring-blue-100 transition-all w-64">
+                    <Search size={18} className="text-slate-400" />
+                    <input
+                        type="text"
+                        placeholder="Search..."
+                        className="bg-transparent border-none focus:outline-none text-sm ml-3 w-full text-slate-600 placeholder:text-slate-400"
+                    />
+                </div>
+
+                {/* Notifications */}
+                <button className="relative p-2.5 rounded-xl text-slate-400 hover:text-indigo-600 hover:bg-slate-50 transition-all">
                     <Bell size={20} />
-                    <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white"></span>
+                    <span className="absolute top-2 right-2.5 w-2 h-2 bg-rose-500 rounded-full ring-2 ring-white"></span>
                 </button>
 
+                {/* User Profile */}
                 <div className="flex items-center gap-3 pl-4 border-l border-slate-200">
-                    <div className="text-right hidden sm:block">
-                        <p className="text-sm font-medium text-slate-900">Admin User</p>
-                        <p className="text-xs text-slate-500">ICT Department</p>
+                    <div className="text-right hidden md:block">
+                        <p className="text-sm font-bold text-slate-800 leading-none">{user?.name || 'Guest User'}</p>
+                        <p className="text-[10px] uppercase font-bold text-blue-500 mt-1 tracking-wide">{user?.email || 'Guest'}</p>
                     </div>
-                    <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold">
-                        AD
-                    </div>
+
+                    <button className="flex items-center gap-2 group">
+                        <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-500 to-indigo-600 p-[2px] shadow-lg shadow-blue-500/20 group-hover:shadow-blue-500/30 transition-all">
+                            <div className="w-full h-full rounded-[10px] bg-white flex items-center justify-center overflow-hidden relative">
+                                {user?.image ? (
+                                    <img src={user.image} alt={user.name || 'User'} className="w-full h-full object-cover" />
+                                ) : (
+                                    <UserIcon size={20} className="text-indigo-500" />
+                                )}
+                            </div>
+                        </div>
+                        <ChevronDown size={16} className="text-slate-300 group-hover:text-slate-500 transition-colors md:hidden" />
+                    </button>
                 </div>
             </div>
         </header>

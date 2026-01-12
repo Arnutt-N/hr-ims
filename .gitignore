@@ -1,17 +1,17 @@
 # Security & Secrets (Highest Priority)
-.env
-.env.local
-.env.*.local
-.env.development
-.env.test
-.env.production
-*.env
-*.env.*
-*.pem
-*.key
-*.cert
-*.crt
-*.ca-bundle
+**/.env
+**/.env.local
+**/.env.*.local
+**/.env.development
+**/.env.test
+**/.env.production
+**/*.env
+**/*.env.*
+**/*.pem
+**/*.key
+**/*.cert
+**/*.crt
+**/*.ca-bundle
 *.p12
 *.pfx
 *.asc
@@ -23,7 +23,7 @@ id_rsa
 id_rsa.pub
 
 # Dependencies
-node_modules/
+**/node_modules/
 .pnp
 .pnp.js
 

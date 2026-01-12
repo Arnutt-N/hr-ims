@@ -8,11 +8,12 @@ datasource db {
   url      = "file:d:/02 genAI/hr-ims/backend/prisma/dev.db"
 }
 
+// ... existing User model ...
 model User {
   id        Int       @id @default(autoincrement())
   email     String    @unique
   password  String
-  role      String    @default("user") // admin, hr, user
+  role      Role      @default(user)
   name      String?
   department String?
   status    String    @default("active")
@@ -20,8 +21,18 @@ model User {
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   requests  Request[]
-  history   History[]
   notifications Notification[]
+  cartItems    CartItem[]
+  heldItems    InventoryItem[] @relation("CurrentHolder")
+}
+
+enum Role {
+  superadmin
+  admin
+  approver
+  auditor
+  technician
+  user
 }
 
 model InventoryItem {
@@ -35,19 +46,47 @@ model InventoryItem {
   stock     Int       @default(1)
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
+  cartItems    CartItem[]
+  requestItems RequestItem[]
+  repairNotes  String?   // Maintenance/repair notes
+  currentHolderId Int?
+  currentHolder   User? @relation("CurrentHolder", fields: [currentHolderId], references: [id])
 }
 
 model Request {
   id        Int      @id @default(autoincrement())
   userId    Int
   user      User     @relation(fields: [userId], references: [id])
-  items     String   // JSON string or simple text for now to match mock
+  items     String?  // JSON string (Deprecated, use requestItems)
   date      DateTime @default(now())
   status    String   @default("pending") // pending, approved, rejected
   type      String   // withdraw, borrow, return
   assetId   Int?     // For return requests
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  requestItems RequestItem[]
+}
+
+model RequestItem {
+  id        Int           @id @default(autoincrement())
+  requestId Int
+  request   Request       @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  itemId    Int
+  item      InventoryItem @relation(fields: [itemId], references: [id])
+  quantity  Int           @default(1)
+}
+
+model CartItem {
+  id        Int           @id @default(autoincrement())
+  userId    Int
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  itemId    Int
+  item      InventoryItem @relation(fields: [itemId], references: [id])
+  quantity  Int           @default(1)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  @@unique([userId, itemId])
 }
 
 model History {
@@ -76,6 +115,8 @@ model Settings {
   borrowLimit      Int     @default(7)
   checkInterval    Int     @default(7)
   maintenanceAlert Boolean @default(true)
+  allowRegistration Boolean @default(false)
+  footerText       String? @default("IMS Asset Management System")
 }
 
 // ==========================================

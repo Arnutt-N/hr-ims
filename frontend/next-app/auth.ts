@@ -33,7 +33,12 @@ export const { auth, signIn, signOut } = NextAuth({
 
                         const passwordsMatch = await bcrypt.compare(password, user.password);
 
-                        if (passwordsMatch) return user;
+                        if (passwordsMatch) {
+                            return {
+                                ...user,
+                                id: user.id.toString(),
+                            };
+                        }
                     } catch (e) {
                         console.error('Error during authorize:', e);
                         return null;
@@ -45,4 +50,20 @@ export const { auth, signIn, signOut } = NextAuth({
         }),
     ],
     secret: process.env.AUTH_SECRET || "fallback-secret-key-for-dev",
+    callbacks: {
+        async jwt({ token, user }) {
+            if (user) {
+                token.id = user.id?.toString() || "";
+                token.role = user.role || "user";
+            }
+            return token;
+        },
+        async session({ session, token }) {
+            if (token && session.user) {
+                session.user.id = token.id;
+                session.user.role = token.role;
+            }
+            return session;
+        },
+    },
 });
