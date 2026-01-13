@@ -29,6 +29,39 @@ export default function ReportsPage() {
         window.print();
     };
 
+    const handleExportCSV = () => {
+        if (!stats) return;
+
+        // Flatten data for CSV
+        // combines status breakdown, top items, etc?
+        // Let's export the "Top Items" list as it's the most granular "usage report"
+        const data = stats.topBorrowed.map((item: any) => ({
+            ItemName: item.item,
+            UsageCount: item._count.id
+        }));
+
+        if (data.length === 0) {
+            alert("No data to export");
+            return;
+        }
+
+        const headers = Object.keys(data[0]);
+        const csvRows = [
+            headers.join(','),
+            ...data.map((row: any) => headers.map(fieldName => JSON.stringify(row[fieldName])).join(','))
+        ];
+        const csvString = csvRows.join('\n');
+        const blob = new Blob([csvString], { type: 'text/csv' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.setAttribute('hidden', '');
+        a.setAttribute('href', url);
+        a.setAttribute('download', 'inventory_usage_report.csv');
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+    };
+
     if (loading) return <div className="p-8 text-center animate-pulse">Loading reports...</div>;
     if (!stats) return <div className="p-8 text-center text-slate-500">No data available</div>;
 
@@ -57,6 +90,9 @@ export default function ReportsPage() {
                 <div className="flex gap-2">
                     <Button variant="outline" size="sm">
                         <Calendar size={16} className="mr-2" /> Last 6 Months
+                    </Button>
+                    <Button size="sm" onClick={handleExportCSV} className="bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-500">
+                        <Download size={16} className="mr-2" /> Export CSV
                     </Button>
                     <Button size="sm" onClick={handleExport} className="bg-indigo-600 hover:bg-indigo-700">
                         <Download size={16} className="mr-2" /> Export PDF

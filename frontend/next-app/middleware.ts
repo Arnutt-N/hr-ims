@@ -6,8 +6,27 @@ export default NextAuth(authConfig).auth((req) => {
     const { nextUrl } = req;
     const user = req.auth?.user as any;
     const userRole = user?.role;
+    const userId = user?.id;
 
-    // Route permissions mapping
+    // Inject user headers for API calls to backend
+    if (nextUrl.pathname.startsWith('/api/') && !nextUrl.pathname.startsWith('/api/auth/')) {
+        if (userId && userRole) {
+            const requestHeaders = new Headers(req.headers);
+            requestHeaders.set('x-user-id', userId.toString());
+            requestHeaders.set('x-user-role', userRole);
+
+            return NextResponse.next({
+                request: {
+                    headers: requestHeaders,
+                },
+            });
+        } else {
+            // No auth user for API call - let backend reject it
+            return NextResponse.next();
+        }
+    }
+
+    // Route permissions mapping (for page-level protection)
     const permissions: Record<string, string[]> = {
         '/settings': ['superadmin'],
         '/users': ['superadmin', 'admin'],

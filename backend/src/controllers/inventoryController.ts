@@ -11,6 +11,7 @@ const itemSchema = z.object({
     status: z.string().optional(),
     image: z.string().optional(),
     stock: z.number().int().min(0).default(1),
+    repairNotes: z.string().optional(),
 });
 
 export const getInventory = async (req: Request, res: Response) => {

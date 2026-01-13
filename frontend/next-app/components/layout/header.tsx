@@ -1,5 +1,6 @@
 import { auth } from '@/auth';
 import { Bell, Search, ChevronDown, User as UserIcon } from 'lucide-react';
+import Notifications from './Notifications';
 import { redirect } from 'next/navigation';
 import { formatThaiDate } from '@/lib/date-utils';
 
@@ -34,10 +35,8 @@ export async function Header() {
                 </div>
 
                 {/* Notifications */}
-                <button className="relative p-2.5 rounded-xl text-slate-400 hover:text-indigo-600 hover:bg-slate-50 transition-all">
-                    <Bell size={20} />
-                    <span className="absolute top-2 right-2.5 w-2 h-2 bg-rose-500 rounded-full ring-2 ring-white"></span>
-                </button>
+                {/* Notifications */}
+                <Notifications />
 
                 {/* User Profile */}
                 <div className="flex items-center gap-3 pl-4 border-l border-slate-200">

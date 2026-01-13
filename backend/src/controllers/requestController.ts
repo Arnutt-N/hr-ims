@@ -33,20 +33,102 @@ export const getRequests = async (req: AuthRequest, res: Response) => {
     }
 };
 
+// Helper to get user's warehouse
+const getUserWarehouse = async (department: string | null) => {
+    if (!department) return null;
+
+    // Simplistic mapping: Department Name -> Warehouse
+    // In real app, you might look up Division -> Warehouse relation
+    // For now, we assume user.department matches Warehouse.name or mapped via Division
+
+    // Default to WH-CENTRAL if not found for now (or handle error)
+    // Ideally: const division = await prisma.division.findFirst({ where: { name: department } });
+    //          const warehouse = await prisma.warehouse.findFirst({ where: { divisionId: division.id } });
+
+    // Temporary logic: specific warehouse for "IT" dept, else CENTRAL
+    // You should enhance this based on your real OrganizationUnit structure
+    if (department.includes('IT') || department.includes('เทคโนโลยี')) {
+        return await prisma.warehouse.findUnique({ where: { code: 'WH-IT' } });
+    }
+
+    return await prisma.warehouse.findUnique({ where: { code: 'WH-CENTRAL' } });
+};
+
 export const createRequest = async (req: AuthRequest, res: Response) => {
     try {
-        const { userId } = req.user;
+        const { userId, department } = req.user; // Ensure 'department' is available in token or fetched user
         const data = requestSchema.parse(req.body);
+        const requestItems = JSON.parse(data.items); // Assuming items is JSON string of { itemId, quantity }
 
-        const request = await prisma.request.create({
-            data: {
-                ...data,
-                userId,
-            },
+        // 1. Identify Warehouse
+        // Determine which warehouse this user withdraws from
+        // If department is available, try to find linked warehouse
+        const warehouse = await getUserWarehouse(department || 'Central');
+
+        if (!warehouse) {
+            return res.status(400).json({ message: 'User warehouse not found' });
+        }
+
+        // 2. Validate & Deduct Stock (Transaction)
+        const result = await prisma.$transaction(async (tx) => {
+            // Create Request
+            const newRequest = await tx.request.create({
+                data: {
+                    ...data,
+                    userId,
+                    status: 'approved', // Auto-approve for now (or pending if workflow required)
+                },
+            });
+
+            // Process Items
+            for (const item of requestItems) {
+                const { id: itemId, quantity } = item;
+
+                // Check StockLevel
+                const stockLevel = await tx.stockLevel.findUnique({
+                    where: {
+                        warehouseId_itemId: {
+                            warehouseId: warehouse.id,
+                            itemId: parseInt(itemId),
+                        },
+                    },
+                });
+
+                if (!stockLevel || stockLevel.quantity < quantity) {
+                    throw new Error(`Insufficient stock for item ${itemId} in ${warehouse.name}`);
+                }
+
+                // Deduct Stock
+                await tx.stockLevel.update({
+                    where: {
+                        warehouseId_itemId: {
+                            warehouseId: warehouse.id,
+                            itemId: parseInt(itemId),
+                        },
+                    },
+                    data: {
+                        quantity: { decrement: quantity },
+                    },
+                });
+
+                // Create RequestItem (if you haven't linked it yet, though schema has it)
+                // Assuming RequestItem model exists and is linked
+                await tx.requestItem.create({
+                    data: {
+                        requestId: newRequest.id,
+                        itemId: parseInt(itemId),
+                        quantity: quantity,
+                    }
+                });
+            }
+
+            return newRequest;
         });
-        res.status(201).json(request);
-    } catch (error) {
-        res.status(400).json({ message: 'Error creating request', error });
+
+        res.status(201).json(result);
+    } catch (error: any) {
+        console.error('Create Request Error:', error);
+        res.status(400).json({ message: error.message || 'Error creating request' });
     }
 };
 

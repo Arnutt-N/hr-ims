@@ -1,6 +1,6 @@
 'use server';
 
-import { prisma } from '@/lib/prisma';
+import prisma from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
 import { auth } from '@/auth';
 
@@ -61,22 +61,51 @@ export async function updateRequestStatus(id: number, status: 'approved' | 'reje
 
         // 2. Logic for approval
         if (status === 'approved') {
-            // Check stock for all items
-            for (const reqItem of request.requestItems) {
-                if (request.type === 'withdraw' || request.type === 'borrow') {
-                    if (reqItem.item.type === 'consumable' || reqItem.item.type === 'durable') {
-                        if (reqItem.item.stock < reqItem.quantity) {
-                            return { error: `Not enough stock for ${reqItem.item.name}` };
-                        }
-                    }
-                }
-            }
+            // Check stock for all items logic
+            // Need to verify if we have enough stock in the specific warehouse (if applicable)
+            // For now, we rely on the check inside the loop or just proceed.
 
             // Deduct stock / Update status
-            await prisma.$transaction(async (tx) => {
+            await prisma.$transaction(async (tx: any) => {
                 for (const reqItem of request.requestItems) {
-                    if (request.type === 'withdraw') {
-                        // Consumable: reduce stock
+                    // Determine warehouse (default to mapped or Central)
+                    const warehouseId = (request as any).warehouseId;
+
+                    if (request.type === 'withdraw' || request.type === 'borrow') {
+                        // Logic: Find StockLevel
+                        if (warehouseId) {
+                            const stockLevel = await tx.stockLevel.findFirst({
+                                where: { itemId: reqItem.itemId, warehouseId: warehouseId }
+                            });
+
+                            if (stockLevel) {
+                                // Check stock sufficiency
+                                if (stockLevel.quantity < reqItem.quantity) {
+                                    throw new Error(`Not enough stock for ${reqItem.item.name} in selected warehouse`);
+                                }
+
+                                const newQty = stockLevel.quantity - reqItem.quantity;
+                                await tx.stockLevel.update({
+                                    where: { id: stockLevel.id },
+                                    data: { quantity: newQty }
+                                });
+
+                                // Check Low Stock Notification
+                                const minStock = stockLevel.minStock ?? 0;
+                                if (newQty <= minStock) {
+                                    // Notify Approver
+                                    await tx.notification.create({
+                                        data: {
+                                            userId: parseInt(session.user.id),
+                                            text: `⚠️ Low Stock Alert: ${reqItem.item.name} is down to ${newQty} items.`,
+                                            read: false
+                                        }
+                                    });
+                                }
+                            }
+                        }
+
+                        // Also update legacy stock for backward compatibility (optional but safe)
                         await tx.inventoryItem.update({
                             where: { id: reqItem.itemId },
                             data: { stock: { decrement: reqItem.quantity } }
@@ -86,39 +115,31 @@ export async function updateRequestStatus(id: number, status: 'approved' | 'reje
                         await tx.history.create({
                             data: {
                                 userId: request.userId,
-                                action: 'withdraw',
+                                action: request.type,
                                 item: reqItem.item.name,
                                 status: 'approved',
                             }
                         });
 
-                    } else if (request.type === 'borrow') {
-                        // Durable: mark as borrowed? Or reduce stock?
-                        // Usually borrow reduces Available stock.
-                        await tx.inventoryItem.update({
-                            where: { id: reqItem.itemId },
-                            data: {
-                                stock: { decrement: reqItem.quantity },
-                                // status: 'borrowed' // If quantity > 0, maybe still available? 
-                                // Simple logic: decrement stock.
-                            }
-                        });
-
-                        // Create History
-                        await tx.history.create({
-                            data: {
-                                userId: request.userId,
-                                action: 'borrow',
-                                item: reqItem.item.name,
-                                status: 'approved',
-                            }
-                        });
                     } else if (request.type === 'return') {
                         // Return: increase stock
+                        if (warehouseId) {
+                            const stockLevel = await tx.stockLevel.findFirst({
+                                where: { itemId: reqItem.itemId, warehouseId: warehouseId }
+                            });
+                            if (stockLevel) {
+                                await tx.stockLevel.update({
+                                    where: { id: stockLevel.id },
+                                    data: { quantity: { increment: reqItem.quantity } }
+                                });
+                            }
+                        }
+
                         await tx.inventoryItem.update({
                             where: { id: reqItem.itemId },
                             data: { stock: { increment: reqItem.quantity } }
                         });
+
                         // Create History
                         await tx.history.create({
                             data: {

@@ -16,6 +16,10 @@ import Link from 'next/link';
 import { InventoryCard } from '@/components/ui/inventory-card';
 import { cn } from '@/lib/utils'; // You might need to make sure this exists or use standard class string
 
+import InventoryRemoteControls from '@/components/inventory/InventoryRemoteControls';
+
+import ImportItemsDialog from './ImportDialog';
+
 export default async function InventoryPage({
     searchParams,
 }: {
@@ -24,15 +28,17 @@ export default async function InventoryPage({
         page?: string;
         type?: string;
         view?: string;
+        warehouse?: string;
     };
 }) {
     const query = searchParams?.query || '';
     const currentPage = Number(searchParams?.page) || 1;
     const type = searchParams?.type || 'all';
     const view = searchParams?.view || 'grid';
+    const warehouseId = searchParams?.warehouse ? Number(searchParams.warehouse) : undefined;
 
     const totalPages = await fetchInventoryPages(query, type);
-    const items = await fetchInventoryItems(query, currentPage, type);
+    const items = await fetchInventoryItems(query, currentPage, type, warehouseId);
 
     const isGrid = view === 'grid';
 
@@ -41,9 +47,10 @@ export default async function InventoryPage({
             <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
                 <div>
                     <h2 className="text-3xl font-bold tracking-tight text-slate-800">Inventory</h2>
-                    <p className="text-slate-500">Manage your assets and stock items</p>
+                    <p className="text-slate-500">Manage your assets and stock items ({warehouseId ? 'Filtered' : 'All Warehouses'})</p>
                 </div>
                 <div className="flex items-center gap-2">
+                    <ImportItemsDialog />
                     <Link href="/inventory/create">
                         <Button className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-200">
                             <PlusCircle className="mr-2 h-4 w-4" /> Add Item
@@ -54,8 +61,8 @@ export default async function InventoryPage({
 
             {/* Controls */}
             <div className="flex flex-col md:flex-row gap-4 bg-white p-4 rounded-2xl border border-slate-100 shadow-sm items-center justify-between">
-                <div className="w-full md:w-1/3">
-                    <Search placeholder="Search items..." />
+                <div className="w-full md:w-2/3">
+                    <InventoryRemoteControls />
                 </div>
 
                 <div className="flex items-center gap-4 w-full md:w-auto overflow-x-auto pb-2 md:pb-0">

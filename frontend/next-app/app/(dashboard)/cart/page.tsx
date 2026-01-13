@@ -2,9 +2,10 @@
 
 import { useState, useEffect } from 'react';
 import { getCart, removeFromCart, submitCart } from '@/lib/actions/cart';
+import { getMyMapping } from '@/lib/actions/departments';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
-import { Trash2, ClipboardList, History, ArrowRight } from 'lucide-react';
+import { Trash2, ClipboardList, History, ArrowRight, MapPin } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 // Mock types for now, ideally imported from Prisma client
@@ -25,10 +26,19 @@ export default function CartPage() {
     const [cart, setCart] = useState<CartItem[]>([]);
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
+    const [targetWarehouse, setTargetWarehouse] = useState<{ name: string } | null>(null);
 
     useEffect(() => {
         fetchCart();
+        fetchWarehouse();
     }, []);
+
+    const fetchWarehouse = async () => {
+        const res = await getMyMapping();
+        if (res && res.warehouse) {
+            setTargetWarehouse(res.warehouse);
+        }
+    };
 
     const fetchCart = async () => {
         const res = await getCart();
@@ -72,8 +82,16 @@ export default function CartPage() {
                     <h1 className="text-3xl font-bold text-slate-900">Your Cart</h1>
                     <p className="text-slate-500">Review items before requesting.</p>
                 </div>
-                <div className="bg-slate-100 px-4 py-2 rounded-full font-bold text-slate-600">
-                    {cart.length} Items
+                <div className="flex bg-slate-100 p-1 rounded-lg">
+                    {targetWarehouse && (
+                        <div className="flex items-center gap-2 px-3 py-1.5 bg-white rounded-md shadow-sm text-sm text-indigo-600 font-medium mr-2">
+                            <MapPin size={14} />
+                            To: {targetWarehouse.name}
+                        </div>
+                    )}
+                    <div className="px-3 py-1.5 font-bold text-slate-600 border-l border-slate-200 pl-4">
+                        {cart.length} Items
+                    </div>
                 </div>
             </div>
 

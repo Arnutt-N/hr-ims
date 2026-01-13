@@ -22,6 +22,7 @@ model User {
   requests  Request[]
   history   History[]
   notifications Notification[]
+  stockTransactions StockTransaction[]
 }
 
 model InventoryItem {
@@ -32,9 +33,12 @@ model InventoryItem {
   serial    String?   @unique
   status    String    @default("available") // available, borrowed, maintenance
   image     String?
-  stock     Int       @default(1)
+  stock     Int       @default(1) // DEPRECATED: Use stockLevels instead
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
+  stockLevels  StockLevel[] // NEW: Stock per warehouse
+  stockTransfers StockTransfer[] // NEW: Transfer history
+  stockTransactions StockTransaction[]
 }
 
 model Request {
@@ -48,6 +52,8 @@ model Request {
   assetId   Int?     // For return requests
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  warehouseId Int?
+  warehouse   Warehouse? @relation(fields: [warehouseId], references: [id])
 }
 
 model History {
@@ -68,6 +74,71 @@ model Notification {
   text      String
   read      Boolean  @default(false)
   createdAt DateTime @default(now())
+}
+
+// ==========================================
+// Warehouse Management (จัดการคลังพัสดุ)
+// ==========================================
+
+// คลังสินค้า (แต่ละกอง/หน่วยงานมี 1 คลัง)
+model Warehouse {
+  id          Int       @id @default(autoincrement())
+  name        String    // ชื่อคลัง เช่น "คลังกลาง - กองบริหารการคลัง"
+  code        String    @unique // รหัสคลัง เช่น "WH-CENTRAL", "WH-IT"
+  type        String    // "central" | "division"
+  divisionId  Int?      // Link to Division (if type = division)
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  stockLevels StockLevel[]
+  transfersOut StockTransfer[] @relation("TransferFrom")
+  transfersIn  StockTransfer[] @relation("TransferTo")
+  stockTransactions StockTransaction[]
+  departmentMappings DepartmentMapping[]
+  requests    Request[] // Requests targeting this warehouse
+}
+
+model DepartmentMapping {
+  id          Int       @id @default(autoincrement())
+  department  String    @unique // e.g., "IT", "Engineering"
+  warehouseId Int
+  warehouse   Warehouse @relation(fields: [warehouseId], references: [id])
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+// ระดับกสต็อก (จำนวนคงเหลือแยกตามคลัง)
+model StockLevel {
+  id          Int           @id @default(autoincrement())
+  warehouseId Int
+  warehouse   Warehouse     @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+  itemId      Int
+  item        InventoryItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  quantity    Int           @default(0)
+  minStock    Int?          // แจ้งเตือนเมื่อต่ำกว่า
+  maxStock    Int?          // จำนวนสูงสุด
+  updatedAt   DateTime      @updatedAt
+
+  @@unique([warehouseId, itemId])
+}
+
+// การโอนพัสดุระหว่างคลัง
+model StockTransfer {
+  id              Int       @id @default(autoincrement())
+  fromWarehouseId Int
+  fromWarehouse   Warehouse @relation("TransferFrom", fields: [fromWarehouseId], references: [id])
+  toWarehouseId   Int
+  toWarehouse     Warehouse @relation("TransferTo", fields: [toWarehouseId], references: [id])
+  itemId          Int
+  item            InventoryItem @relation(fields: [itemId], references: [id])
+  quantity        Int
+  status          String    @default("pending") // pending, approved, completed, rejected
+  requestedBy     Int       // User ID ผู้ขอโอน
+  approvedBy      Int?      // User ID ผู้อนุมัติ
+  note            String?
+  createdAt       DateTime  @default(now())
+  completedAt     DateTime?
+  updatedAt       DateTime  @updatedAt
 }
 
 model Settings {
@@ -276,4 +347,23 @@ model Personnel {
   // Timestamps
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
+}
+
+// ==========================================
+// Stock Transaction (ประวัติการเคลื่อนไหวสต็อก)
+// ==========================================
+
+model StockTransaction {
+  id          Int       @id @default(autoincrement())
+  warehouseId Int
+  warehouse   Warehouse @relation(fields: [warehouseId], references: [id])
+  itemId      Int
+  item        InventoryItem @relation(fields: [itemId], references: [id])
+  quantity    Int       // จำนวนที่เปลี่ยนแปลง (+ เพิ่ม, - ลด)
+  type        String    // "inbound", "outbound", "transfer_in", "transfer_out", "adjustment"
+  referenceId String?   // อ้างอิงเอกสาร เช่น Ref No., Request ID, Transfer ID
+  note        String?
+  userId      Int
+  user        User      @relation(fields: [userId], references: [id])
+  createdAt   DateTime  @default(now())
 }

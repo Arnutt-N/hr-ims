@@ -9,13 +9,22 @@ export async function getDashboardStats() {
 
     try {
         const totalItems = await prisma.inventoryItem.count();
-        const lowStockItems = await prisma.inventoryItem.count({
+
+        // Fetch stock levels with minStock defined
+        const stockLevels = await prisma.stockLevel.findMany({
             where: {
-                stock: {
-                    lte: 5 // Assuming 5 is low stock threshold
-                }
+                minStock: { not: null }
+            },
+            include: {
+                item: true,
+                warehouse: true
             }
         });
+
+        // Filter for low stock
+        const lowStockList = stockLevels.filter(sl => sl.quantity <= (sl.minStock || 0));
+        const lowStockCount = lowStockList.length;
+
         const pendingRequests = await prisma.request.count({
             where: {
                 status: 'pending'
@@ -41,7 +50,8 @@ export async function getDashboardStats() {
 
         return {
             totalItems,
-            lowStockItems,
+            lowStockItems: lowStockCount,
+            lowStockList: lowStockList.slice(0, 5), // Top 5 for widget
             pendingRequests,
             recentActivity
         };

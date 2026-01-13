@@ -5,20 +5,63 @@ import { getItemBySN, getRecentScans } from '@/lib/actions/scanner';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { ScanLine, QrCode, Package, AlertCircle, Wrench, ShoppingCart, Clock } from 'lucide-react';
+import { ScanLine, QrCode, Package, AlertCircle, Wrench, ShoppingCart, Clock, Camera, X } from 'lucide-react';
 import { formatThaiDateShort } from '@/lib/date-utils';
+import { Html5QrcodeScanner } from 'html5-qrcode';
 
 export default function ScannerPage() {
     const [code, setCode] = useState('');
     const [scanning, setScanning] = useState(false);
     const [scannedItem, setScannedItem] = useState<any>(null);
     const [recentScans, setRecentScans] = useState<any[]>([]);
+    const [useCamera, setUseCamera] = useState(false);
     const inputRef = useRef<HTMLInputElement>(null);
+    const scannerRef = useRef<Html5QrcodeScanner | null>(null);
 
     useEffect(() => {
-        if (inputRef.current) inputRef.current.focus();
+        if (!useCamera && inputRef.current) inputRef.current.focus();
         loadRecentScans();
-    }, []);
+
+        return () => {
+            if (scannerRef.current) {
+                scannerRef.current.clear().catch(err => console.error("Failed to clear scanner", err));
+            }
+        };
+    }, [useCamera]);
+
+    useEffect(() => {
+        if (useCamera) {
+            // Give time for DOM to render
+            setTimeout(() => {
+                if (!scannerRef.current) {
+                    const scanner = new Html5QrcodeScanner(
+                        "reader",
+                        { fps: 10, qrbox: { width: 250, height: 250 } },
+                        /* verbose= */ false
+                    );
+                    scannerRef.current = scanner;
+                    scanner.render(onScanSuccess, onScanFailure);
+                }
+            }, 100);
+        } else {
+            if (scannerRef.current) {
+                scannerRef.current.clear().catch(err => console.error("Failed to clear scanner", err));
+                scannerRef.current = null;
+            }
+        }
+    }, [useCamera]);
+
+    const onScanSuccess = (decodedText: string, decodedResult: any) => {
+        // Handle success
+        setCode(decodedText);
+        setUseCamera(false); // Close camera on success
+        processScan(decodedText);
+    };
+
+    const onScanFailure = (error: any) => {
+        // handle scan failure, usually better to ignore and keep scanning.
+        // console.warn(`Code scan error = ${error}`);
+    };
 
     const loadRecentScans = async () => {
         const res = await getRecentScans();
@@ -35,12 +78,11 @@ export default function ScannerPage() {
         });
     };
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!code.trim()) return;
+    const processScan = async (scanCode: string) => {
+        if (!scanCode.trim()) return;
 
         setScanning(true);
-        const res = await getItemBySN(code.trim());
+        const res = await getItemBySN(scanCode.trim());
         setScanning(false);
 
         if (res.success && res.item) {
@@ -53,8 +95,13 @@ export default function ScannerPage() {
             toast.error(res.error || 'Item not found');
             setScannedItem(null);
         }
+    };
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        processScan(code);
         setCode('');
-        inputRef.current?.focus();
+        if (inputRef.current) inputRef.current.focus();
     };
 
     const handleQuickBorrow = () => {
@@ -75,11 +122,24 @@ export default function ScannerPage() {
                     {/* Scanning Animation */}
                     <div className={`absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-indigo-500 to-transparent ${scanning ? 'animate-[scan_2s_ease-in-out_infinite]' : 'opacity-0'}`}></div>
 
-                    <div className="w-24 h-24 bg-indigo-50 rounded-full flex items-center justify-center mx-auto mb-8 text-indigo-600 ring-8 ring-indigo-50/50">
-                        <ScanLine size={48} />
-                    </div>
+                    {useCamera ? (
+                        <div className="mb-8 w-full max-w-[300px] mx-auto overflow-hidden rounded-xl border-2 border-slate-200">
+                            <div id="reader"></div>
+                            <Button variant="ghost" size="sm" onClick={() => setUseCamera(false)} className="mt-2 w-full text-red-500 hover:text-red-600 hover:bg-red-50">
+                                <X size={16} className="mr-2" /> Close Camera
+                            </Button>
+                        </div>
+                    ) : (
+                        <div className="w-24 h-24 bg-indigo-50 rounded-full flex items-center justify-center mx-auto mb-8 text-indigo-600 ring-8 ring-indigo-50/50 relative cursor-pointer hover:bg-indigo-100 transition-colors" onClick={() => setUseCamera(true)}>
+                            <ScanLine size={48} />
+                            <div className="absolute -bottom-2 -right-2 bg-indigo-600 text-white p-2 rounded-full shadow-md">
+                                <Camera size={16} />
+                            </div>
+                        </div>
+                    )}
+
                     <h2 className="text-3xl font-bold text-slate-800 mb-2">Device Scanner</h2>
-                    <p className="text-slate-500 mb-10">Use your handheld scanner or manually enter the SN.</p>
+                    <p className="text-slate-500 mb-10">Use your handheld scanner, <button onClick={() => setUseCamera(true)} className="text-indigo-600 font-bold hover:underline">enable camera</button>, or manually enter SN.</p>
 
                     <form onSubmit={handleSubmit} className="space-y-4">
                         <div className="relative">
@@ -87,10 +147,10 @@ export default function ScannerPage() {
                                 ref={inputRef}
                                 type="text"
                                 className="w-full pl-5 pr-12 py-4 text-xl border-2 border-slate-200 rounded-2xl focus:outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 transition-all font-mono text-center text-slate-700 placeholder-slate-300"
-                                placeholder="Waiting for input..."
+                                placeholder={useCamera ? "Camera active..." : "Waiting for input..."}
                                 value={code}
                                 onChange={(e) => setCode(e.target.value)}
-                                disabled={scanning}
+                                disabled={scanning || useCamera}
                             />
                             <QrCode className="absolute right-5 top-1/2 transform -translate-y-1/2 text-slate-400" size={24} />
                         </div>
@@ -104,8 +164,8 @@ export default function ScannerPage() {
                     </form>
 
                     <div className="mt-10 pt-6 border-t border-slate-100 text-xs text-slate-400 flex justify-between">
-                        <span>Status: <span className="text-green-500 font-bold">Ready</span></span>
-                        <span>USB HID Mode</span>
+                        <span>Status: <span className={scanning ? "text-amber-500 font-bold" : "text-green-500 font-bold"}>{scanning ? 'Processing...' : 'Ready'}</span></span>
+                        <span>{useCamera ? 'Camera Mode' : 'USB HID Mode'}</span>
                     </div>
                 </div>
 

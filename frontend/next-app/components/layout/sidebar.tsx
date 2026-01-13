@@ -23,7 +23,8 @@ import {
     Wrench,
     BarChart3,
     ScanLine,
-    QrCode
+    QrCode,
+    MapPin
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -38,7 +39,7 @@ interface SidebarItem {
     hasSubMenu?: boolean;
     submenu?: { href: string; label: string; icon: any }[];
     adminOnly?: boolean;
-    allowedRoles?: Role[];
+    allowedRoles?: any[]; // Loose type to avoid import issues
 }
 
 const sidebarItems: SidebarItem[] = [
@@ -62,6 +63,7 @@ const sidebarItems: SidebarItem[] = [
     { href: '/reports', icon: BarChart3, label: 'Reports', allowedRoles: ['superadmin', 'admin', 'auditor'] },
     { href: '/scanner', icon: ScanLine, label: 'Scanner', allowedRoles: ['superadmin', 'admin', 'technician'] },
     { href: '/tags', icon: QrCode, label: 'Tags', allowedRoles: ['superadmin', 'admin'] },
+    { href: '/settings/departments', icon: MapPin, label: 'Dept Mapping', allowedRoles: ['superadmin', 'admin'] },
     { href: '/users', icon: Users, label: 'Users', allowedRoles: ['superadmin', 'admin'] },
     { href: '/settings', icon: Settings, label: 'Settings', allowedRoles: ['superadmin'] },
 ];

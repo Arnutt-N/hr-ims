@@ -1,6 +1,6 @@
 'use server';
 
-import { prisma } from '@/lib/prisma';
+import prisma from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
 import { auth } from '@/auth';
 
@@ -101,14 +101,20 @@ export async function submitCart() {
 
         if (!user || user.cartItems.length === 0) return { error: 'Cart is empty' };
 
-        // Group by type (borrow vs withdraw) or create separate requests?
         // Logic: Consumable -> Withdraw, Durable -> Borrow.
-        // We can create one request per type if mixed, or just mixed?
-        // React app separated them in UI.
-        // Let's iterate and group.
+        // Auto-select warehouse based on user's department
+        let warehouseId = null;
+        if (user.department) {
+            const mapping = await prisma.departmentMapping.findUnique({
+                where: { department: user.department }
+            });
+            if (mapping) {
+                warehouseId = mapping.warehouseId;
+            }
+        }
 
-        const withdrawItems = user.cartItems.filter(i => i.item.type === 'consumable');
-        const borrowItems = user.cartItems.filter(i => i.item.type === 'durable');
+        const withdrawItems = user.cartItems.filter((i: any) => i.item.type === 'consumable');
+        const borrowItems = user.cartItems.filter((i: any) => i.item.type === 'durable');
 
         // Create Withdraw Request
         if (withdrawItems.length > 0) {
@@ -117,8 +123,9 @@ export async function submitCart() {
                     userId: user.id,
                     type: 'withdraw',
                     status: 'pending',
+                    warehouseId: warehouseId, // Assign to mapped warehouse
                     requestItems: {
-                        create: withdrawItems.map(i => ({
+                        create: withdrawItems.map((i: any) => ({
                             itemId: i.itemId,
                             quantity: i.quantity
                         }))
@@ -134,8 +141,9 @@ export async function submitCart() {
                     userId: user.id,
                     type: 'borrow',
                     status: 'pending',
+                    warehouseId: warehouseId, // Assign to mapped warehouse
                     requestItems: {
-                        create: borrowItems.map(i => ({
+                        create: borrowItems.map((i: any) => ({
                             itemId: i.itemId,
                             quantity: i.quantity
                         }))
