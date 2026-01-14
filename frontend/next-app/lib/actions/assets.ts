@@ -1,6 +1,6 @@
 'use server';
 
-import { prisma } from '@/lib/prisma';
+import prisma from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
 import { auth } from '@/auth';
 
@@ -22,7 +22,7 @@ export async function getMyAssets() {
         // Enrich with borrow date from History
         const assetsWithHistory = await Promise.all(user.heldItems.map(async (item) => {
             const lastBorrow = await prisma.history.findFirst({
-                where: { itemId: item.id.toString(), action: 'borrow' }, // History stores item as String currently... legacy issue
+                where: { item: item.name, action: 'borrow' }, // History stores item name as String
                 // Wait, History Model: item String. Not relation.
                 // We previously stored item NAME in History.
                 // This makes joining hard.

@@ -123,7 +123,7 @@ export async function submitCart() {
                     userId: user.id,
                     type: 'withdraw',
                     status: 'pending',
-                    warehouseId: warehouseId, // Assign to mapped warehouse
+                    warehouseId: warehouseId,
                     requestItems: {
                         create: withdrawItems.map((i: any) => ({
                             itemId: i.itemId,
@@ -141,7 +141,7 @@ export async function submitCart() {
                     userId: user.id,
                     type: 'borrow',
                     status: 'pending',
-                    warehouseId: warehouseId, // Assign to mapped warehouse
+                    warehouseId: warehouseId,
                     requestItems: {
                         create: borrowItems.map((i: any) => ({
                             itemId: i.itemId,

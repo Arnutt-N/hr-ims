@@ -29,7 +29,7 @@ import {
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { logout } from '@/lib/actions/auth';
-import { Role } from '@prisma/client';
+import { Role } from '@/lib/types/user-types';
 
 interface SidebarItem {
     href: string;

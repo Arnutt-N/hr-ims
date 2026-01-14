@@ -115,22 +115,22 @@ export default function ScannerPage() {
     };
 
     return (
-        <div className="h-full flex gap-6 animate-fade-in-up">
+        <div className="h-full flex flex-col lg:flex-row gap-6 animate-fade-in-up">
             {/* Main Scanner */}
             <div className="flex-1 flex flex-col items-center justify-center">
-                <div className="bg-white p-10 rounded-3xl shadow-xl shadow-slate-200/50 border border-slate-100 text-center max-w-lg w-full relative overflow-hidden">
+                <div className="bg-white p-6 md:p-10 rounded-3xl shadow-xl shadow-slate-200/50 border border-slate-100 text-center max-w-lg w-full relative overflow-hidden">
                     {/* Scanning Animation */}
                     <div className={`absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-indigo-500 to-transparent ${scanning ? 'animate-[scan_2s_ease-in-out_infinite]' : 'opacity-0'}`}></div>
 
                     {useCamera ? (
-                        <div className="mb-8 w-full max-w-[300px] mx-auto overflow-hidden rounded-xl border-2 border-slate-200">
+                        <div className="mb-8 w-full max-w-full md:max-w-[300px] mx-auto overflow-hidden rounded-xl border-2 border-slate-200">
                             <div id="reader"></div>
-                            <Button variant="ghost" size="sm" onClick={() => setUseCamera(false)} className="mt-2 w-full text-red-500 hover:text-red-600 hover:bg-red-50">
+                            <Button variant="ghost" size="sm" onClick={() => setUseCamera(false)} className="mt-2 w-full text-red-500 hover:text-red-600 hover:bg-red-50 min-h-[48px]">
                                 <X size={16} className="mr-2" /> Close Camera
                             </Button>
                         </div>
                     ) : (
-                        <div className="w-24 h-24 bg-indigo-50 rounded-full flex items-center justify-center mx-auto mb-8 text-indigo-600 ring-8 ring-indigo-50/50 relative cursor-pointer hover:bg-indigo-100 transition-colors" onClick={() => setUseCamera(true)}>
+                        <div className="w-24 h-24 md:w-24 md:h-24 bg-indigo-50 rounded-full flex items-center justify-center mx-auto mb-8 text-indigo-600 ring-8 ring-indigo-50/50 relative cursor-pointer hover:bg-indigo-100 transition-colors active:scale-95" onClick={() => setUseCamera(true)}>
                             <ScanLine size={48} />
                             <div className="absolute -bottom-2 -right-2 bg-indigo-600 text-white p-2 rounded-full shadow-md">
                                 <Camera size={16} />
@@ -138,15 +138,15 @@ export default function ScannerPage() {
                         </div>
                     )}
 
-                    <h2 className="text-3xl font-bold text-slate-800 mb-2">Device Scanner</h2>
-                    <p className="text-slate-500 mb-10">Use your handheld scanner, <button onClick={() => setUseCamera(true)} className="text-indigo-600 font-bold hover:underline">enable camera</button>, or manually enter SN.</p>
+                    <h2 className="text-2xl md:text-3xl font-bold text-slate-800 mb-2">Device Scanner</h2>
+                    <p className="text-sm md:text-base text-slate-500 mb-6 md:mb-10">Use your handheld scanner, <button onClick={() => setUseCamera(true)} className="text-indigo-600 font-bold hover:underline">enable camera</button>, or manually enter SN.</p>
 
                     <form onSubmit={handleSubmit} className="space-y-4">
                         <div className="relative">
                             <input
                                 ref={inputRef}
                                 type="text"
-                                className="w-full pl-5 pr-12 py-4 text-xl border-2 border-slate-200 rounded-2xl focus:outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 transition-all font-mono text-center text-slate-700 placeholder-slate-300"
+                                className="w-full pl-5 pr-12 py-4 md:py-4 text-lg md:text-xl border-2 border-slate-200 rounded-2xl focus:outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 transition-all font-mono text-center text-slate-700 placeholder-slate-300 min-h-[48px]"
                                 placeholder={useCamera ? "Camera active..." : "Waiting for input..."}
                                 value={code}
                                 onChange={(e) => setCode(e.target.value)}
@@ -157,29 +157,29 @@ export default function ScannerPage() {
                         <Button
                             type="submit"
                             disabled={scanning || !code.trim()}
-                            className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-2xl shadow-lg shadow-indigo-600/30 text-lg"
+                            className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-2xl shadow-lg shadow-indigo-600/30 text-base md:text-lg min-h-[48px]"
                         >
                             {scanning ? 'Processing...' : 'Process Scan'}
                         </Button>
                     </form>
 
-                    <div className="mt-10 pt-6 border-t border-slate-100 text-xs text-slate-400 flex justify-between">
+                    <div className="mt-6 md:mt-10 pt-6 border-t border-slate-100 text-xs text-slate-400 flex justify-between">
                         <span>Status: <span className={scanning ? "text-amber-500 font-bold" : "text-green-500 font-bold"}>{scanning ? 'Processing...' : 'Ready'}</span></span>
-                        <span>{useCamera ? 'Camera Mode' : 'USB HID Mode'}</span>
+                        <span className="hidden md:inline">{useCamera ? 'Camera Mode' : 'USB HID Mode'}</span>
                     </div>
                 </div>
 
                 {/* Scanned Item Detail */}
                 {scannedItem && (
-                    <div className="mt-6 w-full max-w-lg bg-white rounded-2xl shadow-lg border border-slate-100 p-6 animate-fade-in-up">
+                    <div className="mt-6 w-full max-w-lg bg-white rounded-2xl shadow-lg border border-slate-100 p-4 md:p-6 animate-fade-in-up">
                         <div className="flex items-start gap-4 mb-6">
-                            <div className="w-16 h-16 bg-slate-100 rounded-xl flex items-center justify-center text-3xl">
+                            <div className="w-16 h-16 bg-slate-100 rounded-xl flex items-center justify-center text-3xl flex-shrink-0">
                                 {scannedItem.image || '📦'}
                             </div>
-                            <div className="flex-1">
-                                <h3 className="text-xl font-bold text-slate-800">{scannedItem.name}</h3>
-                                <p className="text-sm text-slate-500 font-mono">{scannedItem.serial}</p>
-                                <div className="flex gap-2 mt-2">
+                            <div className="flex-1 min-w-0">
+                                <h3 className="text-lg md:text-xl font-bold text-slate-800 truncate">{scannedItem.name}</h3>
+                                <p className="text-sm text-slate-500 font-mono truncate">{scannedItem.serial}</p>
+                                <div className="flex gap-2 mt-2 flex-wrap">
                                     <Badge variant={scannedItem.status === 'available' ? 'default' : 'secondary'}>
                                         {scannedItem.status}
                                     </Badge>
@@ -191,17 +191,17 @@ export default function ScannerPage() {
                         {scannedItem.currentHolder && (
                             <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4">
                                 <div className="flex items-center gap-2 text-amber-700 text-sm">
-                                    <AlertCircle size={16} />
+                                    <AlertCircle size={16} className="flex-shrink-0" />
                                     <span className="font-bold">Currently held by:</span>
-                                    <span>{scannedItem.currentHolder.name}</span>
+                                    <span className="truncate">{scannedItem.currentHolder.name}</span>
                                 </div>
                             </div>
                         )}
 
-                        <div className="flex gap-2">
+                        <div className="flex flex-col sm:flex-row gap-3">
                             <Button
                                 onClick={handleQuickBorrow}
-                                className="flex-1 bg-indigo-600 hover:bg-indigo-700"
+                                className="flex-1 bg-indigo-600 hover:bg-indigo-700 min-h-[48px]"
                                 disabled={scannedItem.status !== 'available'}
                             >
                                 <ShoppingCart size={16} className="mr-2" /> Quick Borrow
@@ -209,17 +209,39 @@ export default function ScannerPage() {
                             <Button
                                 onClick={handleReportIssue}
                                 variant="outline"
-                                className="flex-1"
+                                className="flex-1 min-h-[48px]"
                             >
                                 <Wrench size={16} className="mr-2" /> Report Issue
                             </Button>
                         </div>
                     </div>
                 )}
+
+                {/* Recent Scans - Mobile Chips (below scanner) */}
+                {recentScans.length > 0 && (
+                    <div className="mt-6 w-full max-w-lg lg:hidden">
+                        <div className="flex items-center gap-2 mb-3 px-1">
+                            <Clock size={18} className="text-slate-400" />
+                            <h3 className="font-semibold text-slate-700 text-sm">Recent Scans</h3>
+                        </div>
+                        <div className="flex gap-2 overflow-x-auto pb-2 px-1 -mx-1">
+                            {recentScans.map((scan) => (
+                                <button
+                                    key={scan.id}
+                                    onClick={() => { setCode(scan.item.split(' ')[0]); processScan(scan.item.split(' ')[0]); }}
+                                    className="flex-shrink-0 px-4 py-2 bg-slate-50 hover:bg-slate-100 active:bg-slate-200 rounded-full border border-slate-200 transition-colors min-h-[48px] flex items-center gap-2"
+                                >
+                                    <Package size={14} className="text-slate-400" />
+                                    <span className="text-sm font-medium text-slate-700 whitespace-nowrap">{scan.item.split(' ')[0]}</span>
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                )}
             </div>
 
-            {/* Recent Scans Sidebar */}
-            <div className="w-80 bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+            {/* Recent Scans Sidebar - Desktop Only */}
+            <div className="hidden lg:block lg:w-80 bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
                 <div className="flex items-center gap-2 mb-4">
                     <Clock size={20} className="text-slate-400" />
                     <h3 className="font-bold text-slate-800">Recent Scans</h3>

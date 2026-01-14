@@ -10,7 +10,7 @@ import { updateRequestStatus } from '@/lib/actions/requests';
 import { Check, X, Clock, ArrowRightLeft, Package } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-export default function RequestsTable({ initialRequests }) {
+export default function RequestsTable({ initialRequests }: { initialRequests: any[] }) {
     const [requests, setRequests] = useState(initialRequests);
     const [loadingId, setLoadingId] = useState<number | null>(null);
 
@@ -22,7 +22,7 @@ export default function RequestsTable({ initialRequests }) {
         if (result.success) {
             toast.success(`Request ${status} successfully`);
             // Optimistic update
-            setRequests(requests.map(r =>
+            setRequests(requests.map((r: any) =>
                 r.id === id ? { ...r, status: status } : r
             ));
         } else {
@@ -59,99 +59,208 @@ export default function RequestsTable({ initialRequests }) {
     }
 
     return (
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-            <Table>
-                <TableHeader className="bg-slate-50">
-                    <TableRow>
-                        <TableHead>Date</TableHead>
-                        <TableHead>User</TableHead>
-                        <TableHead>Type</TableHead>
-                        <TableHead>Items</TableHead>
-                        <TableHead className="text-center">Status</TableHead>
-                        <TableHead className="text-right">Action</TableHead>
-                    </TableRow>
-                </TableHeader>
-                <TableBody>
-                    <AnimatePresence>
-                        {requests.map((req) => (
-                            <motion.tr
-                                key={req.id}
-                                initial={{ opacity: 0 }}
-                                animate={{ opacity: 1 }}
-                                exit={{ opacity: 0 }}
-                                className="group hover:bg-slate-50/50 transition-colors"
-                                layoutId={`req-${req.id}`}
-                            >
-                                <TableCell className="font-medium text-slate-600">
-                                    {formatThaiDateShort(req.date)}
-                                </TableCell>
-                                <TableCell>
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-white text-xs font-bold ring-2 ring-white shadow-sm">
-                                            {req.user?.name?.[0] || 'U'}
-                                        </div>
-                                        <div>
-                                            <div className="font-semibold text-slate-700 text-sm">{req.user?.name || 'Unknown'}</div>
-                                            <div className="text-xs text-slate-400">{req.user?.department || 'General'}</div>
-                                        </div>
+        <>
+            {/* Mobile Card View */}
+            <div className="md:hidden space-y-4">
+                <AnimatePresence>
+                    {requests.map((req: any) => (
+                        <motion.div
+                            key={req.id}
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -20 }}
+                            className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden"
+                        >
+                            {/* Card Header */}
+                            <div className="p-4 pb-3 border-b border-slate-100 flex items-start justify-between gap-3">
+                                <div className="flex items-center gap-3 flex-1 min-w-0">
+                                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-white text-sm font-bold ring-2 ring-white shadow-sm flex-shrink-0">
+                                        {req.user?.name?.[0] || 'U'}
                                     </div>
-                                </TableCell>
-                                <TableCell>
+                                    <div className="flex-1 min-w-0">
+                                        <div className="font-semibold text-slate-800 text-sm truncate">{req.user?.name || 'Unknown'}</div>
+                                        <div className="text-xs text-slate-500 truncate">{req.user?.department || 'General'}</div>
+                                    </div>
+                                </div>
+                                <Badge variant="outline" className={`${getStatusColor(req.status)} capitalize shadow-none flex-shrink-0`}>
+                                    {req.status === 'pending' && <Clock size={12} className="mr-1" />}
+                                    {req.status}
+                                </Badge>
+                            </div>
+
+                            {/* Card Body */}
+                            <div className="p-4 space-y-3">
+                                <div className="flex items-center justify-between text-sm">
+                                    <span className="text-slate-500">Type</span>
                                     <Badge variant="outline" className={`${getTypeColor(req.type)} capitalize shadow-none`}>
                                         {req.type}
                                     </Badge>
-                                </TableCell>
-                                <TableCell>
-                                    <div className="space-y-1">
-                                        {req.requestItems.map((item, idx) => (
-                                            <div key={idx} className="text-sm text-slate-600 flex items-center gap-2">
-                                                <span className="w-1.5 h-1.5 rounded-full bg-slate-300"></span>
-                                                <span>{item.item.name} <span className="text-slate-400 text-xs">x{item.quantity}</span></span>
+                                </div>
+
+                                <div>
+                                    <div className="text-slate-500 text-sm mb-2">Items</div>
+                                    <div className="space-y-1.5">
+                                        {req.requestItems.map((item: any, idx: number) => (
+                                            <div key={idx} className="text-sm text-slate-700 flex items-start gap-2 bg-slate-50 px-3 py-2 rounded-lg">
+                                                <span className="w-1.5 h-1.5 rounded-full bg-slate-400 mt-1.5 flex-shrink-0"></span>
+                                                <span className="flex-1">
+                                                    {item.item.name}
+                                                    <span className="text-slate-500 ml-1">×{item.quantity}</span>
+                                                </span>
                                             </div>
                                         ))}
                                         {req.items && !req.requestItems.length && (
-                                            <span className="text-sm text-slate-500 italic">{req.items}</span>
+                                            <div className="text-sm text-slate-500 italic bg-slate-50 px-3 py-2 rounded-lg">{req.items}</div>
                                         )}
                                     </div>
-                                </TableCell>
-                                <TableCell className="text-center">
-                                    <Badge variant="outline" className={`${getStatusColor(req.status)} capitalize shadow-none`}>
-                                        {req.status === 'pending' && <Clock size={12} className="mr-1" />}
-                                        {req.status}
-                                    </Badge>
-                                </TableCell>
-                                <TableCell className="text-right">
-                                    {req.status === 'pending' ? (
-                                        <div className="flex justify-end gap-2 opacity-100 transition-opacity">
-                                            <Button
-                                                size="sm"
-                                                className="bg-emerald-500 hover:bg-emerald-600 text-white h-8 px-3"
-                                                onClick={() => handleAction(req.id, 'approved')}
-                                                disabled={loadingId === req.id}
-                                            >
-                                                {loadingId === req.id ? '...' : <Check size={16} />}
-                                            </Button>
-                                            <Button
-                                                size="sm"
-                                                variant="destructive"
-                                                className="h-8 px-3"
-                                                onClick={() => handleAction(req.id, 'rejected')}
-                                                disabled={loadingId === req.id}
-                                            >
-                                                {loadingId === req.id ? '...' : <X size={16} />}
-                                            </Button>
+                                </div>
+
+                                <div className="flex items-center justify-between text-sm pt-2 border-t border-slate-100">
+                                    <span className="text-slate-500">Date</span>
+                                    <span className="font-medium text-slate-700">{formatThaiDateShort(req.date)}</span>
+                                </div>
+                            </div>
+
+                            {/* Card Actions */}
+                            {req.status === 'pending' ? (
+                                <div className="p-4 pt-0 flex gap-2">
+                                    <Button
+                                        className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white min-h-[48px]"
+                                        onClick={() => handleAction(req.id, 'approved')}
+                                        disabled={loadingId === req.id}
+                                    >
+                                        {loadingId === req.id ? (
+                                            'Processing...'
+                                        ) : (
+                                            <>
+                                                <Check size={18} className="mr-2" />
+                                                Approve
+                                            </>
+                                        )}
+                                    </Button>
+                                    <Button
+                                        variant="destructive"
+                                        className="flex-1 min-h-[48px]"
+                                        onClick={() => handleAction(req.id, 'rejected')}
+                                        disabled={loadingId === req.id}
+                                    >
+                                        {loadingId === req.id ? (
+                                            'Processing...'
+                                        ) : (
+                                            <>
+                                                <X size={18} className="mr-2" />
+                                                Reject
+                                            </>
+                                        )}
+                                    </Button>
+                                </div>
+                            ) : (
+                                <div className="px-4 pb-4">
+                                    <div className="text-center text-sm text-slate-400 font-medium italic py-2 bg-slate-50 rounded-lg">
+                                        {req.status === 'approved' ? '✓ Completed' : '✗ Closed'}
+                                    </div>
+                                </div>
+                            )}
+                        </motion.div>
+                    ))}
+                </AnimatePresence>
+            </div>
+
+            {/* Desktop Table View */}
+            <div className="hidden md:block bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                <Table>
+                    <TableHeader className="bg-slate-50">
+                        <TableRow>
+                            <TableHead>Date</TableHead>
+                            <TableHead>User</TableHead>
+                            <TableHead>Type</TableHead>
+                            <TableHead>Items</TableHead>
+                            <TableHead className="text-center">Status</TableHead>
+                            <TableHead className="text-right">Action</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        <AnimatePresence>
+                            {requests.map((req: any) => (
+                                <motion.tr
+                                    key={req.id}
+                                    initial={{ opacity: 0 }}
+                                    animate={{ opacity: 1 }}
+                                    exit={{ opacity: 0 }}
+                                    className="group hover:bg-slate-50/50 transition-colors"
+                                    layoutId={`req-${req.id}`}
+                                >
+                                    <TableCell className="font-medium text-slate-600">
+                                        {formatThaiDateShort(req.date)}
+                                    </TableCell>
+                                    <TableCell>
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-white text-xs font-bold ring-2 ring-white shadow-sm">
+                                                {req.user?.name?.[0] || 'U'}
+                                            </div>
+                                            <div>
+                                                <div className="font-semibold text-slate-700 text-sm">{req.user?.name || 'Unknown'}</div>
+                                                <div className="text-xs text-slate-400">{req.user?.department || 'General'}</div>
+                                            </div>
                                         </div>
-                                    ) : (
-                                        <div className="text-xs text-slate-400 font-medium italic pr-2">
-                                            {req.status === 'approved' ? 'Completed' : 'Closed'}
+                                    </TableCell>
+                                    <TableCell>
+                                        <Badge variant="outline" className={`${getTypeColor(req.type)} capitalize shadow-none`}>
+                                            {req.type}
+                                        </Badge>
+                                    </TableCell>
+                                    <TableCell>
+                                        <div className="space-y-1">
+                                            {req.requestItems.map((item: any, idx: number) => (
+                                                <div key={idx} className="text-sm text-slate-600 flex items-center gap-2">
+                                                    <span className="w-1.5 h-1.5 rounded-full bg-slate-300"></span>
+                                                    <span>{item.item.name} <span className="text-slate-400 text-xs">x{item.quantity}</span></span>
+                                                </div>
+                                            ))}
+                                            {req.items && !req.requestItems.length && (
+                                                <span className="text-sm text-slate-500 italic">{req.items}</span>
+                                            )}
                                         </div>
-                                    )}
-                                </TableCell>
-                            </motion.tr>
-                        ))}
-                    </AnimatePresence>
-                </TableBody>
-            </Table>
-        </div>
+                                    </TableCell>
+                                    <TableCell className="text-center">
+                                        <Badge variant="outline" className={`${getStatusColor(req.status)} capitalize shadow-none`}>
+                                            {req.status === 'pending' && <Clock size={12} className="mr-1" />}
+                                            {req.status}
+                                        </Badge>
+                                    </TableCell>
+                                    <TableCell className="text-right">
+                                        {req.status === 'pending' ? (
+                                            <div className="flex justify-end gap-2 opacity-100 transition-opacity">
+                                                <Button
+                                                    size="sm"
+                                                    className="bg-emerald-500 hover:bg-emerald-600 text-white h-8 px-3"
+                                                    onClick={() => handleAction(req.id, 'approved')}
+                                                    disabled={loadingId === req.id}
+                                                >
+                                                    {loadingId === req.id ? '...' : <Check size={16} />}
+                                                </Button>
+                                                <Button
+                                                    size="sm"
+                                                    variant="destructive"
+                                                    className="h-8 px-3"
+                                                    onClick={() => handleAction(req.id, 'rejected')}
+                                                    disabled={loadingId === req.id}
+                                                >
+                                                    {loadingId === req.id ? '...' : <X size={16} />}
+                                                </Button>
+                                            </div>
+                                        ) : (
+                                            <div className="text-xs text-slate-400 font-medium italic pr-2">
+                                                {req.status === 'approved' ? 'Completed' : 'Closed'}
+                                            </div>
+                                        )}
+                                    </TableCell>
+                                </motion.tr>
+                            ))}
+                        </AnimatePresence>
+                    </TableBody>
+                </Table>
+            </div>
+        </>
     );
 }

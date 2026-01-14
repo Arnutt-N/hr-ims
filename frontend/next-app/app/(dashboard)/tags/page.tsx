@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getInventoryItems } from '@/lib/actions/inventory';
+import { fetchInventoryItems } from '@/lib/actions/inventory';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -44,7 +44,7 @@ export default function TagGeneratorPage() {
 
     const loadItems = async () => {
         setLoading(true);
-        const res = await getInventoryItems('', 1, 'all');
+        const res = await fetchInventoryItems('', 1, 'all');
         setItems(res);
         setFilteredItems(res);
         setLoading(false);

@@ -1,5 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+    turbopack: {
+        root: process.cwd(), // Fix Turbopack workspace root detection
+    },
     async rewrites() {
         return [
             {

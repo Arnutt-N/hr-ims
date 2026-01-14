@@ -39,22 +39,35 @@ model InventoryItem {
   stockLevels  StockLevel[] // NEW: Stock per warehouse
   stockTransfers StockTransfer[] // NEW: Transfer history
   stockTransactions StockTransaction[]
+  requestItems RequestItem[] // NEW: Request items relation
 }
+
 
 model Request {
   id        Int      @id @default(autoincrement())
   userId    Int
   user      User     @relation(fields: [userId], references: [id])
-  items     String   // JSON string or simple text for now to match mock
+  items     String?  // JSON string (Deprecated, use requestItems)
   date      DateTime @default(now())
   status    String   @default("pending") // pending, approved, rejected
   type      String   // withdraw, borrow, return
   assetId   Int?     // For return requests
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  requestItems RequestItem[]
   warehouseId Int?
   warehouse   Warehouse? @relation(fields: [warehouseId], references: [id])
 }
+
+model RequestItem {
+  id        Int           @id @default(autoincrement())
+  requestId Int
+  request   Request       @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  itemId    Int
+  item      InventoryItem @relation(fields: [itemId], references: [id])
+  quantity  Int           @default(1)
+}
+
 
 model History {
   id        Int      @id @default(autoincrement())
@@ -147,6 +160,8 @@ model Settings {
   borrowLimit      Int     @default(7)
   checkInterval    Int     @default(7)
   maintenanceAlert Boolean @default(true)
+  allowRegistration Boolean @default(false)
+  footerText       String? @default("IMS Asset Management System")
 }
 
 // ==========================================

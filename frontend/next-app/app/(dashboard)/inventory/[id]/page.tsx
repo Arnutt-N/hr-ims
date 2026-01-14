@@ -152,8 +152,9 @@ function HistorySkeleton() {
     );
 }
 
-export default async function InventoryDetailPage({ params }: { params: { id: string } }) {
-    const id = parseInt(params.id);
+export default async function InventoryDetailPage({ params }: { params: Promise<{ id: string }> }) {
+    const { id } = await params;
+    const itemId = parseInt(id);
 
     return (
         <div className="container mx-auto py-6 space-y-4">
@@ -167,7 +168,7 @@ export default async function InventoryDetailPage({ params }: { params: { id: st
             </div>
 
             <Suspense fallback={<DetailSkeleton />}>
-                <ItemDetailData id={id} />
+                <ItemDetailData id={itemId} />
             </Suspense>
         </div>
     );

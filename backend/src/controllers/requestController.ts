@@ -2,6 +2,13 @@
 import { Request, Response } from 'express';
 import { z } from 'zod';
 import prisma from '../utils/prisma';
+import {
+    sendEmail,
+    sendTelegramAlert,
+    emailTemplates,
+    telegramTemplates,
+    checkAndAlertLowStock,
+} from '../services/notificationService';
 
 interface AuthRequest extends Request {
     user?: any;
@@ -12,6 +19,21 @@ const requestSchema = z.object({
     type: z.string(), // withdraw, borrow, return
     assetId: z.number().optional(),
 });
+
+// Helper: Format request type for display
+const formatRequestType = (type: string): string => {
+    const typeMap: Record<string, string> = {
+        withdraw: 'เบิกพัสดุ',
+        borrow: 'ยืมพัสดุ',
+        return: 'คืนพัสดุ',
+    };
+    return typeMap[type] || type;
+};
+
+// Helper: Format items list for display
+const formatItemsList = (items: any[]): string => {
+    return items.map((item) => `${item.name || `Item #${item.id}`} x${item.quantity}`).join(', ');
+};
 
 export const getRequests = async (req: AuthRequest, res: Response) => {
     try {
@@ -69,6 +91,12 @@ export const createRequest = async (req: AuthRequest, res: Response) => {
             return res.status(400).json({ message: 'User warehouse not found' });
         }
 
+        // Fetch user details for notification
+        const user = await prisma.user.findUnique({
+            where: { id: userId },
+            select: { name: true, email: true, department: true },
+        });
+
         // 2. Validate & Deduct Stock (Transaction)
         const result = await prisma.$transaction(async (tx) => {
             // Create Request
@@ -76,11 +104,14 @@ export const createRequest = async (req: AuthRequest, res: Response) => {
                 data: {
                     ...data,
                     userId,
-                    status: 'approved', // Auto-approve for now (or pending if workflow required)
+                    warehouseId: warehouse.id,
+                    status: 'pending', // Changed to pending for approval workflow
                 },
             });
 
             // Process Items
+            const processedItems: { id: number; name: string; quantity: number }[] = [];
+
             for (const item of requestItems) {
                 const { id: itemId, quantity } = item;
 
@@ -92,11 +123,18 @@ export const createRequest = async (req: AuthRequest, res: Response) => {
                             itemId: parseInt(itemId),
                         },
                     },
+                    include: { item: true },
                 });
 
                 if (!stockLevel || stockLevel.quantity < quantity) {
                     throw new Error(`Insufficient stock for item ${itemId} in ${warehouse.name}`);
                 }
+
+                processedItems.push({
+                    id: parseInt(itemId),
+                    name: stockLevel.item.name,
+                    quantity,
+                });
 
                 // Deduct Stock
                 await tx.stockLevel.update({
@@ -122,6 +160,50 @@ export const createRequest = async (req: AuthRequest, res: Response) => {
                 });
             }
 
+            // ===== NOTIFICATIONS (after transaction success) =====
+            const itemsDisplay = formatItemsList(processedItems);
+            const dateDisplay = new Date().toLocaleDateString('th-TH', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+            });
+
+            // 1. Send Email to User
+            if (user?.email) {
+                const emailHtml = emailTemplates.requestCreated({
+                    userName: user.name || 'ผู้ใช้งาน',
+                    requestId: newRequest.id,
+                    requestType: formatRequestType(data.type),
+                    items: itemsDisplay,
+                    date: dateDisplay,
+                });
+                sendEmail(
+                    user.email,
+                    `[HR-IMS] คำขอ #${newRequest.id} ถูกสร้างแล้ว`,
+                    emailHtml
+                ).catch((err) => console.error('Email send failed:', err));
+            }
+
+            // 2. Send Telegram to Admin Group
+            sendTelegramAlert(
+                telegramTemplates.newRequest({
+                    requestId: newRequest.id,
+                    userName: user?.name || 'ไม่ระบุ',
+                    department: user?.department || 'ไม่ระบุ',
+                    requestType: formatRequestType(data.type),
+                    items: itemsDisplay,
+                })
+            ).catch((err) => console.error('Telegram send failed:', err));
+
+            // 3. Check Low Stock for each item
+            for (const item of processedItems) {
+                checkAndAlertLowStock(item.id, warehouse.id, tx).catch((err) =>
+                    console.error('Low stock check failed:', err)
+                );
+            }
+
             return newRequest;
         });
 
@@ -135,12 +217,51 @@ export const createRequest = async (req: AuthRequest, res: Response) => {
 export const updateRequestStatus = async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
-        const { status } = req.body;
+        const { status, statusMessage } = req.body;
+
+        // Fetch request with user info before update
+        const existingRequest = await prisma.request.findUnique({
+            where: { id: parseInt(id) },
+            include: {
+                user: { select: { name: true, email: true } },
+                requestItems: { include: { item: true } },
+            },
+        });
+
+        if (!existingRequest) {
+            return res.status(404).json({ message: 'Request not found' });
+        }
 
         const request = await prisma.request.update({
             where: { id: parseInt(id) },
             data: { status },
         });
+
+        // ===== SEND NOTIFICATION ON STATUS CHANGE =====
+        if (existingRequest.user?.email) {
+            const itemsDisplay = existingRequest.requestItems
+                .map((ri) => `${ri.item.name} x${ri.quantity}`)
+                .join(', ');
+
+            const emailHtml = emailTemplates.requestStatusChanged({
+                userName: existingRequest.user.name || 'ผู้ใช้งาน',
+                requestId: request.id,
+                requestType: formatRequestType(request.type),
+                items: itemsDisplay || existingRequest.items || 'ไม่ระบุ',
+                status: status as 'approved' | 'rejected' | 'pending',
+                statusMessage,
+            });
+
+            const statusText =
+                status === 'approved' ? 'อนุมัติแล้ว' : status === 'rejected' ? 'ถูกปฏิเสธ' : 'อัปเดต';
+
+            sendEmail(
+                existingRequest.user.email,
+                `[HR-IMS] คำขอ #${request.id} ${statusText}`,
+                emailHtml
+            ).catch((err) => console.error('Email send failed:', err));
+        }
+
         res.json(request);
     } catch (error) {
         res.status(400).json({ message: 'Error updating request', error });

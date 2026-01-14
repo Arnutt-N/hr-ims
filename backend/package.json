@@ -16,6 +16,8 @@
     "express": "^4.18.2",
     "helmet": "^7.1.0",
     "jsonwebtoken": "^9.0.2",
+    "node-telegram-bot-api": "^0.67.0",
+    "nodemailer": "^7.0.12",
     "zod": "^3.22.4"
   },
   "devDependencies": {
@@ -25,6 +27,8 @@
     "@types/helmet": "^0.0.48",
     "@types/jsonwebtoken": "^9.0.5",
     "@types/node": "^20.19.27",
+    "@types/node-telegram-bot-api": "^0.64.13",
+    "@types/nodemailer": "^7.0.5",
     "nodemon": "^3.0.2",
     "prisma": "^5.7.0",
     "ts-node": "^10.9.2",

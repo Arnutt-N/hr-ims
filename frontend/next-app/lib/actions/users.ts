@@ -5,27 +5,17 @@ import { revalidatePath } from 'next/cache';
 import { auth } from '@/auth';
 import { z } from 'zod';
 import bcrypt from 'bcrypt';
+import { Role } from '@/lib/types/user-types';
 
-// Role Enum fallback if Prisma generation is slow
-export enum Role {
-    superadmin = 'superadmin',
-    admin = 'admin',
-    approver = 'approver',
-    auditor = 'auditor',
-    technician = 'technician',
-    user = 'user'
-}
 
 // Validation Schemas
 const userSchema = z.object({
     email: z.string().email('Invalid email format'),
     password: z.string().min(8, 'Password must be at least 8 characters').optional(),
     name: z.string().min(2, 'Name must be at least 2 characters'),
-    role: z.nativeEnum(Role, { errorMap: () => ({ message: 'Invalid role selected' }) }),
+    role: z.nativeEnum(Role),
     department: z.string().min(2, 'Department is required'),
-    status: z.enum(['active', 'inactive'], {
-        errorMap: () => ({ message: 'Status must be active or inactive' })
-    } as any)
+    status: z.enum(['active', 'inactive'])
 });
 
 const createUserSchema = userSchema.required({ password: true });
