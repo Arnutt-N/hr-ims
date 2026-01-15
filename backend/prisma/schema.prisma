@@ -8,11 +8,12 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// ... existing User model ...
 model User {
   id        Int       @id @default(autoincrement())
   email     String    @unique
   password  String
-  role      String    @default("user") // admin, hr, user
+  role      String    @default("user") // superadmin, admin, approver, auditor, technician, user
   name      String?
   department String?
   status    String    @default("active")
@@ -22,8 +23,13 @@ model User {
   requests  Request[]
   history   History[]
   notifications Notification[]
+  cartItems    CartItem[]
+  heldItems    InventoryItem[] @relation("CurrentHolder")
   stockTransactions StockTransaction[]
 }
+
+// Note: SQLite doesn't support enums, so Role is now String
+// Valid values: "superadmin", "admin", "approver", "auditor", "technician", "user"
 
 model InventoryItem {
   id        Int       @id @default(autoincrement())
@@ -36,12 +42,15 @@ model InventoryItem {
   stock     Int       @default(1) // DEPRECATED: Use stockLevels instead
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
+  cartItems    CartItem[]
+  requestItems RequestItem[]
   stockLevels  StockLevel[] // NEW: Stock per warehouse
   stockTransfers StockTransfer[] // NEW: Transfer history
   stockTransactions StockTransaction[]
-  requestItems RequestItem[] // NEW: Request items relation
+  repairNotes  String?   // Maintenance/repair notes
+  currentHolderId Int?
+  currentHolder   User? @relation("CurrentHolder", fields: [currentHolderId], references: [id])
 }
-
 
 model Request {
   id        Int      @id @default(autoincrement())
@@ -68,6 +77,18 @@ model RequestItem {
   quantity  Int           @default(1)
 }
 
+model CartItem {
+  id        Int           @id @default(autoincrement())
+  userId    Int
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  itemId    Int
+  item      InventoryItem @relation(fields: [itemId], references: [id])
+  quantity  Int           @default(1)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  @@unique([userId, itemId])
+}
 
 model History {
   id        Int      @id @default(autoincrement())
@@ -120,7 +141,7 @@ model DepartmentMapping {
   updatedAt   DateTime  @updatedAt
 }
 
-// ระดับกสต็อก (จำนวนคงเหลือแยกตามคลัง)
+// ระดับสต็อก (จำนวนคงเหลือแยกตามคลัง)
 model StockLevel {
   id          Int           @id @default(autoincrement())
   warehouseId Int

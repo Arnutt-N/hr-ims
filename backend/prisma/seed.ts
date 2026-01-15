@@ -46,12 +46,42 @@ async function main() {
     });
 
     // Settings
-    await prisma.settings.create({
-        data: {
+    // Demo Users
+    const demoPassword = await bcrypt.hash('demo123', 10);
+    const demoUsers = [
+        { email: 'superadmin@demo.com', name: 'Demo Superadmin', role: 'superadmin', department: 'Executive' },
+        { email: 'admin@demo.com', name: 'Demo Admin', role: 'admin', department: 'IT' },
+        { email: 'approver@demo.com', name: 'Demo Approver', role: 'approver', department: 'Management' },
+        { email: 'auditor@demo.com', name: 'Demo Auditor', role: 'auditor', department: 'Finance' },
+        { email: 'tech@demo.com', name: 'Demo Technician', role: 'technician', department: 'Maintenance' },
+        { email: 'user@demo.com', name: 'Demo User', role: 'user', department: 'Sales' },
+    ];
+
+    for (const user of demoUsers) {
+        await prisma.user.upsert({
+            where: { email: user.email },
+            update: { password: demoPassword, role: user.role }, // Update role/password if exists
+            create: {
+                email: user.email,
+                password: demoPassword,
+                name: user.name,
+                role: user.role,
+                department: user.department,
+                avatar: `https://ui-avatars.com/api/?name=${user.name.replace(' ', '+')}&background=random`,
+            },
+        });
+    }
+
+    // Settings (Upsert to prevent duplicates)
+    await prisma.settings.upsert({
+        where: { id: 1 },
+        update: {},
+        create: {
             orgName: 'IMS Corporation',
             borrowLimit: 7,
             checkInterval: 7,
             maintenanceAlert: true,
+            allowRegistration: true, // Enable for demo
         },
     });
 

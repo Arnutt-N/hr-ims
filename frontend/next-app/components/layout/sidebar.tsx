@@ -223,12 +223,12 @@ export function Sidebar({ user }: { user?: any }) {
                 </nav>
 
                 {/* Footer */}
-                <div className="relative z-10 p-4 border-t border-white/10 bg-black/10 backdrop-blur-sm">
+                <div className="relative z-10 p-6 border-t border-white/10 bg-black/10 backdrop-blur-sm mt-2">
                     <button
                         onClick={handleLogout}
-                        className="flex items-center gap-3 w-full p-3 rounded-xl text-slate-400 hover:text-white hover:bg-white/5 transition-all group"
+                        className="flex items-center justify-center gap-4 w-full p-3 rounded-xl text-slate-400 hover:text-white hover:bg-white/5 transition-all group"
                     >
-                        <LogOut size={20} className="group-hover:-translate-x-1 transition-transform" />
+                        <LogOut size={22} className="group-hover:-translate-x-1 transition-transform" />
                         <span className="font-medium text-sm">Sign Out</span>
                     </button>
                 </div>

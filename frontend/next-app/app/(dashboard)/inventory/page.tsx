@@ -23,19 +23,20 @@ import ImportItemsDialog from './ImportDialog';
 export default async function InventoryPage({
     searchParams,
 }: {
-    searchParams?: {
+    searchParams?: Promise<{
         query?: string;
         page?: string;
         type?: string;
         view?: string;
         warehouse?: string;
-    };
+    }>;
 }) {
-    const query = searchParams?.query || '';
-    const currentPage = Number(searchParams?.page) || 1;
-    const type = searchParams?.type || 'all';
-    const view = searchParams?.view || 'grid';
-    const warehouseId = searchParams?.warehouse ? Number(searchParams.warehouse) : undefined;
+    const params = await searchParams;
+    const query = params?.query || '';
+    const currentPage = Number(params?.page) || 1;
+    const type = params?.type || 'all';
+    const view = params?.view || 'grid';
+    const warehouseId = params?.warehouse ? Number(params.warehouse) : undefined;
 
     const totalPages = await fetchInventoryPages(query, type);
     const items = await fetchInventoryItems(query, currentPage, type, warehouseId);
