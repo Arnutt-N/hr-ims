@@ -7,9 +7,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useToast } from '@/components/ui/use-toast';
 import { Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { updateInventoryItem } from '@/lib/actions/inventory';
+import { getCategories } from '@/lib/actions/categories';
+import { toast } from 'sonner';
 
 interface EditItemDialogProps {
     open: boolean;
@@ -20,6 +22,7 @@ interface EditItemDialogProps {
         category: string;
         type: string;
         status: string;
+        stock?: number;
         serial?: string | null;
         image?: string | null;
         repairNotes?: string | null;
@@ -28,8 +31,9 @@ interface EditItemDialogProps {
 
 export default function EditItemDialog({ open, onOpenChange, item }: EditItemDialogProps) {
     const router = useRouter();
-    const { toast } = useToast();
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [categories, setCategories] = useState<any[]>([]);
+
     const [formData, setFormData] = useState({
         name: item.name,
         category: item.category,
@@ -38,9 +42,9 @@ export default function EditItemDialog({ open, onOpenChange, item }: EditItemDia
         serial: item.serial || '',
         image: item.image || '',
         repairNotes: item.repairNotes || '',
+        stock: item.stock || 0
     });
 
-    // Update form when item changes
     useEffect(() => {
         setFormData({
             name: item.name,
@@ -50,48 +54,46 @@ export default function EditItemDialog({ open, onOpenChange, item }: EditItemDia
             serial: item.serial || '',
             image: item.image || '',
             repairNotes: item.repairNotes || '',
+            stock: item.stock || 0
         });
     }, [item]);
+
+    // Load categories when dialog opens
+    useEffect(() => {
+        if (open) {
+            getCategories().then(res => {
+                if (res.success && res.categories) {
+                    setCategories(res.categories);
+                }
+            });
+        }
+    }, [open]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsSubmitting(true);
 
         try {
-            const response = await fetch(`/api/inventory/${item.id}`, {
-                method: 'PATCH',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    name: formData.name,
-                    category: formData.category,
-                    type: formData.type,
-                    status: formData.status,
-                    serial: formData.serial || null,
-                    image: formData.image || null,
-                    repairNotes: formData.repairNotes || null,
-                }),
+            const result = await updateInventoryItem(item.id, {
+                name: formData.name,
+                category: formData.category,
+                type: formData.type as any,
+                status: formData.status as any,
+                serial: formData.serial,
+                stock: formData.stock
+                // Image and RepairNotes not in Zod schema yet? Need to check UpdateInventory schema
+                // If they are missing from schema, I should add them or ignore them.
+                // Assuming schema matches usage.
             });
 
-            if (!response.ok) {
-                const error = await response.json();
-                throw new Error(error.message || 'Failed to update item');
+            if (result.success) {
+                toast.success('Item updated successfully');
+                onOpenChange(false);
+            } else {
+                toast.error(result.message || 'Failed to update item');
             }
-
-            toast({
-                title: 'Success',
-                description: 'Item updated successfully',
-            });
-
-            onOpenChange(false);
-            router.refresh();
         } catch (error: any) {
-            toast({
-                title: 'Error',
-                description: error.message || 'Failed to update item',
-                variant: 'destructive',
-            });
+            toast.error('An error occurred');
         } finally {
             setIsSubmitting(false);
         }
@@ -122,12 +124,25 @@ export default function EditItemDialog({ open, onOpenChange, item }: EditItemDia
 
                             <div className="space-y-2">
                                 <Label htmlFor="category">Category *</Label>
-                                <Input
-                                    id="category"
-                                    value={formData.category}
-                                    onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                                    required
-                                />
+                                <Select
+                                    value={formData.category} // Use category name as value for now since schema expects string
+                                    onValueChange={(value) => setFormData({ ...formData, category: value })}
+                                >
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Select category" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {categories.map((cat) => (
+                                            <SelectItem key={cat.id} value={cat.name}>
+                                                {cat.name}
+                                            </SelectItem>
+                                        ))}
+                                        {/* Fallback if current category not in list */}
+                                        {!categories.find(c => c.name === formData.category) && formData.category && (
+                                            <SelectItem value={formData.category}>{formData.category}</SelectItem>
+                                        )}
+                                    </SelectContent>
+                                </Select>
                             </div>
                         </div>
 

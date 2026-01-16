@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { Save, Settings as SettingsIcon } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { TestEmailButton } from '@/components/settings/test-email-button';
 
 export default function SettingsPage() {
     const [settings, setSettings] = useState<any>(null);
@@ -101,11 +102,14 @@ export default function SettingsPage() {
                     </h2>
                     <p className="text-slate-500 mt-1">Manage application-wide settings and defaults.</p>
                 </div>
-                {hasChanges && (
-                    <Badge variant="secondary" className="animate-pulse">
-                        Unsaved Changes
-                    </Badge>
-                )}
+                <div className="flex items-center gap-3">
+                    <TestEmailButton />
+                    {hasChanges && (
+                        <Badge variant="secondary" className="animate-pulse">
+                            Unsaved Changes
+                        </Badge>
+                    )}
+                </div>
             </div>
 
             <form onSubmit={handleSubmit} className="bg-white rounded-2xl shadow-sm border border-slate-100 p-8 space-y-6">

@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { revokeUserSessions } from '@/lib/actions/users';
+import { toast } from 'sonner';
 import {
     Dialog,
     DialogContent,
@@ -26,9 +28,10 @@ interface UserFormProps {
     onSubmit: (data: any) => Promise<void>;
     initialData?: any;
     mode: 'create' | 'edit';
+    currentUserRole?: string;
 }
 
-export function UserFormDialog({ open, onOpenChange, onSubmit, initialData, mode }: UserFormProps) {
+export function UserFormDialog({ open, onOpenChange, onSubmit, initialData, mode, currentUserRole }: UserFormProps) {
     const [formData, setFormData] = useState({
         email: '',
         password: '',
@@ -208,7 +211,9 @@ export function UserFormDialog({ open, onOpenChange, onSubmit, initialData, mode
                                     <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="superadmin">Super Administrator</SelectItem>
+                                    {currentUserRole === 'superadmin' && (
+                                        <SelectItem value="superadmin">Super Administrator</SelectItem>
+                                    )}
                                     <SelectItem value="admin">Administrator</SelectItem>
                                     <SelectItem value="approver">Approver (ผู้อนุมัติ)</SelectItem>
                                     <SelectItem value="auditor">Auditor (ผู้ตรวจ)</SelectItem>
@@ -233,13 +238,29 @@ export function UserFormDialog({ open, onOpenChange, onSubmit, initialData, mode
                         </div>
                     </div>
 
-                    <DialogFooter>
-                        <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-                            Cancel
-                        </Button>
-                        <Button type="submit" disabled={submitting} className="bg-indigo-600 hover:bg-indigo-700">
-                            {submitting ? 'Saving...' : (mode === 'create' ? 'Create User' : 'Update User')}
-                        </Button>
+                    <DialogFooter className="gap-2 sm:justify-between">
+                        {mode === 'edit' && (
+                            <Button
+                                type="button"
+                                variant="destructive"
+                                onClick={async () => {
+                                    if (!confirm('Are you sure you want to revoke all active sessions for this user? They will be logged out immediately.')) return;
+                                    const res = await revokeUserSessions(initialData.id);
+                                    if (res.success) toast.success('All sessions revoked');
+                                    else toast.error(res.error || 'Failed');
+                                }}
+                            >
+                                Revoke Sessions
+                            </Button>
+                        )}
+                        <div className="flex gap-2">
+                            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+                                Cancel
+                            </Button>
+                            <Button type="submit" disabled={submitting} className="bg-indigo-600 hover:bg-indigo-700">
+                                {submitting ? 'Saving...' : (mode === 'create' ? 'Create User' : 'Update User')}
+                            </Button>
+                        </div>
                     </DialogFooter>
                 </form>
             </DialogContent>

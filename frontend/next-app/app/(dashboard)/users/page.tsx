@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useSession } from 'next-auth/react';
 import { getUsers, createUser, updateUser, deleteUser } from '@/lib/actions/users';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -28,6 +29,7 @@ import {
 } from '@/components/ui/alert-dialog';
 
 export default function UserManagementPage() {
+    const { data: session } = useSession();
     const [users, setUsers] = useState<any[]>([]);
     const [filteredUsers, setFilteredUsers] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
@@ -231,6 +233,7 @@ export default function UserManagementPage() {
                 onSubmit={handleFormSubmit}
                 initialData={selectedUser}
                 mode={dialogMode}
+                currentUserRole={session?.user?.role}
             />
 
             {/* Delete Confirmation */}

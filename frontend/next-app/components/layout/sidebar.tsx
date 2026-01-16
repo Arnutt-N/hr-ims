@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useSearchParams } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import {
     LayoutDashboard,
@@ -24,7 +24,9 @@ import {
     BarChart3,
     ScanLine,
     QrCode,
-    MapPin
+    MapPin,
+    Activity,
+    FolderOpen
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -65,11 +67,15 @@ const sidebarItems: SidebarItem[] = [
     { href: '/tags', icon: QrCode, label: 'Tags', allowedRoles: ['superadmin', 'admin'] },
     { href: '/settings/departments', icon: MapPin, label: 'Dept Mapping', allowedRoles: ['superadmin', 'admin'] },
     { href: '/users', icon: Users, label: 'Users', allowedRoles: ['superadmin', 'admin'] },
+    { href: '/logs', icon: Activity, label: 'Audit Logs', allowedRoles: ['superadmin', 'admin', 'auditor'] },
+    { href: '/settings/categories', icon: FolderOpen, label: 'Categories', allowedRoles: ['superadmin', 'admin'] },
+    { href: '/settings/warehouses', icon: Box, label: 'Warehouses', allowedRoles: ['superadmin', 'admin'] },
     { href: '/settings', icon: Settings, label: 'Settings', allowedRoles: ['superadmin'] },
 ];
 
 export function Sidebar({ user }: { user?: any }) {
     const pathname = usePathname();
+    const searchParams = useSearchParams();
     const [isOpen, setIsOpen] = useState(false); // Mobile state
     const [isInventoryOpen, setIsInventoryOpen] = useState(true);
 
@@ -166,9 +172,22 @@ export function Sidebar({ user }: { user?: any }) {
                                             >
                                                 <div className="pl-4 mt-1 space-y-1">
                                                     {item.submenu?.map((sub, subIdx) => {
-                                                        const isSubActive = pathname === sub.href || (sub.href.includes('?') && pathname === sub.href.split('?')[0] && window.location.search === sub.href.split('?')[1]);
-                                                        // Note: window check in SSR might fail, simpler check below
-                                                        const simpleActive = pathname === sub.href.split('?')[0]; // Simplified for now
+                                                        // Extract query params from href
+                                                        const urlParts = sub.href.split('?');
+                                                        const subPath = urlParts[0];
+                                                        const subQuery = urlParts[1];
+
+                                                        // Check if pathname matches
+                                                        const pathMatches = pathname === subPath;
+
+                                                        // Check if query params match
+                                                        let queryMatches = !subQuery; // true if no query params
+                                                        if (subQuery) {
+                                                            const [key, value] = subQuery.split('=');
+                                                            queryMatches = searchParams.get(key) === value;
+                                                        }
+
+                                                        const isSubActive = pathMatches && queryMatches;
 
                                                         return (
                                                             <Link
@@ -176,7 +195,7 @@ export function Sidebar({ user }: { user?: any }) {
                                                                 href={sub.href}
                                                                 className={cn(
                                                                     "flex items-center gap-3 p-3 rounded-lg transition-all text-sm pl-11 relative",
-                                                                    (pathname === sub.href || (pathname === '/inventory' && sub.label === 'All Items'))
+                                                                    isSubActive
                                                                         ? "text-white font-medium bg-white/5"
                                                                         : "text-slate-500 hover:text-slate-300"
                                                                 )}

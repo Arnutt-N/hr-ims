@@ -19,16 +19,16 @@ export async function getMyAssets() {
 
         if (!user) return { error: 'User not found' };
 
-        // Enrich with borrow date from History
+        // Enrich with borrow date from Request (more accurate than History)
         const assetsWithHistory = await Promise.all(user.heldItems.map(async (item) => {
-            const lastBorrow = await prisma.history.findFirst({
-                where: { item: item.name, action: 'borrow' }, // History stores item name as String
-                // Wait, History Model: item String. Not relation.
-                // We previously stored item NAME in History.
-                // This makes joining hard.
-                // Ideally History should link to InventoryItem.
-                // For now, let's assume we can't get exact date easily without schema change or fuzzy match.
-                // Or we use updatedAt as proxy?
+            // Find active borrow request
+            const activeBorrow = await prisma.request.findFirst({
+                where: {
+                    userId: user.id,
+                    type: 'borrow',
+                    status: 'approved',
+                    requestItems: { some: { itemId: item.id } }
+                },
                 orderBy: { date: 'desc' }
             });
 
@@ -44,9 +44,9 @@ export async function getMyAssets() {
 
             return {
                 ...item,
-                borrowDate: lastBorrow?.date || item.updatedAt,
-                // We need to store lastCheck somewhere. 
-                // Let's assume lastCheck is logged in History as 'check'.
+                borrowDate: activeBorrow?.date || item.updatedAt,
+                dueDate: activeBorrow?.dueDate || null,
+                isOverdue: activeBorrow?.isOverdue || false,
                 lastCheckDate: (await prisma.history.findFirst({
                     where: { userId: user.id, item: item.name, action: 'check' },
                     orderBy: { date: 'desc' }

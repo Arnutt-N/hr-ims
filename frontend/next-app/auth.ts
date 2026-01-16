@@ -51,11 +51,27 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     ],
     secret: process.env.AUTH_SECRET || "fallback-secret-key-for-dev",
     callbacks: {
-        async jwt({ token, user }) {
+        async jwt({ token, user, trigger, session }) {
             if (user) {
                 token.id = user.id?.toString() || "";
                 token.role = user.role || "user";
+                token.tokenVersion = (user as any).tokenVersion || 0;
             }
+
+            // Periodically check token validity (e.g., every request or optimised)
+            // For now, checks whenever JWT is accessed
+            if (token.id) {
+                const dbUser = await prisma.user.findUnique({
+                    where: { id: parseInt(token.id as string) },
+                    select: { tokenVersion: true }
+                });
+
+                // If user doesn't exist or token version mismatch, invalidate
+                if (!dbUser || (dbUser.tokenVersion && dbUser.tokenVersion > (token.tokenVersion as number))) {
+                    return null; // This will trigger sign out in most cases
+                }
+            }
+
             return token;
         },
         async session({ session, token }) {

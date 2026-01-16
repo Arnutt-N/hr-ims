@@ -22,3 +22,8 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+examples/ThaiD-PHP-RP/*
+examples/ThaiD-Python-RP/*
+examples/ThaiD-CSharp-RP/*
+

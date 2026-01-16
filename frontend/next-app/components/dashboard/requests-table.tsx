@@ -7,16 +7,52 @@ import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toast } from 'sonner';
 import { updateRequestStatus } from '@/lib/actions/requests';
-import { Check, X, Clock, ArrowRightLeft, Package } from 'lucide-react';
+import { Check, X, Clock, ArrowRightLeft, Package, Calendar } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 
 export default function RequestsTable({ initialRequests }: { initialRequests: any[] }) {
     const [requests, setRequests] = useState(initialRequests);
     const [loadingId, setLoadingId] = useState<number | null>(null);
 
-    const handleAction = async (id: number, status: 'approved' | 'rejected') => {
+    // Approval Dialog State
+    const [approveDialogOpen, setApproveDialogOpen] = useState(false);
+    const [selectedRequest, setSelectedRequest] = useState<any>(null);
+    const [dueDate, setDueDate] = useState<string>('');
+
+    const handleApproveClick = (req: any) => {
+        if (req.type === 'borrow') {
+            setSelectedRequest(req);
+            // Default due date: 7 days from now
+            const nextWeek = new Date();
+            nextWeek.setDate(nextWeek.getDate() + 7);
+            setDueDate(nextWeek.toISOString().split('T')[0]);
+            setApproveDialogOpen(true);
+        } else {
+            handleAction(req.id, 'approved');
+        }
+    };
+
+    const confirmApprove = () => {
+        if (selectedRequest) {
+            handleAction(selectedRequest.id, 'approved', new Date(dueDate));
+            setApproveDialogOpen(false);
+            setSelectedRequest(null);
+        }
+    };
+
+    const handleAction = async (id: number, status: 'approved' | 'rejected', date?: Date) => {
         setLoadingId(id);
-        const result = await updateRequestStatus(id, status);
+        const result = await updateRequestStatus(id, status, date);
         setLoadingId(null);
 
         if (result.success) {
@@ -60,6 +96,36 @@ export default function RequestsTable({ initialRequests }: { initialRequests: an
 
     return (
         <>
+            {/* Approval Dialog */}
+            <Dialog open={approveDialogOpen} onOpenChange={setApproveDialogOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Approve Borrow Request</DialogTitle>
+                        <DialogDescription>
+                            Set a due date for this borrow request.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="grid gap-4 py-4">
+                        <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="due-date" className="text-right">
+                                Due Date
+                            </Label>
+                            <Input
+                                id="due-date"
+                                type="date"
+                                value={dueDate}
+                                onChange={(e) => setDueDate(e.target.value)}
+                                className="col-span-3"
+                            />
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setApproveDialogOpen(false)}>Cancel</Button>
+                        <Button onClick={confirmApprove}>Confirm Approval</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
             {/* Mobile Card View */}
             <div className="md:hidden space-y-4">
                 <AnimatePresence>
@@ -126,7 +192,7 @@ export default function RequestsTable({ initialRequests }: { initialRequests: an
                                 <div className="p-4 pt-0 flex gap-2">
                                     <Button
                                         className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white min-h-[48px]"
-                                        onClick={() => handleAction(req.id, 'approved')}
+                                        onClick={() => handleApproveClick(req)}
                                         disabled={loadingId === req.id}
                                     >
                                         {loadingId === req.id ? (
@@ -234,7 +300,7 @@ export default function RequestsTable({ initialRequests }: { initialRequests: an
                                                 <Button
                                                     size="sm"
                                                     className="bg-emerald-500 hover:bg-emerald-600 text-white h-8 px-3"
-                                                    onClick={() => handleAction(req.id, 'approved')}
+                                                    onClick={() => handleApproveClick(req)}
                                                     disabled={loadingId === req.id}
                                                 >
                                                     {loadingId === req.id ? '...' : <Check size={16} />}

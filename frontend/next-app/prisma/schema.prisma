@@ -26,6 +26,8 @@ model User {
   cartItems    CartItem[]
   heldItems    InventoryItem[] @relation("CurrentHolder")
   stockTransactions StockTransaction[]
+  tokenVersion Int      @default(1) // For session invalidation
+  managedWarehouses Warehouse[] @relation("WarehouseManagers")
 }
 
 // Note: SQLite doesn't support enums, so Role is now String
@@ -66,6 +68,9 @@ model Request {
   requestItems RequestItem[]
   warehouseId Int?
   warehouse   Warehouse? @relation(fields: [warehouseId], references: [id])
+  dueDate     DateTime?  // For borrow requests - when item should be returned
+  returnedAt  DateTime?  // Actual return date
+  isOverdue   Boolean    @default(false) // Automatically marked when past due
 }
 
 model RequestItem {
@@ -124,6 +129,7 @@ model Warehouse {
   isActive    Boolean   @default(true)
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
+  managers    User[]    @relation("WarehouseManagers")
   stockLevels StockLevel[]
   transfersOut StockTransfer[] @relation("TransferFrom")
   transfersIn  StockTransfer[] @relation("TransferTo")

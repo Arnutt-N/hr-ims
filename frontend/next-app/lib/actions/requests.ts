@@ -3,6 +3,7 @@
 import prisma from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
 import { auth } from '@/auth';
+import { sendOverdueEmail, sendStatusUpdateEmail } from '@/lib/mail';
 
 export async function getRequests(status?: string) {
     const session = await auth();
@@ -46,7 +47,7 @@ export async function getRequests(status?: string) {
     }
 }
 
-export async function updateRequestStatus(id: number, status: 'approved' | 'rejected') {
+export async function updateRequestStatus(id: number, status: 'approved' | 'rejected', dueDate?: Date) {
     const session = await auth();
     if (!session) return { error: 'Unauthorized' };
 
@@ -155,7 +156,10 @@ export async function updateRequestStatus(id: number, status: 'approved' | 'reje
                 // Update Request Status
                 await tx.request.update({
                     where: { id },
-                    data: { status }
+                    data: {
+                        status,
+                        dueDate: dueDate // Save due date if provided
+                    }
                 });
             });
 
@@ -167,6 +171,15 @@ export async function updateRequestStatus(id: number, status: 'approved' | 'reje
             });
         }
 
+        // Send Email Notification for Status Update
+        const requestUser = await prisma.user.findUnique({
+            where: { id: request.userId },
+            select: { email: true, name: true }
+        });
+        if (requestUser?.email) {
+            await sendStatusUpdateEmail(requestUser, request, status);
+        }
+
         revalidatePath('/requests');
         revalidatePath('/inventory');
         return { success: true };
@@ -174,5 +187,64 @@ export async function updateRequestStatus(id: number, status: 'approved' | 'reje
     } catch (error) {
         console.error('Failed to update request:', error);
         return { error: 'Failed to update request' };
+    }
+}
+
+export async function checkOverdueItems() {
+    try {
+        const now = new Date();
+
+        // Find overdue items that are approved, not returned, and past due date
+        // Note: Prisma select over dates needs careful handling. 
+        // We select active borrow requests with dueDate < now
+        // And we assume 'pending' or 'approved' status (usually 'approved' is active borrow)
+        // Actually, we should check 'approved' borrow requests that don't have 'returnedAt' set (if we implemented that logic fully)
+        // But for simply marking overdue:
+
+        const overdueRequests = await prisma.request.findMany({
+            where: {
+                status: 'approved',
+                type: 'borrow',
+                dueDate: { lt: now }, // Due date is in the past
+                returnedAt: null, // Ensure item is NOT returned
+                isOverdue: false // Not yet marked
+            }
+        });
+
+        if (overdueRequests.length > 0) {
+            await prisma.$transaction(async (tx: any) => {
+                for (const req of overdueRequests) {
+                    // Mark as overdue
+                    await tx.request.update({
+                        where: { id: req.id },
+                        data: { isOverdue: true }
+                    });
+
+                    // Notify User
+                    await tx.notification.create({
+                        data: {
+                            userId: req.userId,
+                            text: `🚨 OVERDUE: Your borrowed items (Req #${req.id}) are overdue. Please return them immediately.`,
+                            read: false
+                        }
+                    });
+
+                    // Send Email Notification
+                    const user = await tx.user.findUnique({
+                        where: { id: req.userId },
+                        select: { email: true, name: true }
+                    });
+                    if (user?.email) {
+                        await sendOverdueEmail(user, req);
+                    }
+                }
+            });
+            return { success: true, count: overdueRequests.length };
+        }
+
+        return { success: true, count: 0 };
+    } catch (error) {
+        console.error('Error checking overdue items:', error);
+        return { error: 'Failed to check overdue items' };
     }
 }

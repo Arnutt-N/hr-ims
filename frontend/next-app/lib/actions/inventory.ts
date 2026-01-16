@@ -111,6 +111,59 @@ export async function deleteInventoryItem(id: number) {
     }
 }
 
+export async function createInventoryItem(data: z.infer<typeof CreateInventory>) {
+    try {
+        const validated = CreateInventory.parse(data);
+
+        // Find or create category relation
+        let categoryId = null;
+        if (validated.category) {
+            const category = await prisma.category.findUnique({ where: { name: validated.category } });
+            if (category) categoryId = category.id;
+        }
+
+        await prisma.inventoryItem.create({
+            data: {
+                ...validated,
+                categoryId
+            }
+        });
+
+        revalidatePath('/inventory');
+        return { success: true, message: 'Item created successfully' };
+    } catch (error) {
+        console.error('Create Error:', error);
+        return { success: false, message: 'Failed to create item' };
+    }
+}
+
+export async function updateInventoryItem(id: number, data: z.infer<typeof UpdateInventory>) {
+    try {
+        const validated = UpdateInventory.parse(data);
+
+        // Find or create category relation
+        let categoryId = null;
+        if (validated.category) {
+            const category = await prisma.category.findUnique({ where: { name: validated.category } });
+            if (category) categoryId = category.id;
+        }
+
+        await prisma.inventoryItem.update({
+            where: { id },
+            data: {
+                ...validated,
+                categoryId
+            }
+        });
+
+        revalidatePath('/inventory');
+        return { success: true, message: 'Item updated successfully' };
+    } catch (error) {
+        console.error('Update Error:', error);
+        return { success: false, message: 'Failed to update item' };
+    }
+}
+
 
 export async function importInventoryItems(items: any[]) {
     try {

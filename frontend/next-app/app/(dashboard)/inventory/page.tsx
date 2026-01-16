@@ -149,28 +149,35 @@ export default async function InventoryPage({
                             </TableHeader>
                             <TableBody>
                                 {items.map((item) => (
-                                    <TableRow key={item.id} className="hover:bg-slate-50/50">
-                                        <TableCell className="font-mono text-xs text-slate-500">#{item.id}</TableCell>
-                                        <TableCell>
-                                            <div>
-                                                <div className="font-medium text-slate-900">{item.name}</div>
-                                                <div className="text-xs text-slate-500 font-mono">{item.serial || '-'}</div>
-                                            </div>
-                                        </TableCell>
-                                        <TableCell><span className="text-xs font-medium px-2 py-1 bg-slate-100 rounded-md text-slate-600">{item.category}</span></TableCell>
-                                        <TableCell className="capitalize text-slate-600">{item.type}</TableCell>
-                                        <TableCell>
-                                            <Badge variant={item.status === 'available' ? 'success' : item.status === 'maintenance' ? 'destructive' : 'secondary'} className="rounded-md capitalize">
-                                                {item.status}
-                                            </Badge>
-                                        </TableCell>
-                                        <TableCell className="text-right font-medium">{item.stock}</TableCell>
-                                        <TableCell>
-                                            <Button variant="ghost" size="icon" className="h-8 w-8">
-                                                <MoreHorizontal className="h-4 w-4 text-slate-400" />
-                                            </Button>
-                                        </TableCell>
-                                    </TableRow>
+                                    <Link key={item.id} href={`/inventory/${item.id}`} className="contents">
+                                        <TableRow className="hover:bg-slate-50/50 cursor-pointer transition-colors">
+                                            <TableCell className="font-mono text-xs text-slate-500">#{item.id}</TableCell>
+                                            <TableCell>
+                                                <div>
+                                                    <div className="font-medium text-slate-900">{item.name}</div>
+                                                    <div className="text-xs text-slate-500 font-mono">{item.serial || '-'}</div>
+                                                </div>
+                                            </TableCell>
+                                            <TableCell><span className="text-xs font-medium px-2 py-1 bg-slate-100 rounded-md text-slate-600">{item.category}</span></TableCell>
+                                            <TableCell className="capitalize text-slate-600">{item.type}</TableCell>
+                                            <TableCell>
+                                                <Badge variant={item.status === 'available' ? 'success' : item.status === 'maintenance' ? 'destructive' : 'secondary'} className="rounded-md capitalize">
+                                                    {item.status}
+                                                </Badge>
+                                            </TableCell>
+                                            <TableCell className="text-right font-medium">{item.stock}</TableCell>
+                                            <TableCell>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="h-8 w-8"
+                                                    onClick={(e) => e.preventDefault()}
+                                                >
+                                                    <MoreHorizontal className="h-4 w-4 text-slate-400" />
+                                                </Button>
+                                            </TableCell>
+                                        </TableRow>
+                                    </Link>
                                 ))}
                             </TableBody>
                         </Table>

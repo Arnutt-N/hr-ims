@@ -100,7 +100,15 @@ export default function MyAssetsPage() {
                                             <span className="flex items-center gap-1.5">
                                                 <Clock size={14} /> Borrowed: {formatThaiDateShort(asset.borrowDate)}
                                             </span>
-                                            <span className={`flex items-center gap-1.5 ${isWarning ? 'text-red-600 font-bold' : 'text-emerald-600'}`}>
+                                            {asset.dueDate && (
+                                                <span className={`flex items-center gap-1.5 ${asset.isOverdue || new Date(asset.dueDate) < new Date() ? 'text-red-600 font-bold' : ''}`}>
+                                                    <Clock size={14} /> Due: {formatThaiDateShort(asset.dueDate)}
+                                                    {(asset.isOverdue || new Date(asset.dueDate) < new Date()) && (
+                                                        <Badge variant="destructive" className="ml-1 text-[10px] px-1 py-0 h-5">OVERDUE</Badge>
+                                                    )}
+                                                </span>
+                                            )}
+                                            <span className={`flex items-center gap-1.5 ${isWarning ? 'text-amber-600 font-bold' : 'text-emerald-600'}`}>
                                                 <CheckCircle size={14} /> Last Check: {formatRelativeTime(asset.lastCheckDate || asset.borrowDate)}
                                             </span>
                                         </div>
