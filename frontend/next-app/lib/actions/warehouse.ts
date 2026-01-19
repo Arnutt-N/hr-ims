@@ -121,3 +121,15 @@ export async function deleteWarehouse(id: number) {
         return { error: 'Failed to delete warehouse' };
     }
 }
+
+export async function getDivisions() {
+    try {
+        const divisions = await prisma.division.findMany({
+            orderBy: { name: 'asc' }
+        });
+        return { success: true, divisions };
+    } catch (error) {
+        console.error('Failed to fetch divisions:', error);
+        return { error: 'Failed to fetch divisions' };
+    }
+}

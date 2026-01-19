@@ -99,3 +99,7 @@ prisma/dev.db-journal
 
 # Optional: npm pack
 *.tgz
+
+
+examples/
+

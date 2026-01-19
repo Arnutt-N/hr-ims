@@ -68,6 +68,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
                 // If user doesn't exist or token version mismatch, invalidate
                 if (!dbUser || (dbUser.tokenVersion && dbUser.tokenVersion > (token.tokenVersion as number))) {
+                    console.log(`[Auth] Invalidation triggered for user ${token.id}. DB Version: ${dbUser?.tokenVersion}, Token Version: ${token.tokenVersion}`);
                     return null; // This will trigger sign out in most cases
                 }
             }

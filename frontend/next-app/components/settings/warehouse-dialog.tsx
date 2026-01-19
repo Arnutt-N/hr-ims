@@ -22,7 +22,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-import { createWarehouse, updateWarehouse } from '@/lib/actions/warehouse';
+import { createWarehouse, updateWarehouse, getDivisions } from '@/lib/actions/warehouse';
 import { getUsers } from '@/lib/actions/users';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -42,13 +42,18 @@ export function WarehouseDialog({ open, onOpenChange, warehouse, onSuccess }: Wa
     const [name, setName] = useState('');
     const [code, setCode] = useState('');
     const [type, setType] = useState('central');
+    const [divisionId, setDivisionId] = useState<string>('');
     const [selectedManagers, setSelectedManagers] = useState<number[]>([]);
+    const [divisions, setDivisions] = useState<any[]>([]);
 
     useEffect(() => {
-        // Load users for manager selection
+        // Load users and divisions
         if (open) {
             getUsers().then(res => {
                 if (res.success) setUsers(res.users || []);
+            });
+            getDivisions().then(res => {
+                if (res.success) setDivisions(res.divisions || []);
             });
         }
     }, [open]);
@@ -58,6 +63,7 @@ export function WarehouseDialog({ open, onOpenChange, warehouse, onSuccess }: Wa
             setName(warehouse?.name || '');
             setCode(warehouse?.code || '');
             setType(warehouse?.type || 'central');
+            setDivisionId(warehouse?.divisionId?.toString() || '');
             setSelectedManagers(warehouse?.managers?.map((m: any) => m.id) || []);
         }
     }, [open, warehouse]);
@@ -72,6 +78,7 @@ export function WarehouseDialog({ open, onOpenChange, warehouse, onSuccess }: Wa
                 name,
                 code,
                 type,
+                divisionId: type === 'division' ? (divisionId ? parseInt(divisionId) : null) : null,
                 managerIds: selectedManagers
             };
 
@@ -137,11 +144,34 @@ export function WarehouseDialog({ open, onOpenChange, warehouse, onSuccess }: Wa
                                 <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="central">Central</SelectItem>
-                                <SelectItem value="division">Division</SelectItem>
+                                <SelectItem value="central">Central (กอง/ส่วนกลาง)</SelectItem>
+                                <SelectItem value="division">Division (กลุ่มงาน/กองภูมิภาค)</SelectItem>
                             </SelectContent>
                         </Select>
                     </div>
+
+                    {type === 'division' && (
+                        <div className="space-y-2 animate-in fade-in slide-in-from-top-1">
+                            <Label>Division (สังกัดกอง)</Label>
+                            <Select value={divisionId} onValueChange={setDivisionId}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="เลือกกองที่สังกัด" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {divisions.map(div => (
+                                        <SelectItem key={div.id} value={div.id.toString()}>
+                                            {div.name}
+                                        </SelectItem>
+                                    ))}
+                                    {divisions.length === 0 && (
+                                        <div className="p-2 text-sm text-slate-500 italic">
+                                            ไม่พบข้อมูลกองในระบบ
+                                        </div>
+                                    )}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    )}
 
                     <div className="space-y-2">
                         <Label>Assigned Managers</Label>
