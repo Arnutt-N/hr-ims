@@ -8,8 +8,14 @@ export async function authenticate(
     formData: FormData,
 ) {
     try {
-        await signIn('credentials', formData);
+        await signIn('credentials', {
+            ...Object.fromEntries(formData),
+            redirectTo: '/dashboard',
+        });
     } catch (error) {
+        if ((error as any).message === 'NEXT_REDIRECT' || (error as any).digest?.startsWith('NEXT_REDIRECT')) {
+            throw error;
+        }
         if (error instanceof AuthError) {
             console.error('AuthError in authenticate:', error.type, error.message);
             switch (error.type) {

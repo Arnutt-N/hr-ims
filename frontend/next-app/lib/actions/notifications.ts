@@ -4,76 +4,105 @@ import prisma from '@/lib/prisma';
 import { auth } from '@/auth';
 import { revalidatePath } from 'next/cache';
 
-export async function getNotifications() {
+export async function checkLowStock() {
     const session = await auth();
-    if (!session || !session.user || !session.user.id) return [];
+    // Allow system trigger or admin trigger
+    if (!session?.user) {
+        // console.log("System trigger...");
+    }
+
+    try {
+        console.log("Checking low stock levels...");
+
+        // 1. Find items where quantity <= minStock
+        // Note: We only check StockLevel, assuming minStock is set there.
+        const lowStockItems = await prisma.stockLevel.findMany({
+            where: {
+                minStock: { not: null },
+                quantity: {
+                    lte: prisma.stockLevel.fields.minStock
+                }
+            },
+            include: {
+                item: true,
+                warehouse: {
+                    include: {
+                        managers: true // We need to know who to notify
+                    }
+                }
+            }
+        });
+
+        // 2. Create Notifications
+        let count = 0;
+        for (const stock of lowStockItems) {
+            const managers = stock.warehouse.managers;
+            const message = `Low Stock Alert: ${stock.item.name} in ${stock.warehouse.name} is down to ${stock.quantity} (Min: ${stock.minStock})`;
+
+            for (const manager of managers) {
+                // Prevent duplicate unread notifications for same item to same user to avoid spam?
+                // For now, simple create.
+                await prisma.notification.create({
+                    data: {
+                        userId: manager.id,
+                        text: message,
+                        read: false
+                    }
+                });
+                count++;
+            }
+        }
+
+        console.log(`Generated ${count} low stock notifications.`);
+        revalidatePath('/dashboard');
+        return { success: true, count };
+
+    } catch (error) {
+        console.error('Failed to check low stock:', error);
+        return { error: 'Failed to generate notifications' };
+    }
+}
+
+export async function getNotifications(limit = 10) {
+    const session = await auth();
+    if (!session?.user?.id) return { notifications: [] };
 
     try {
         const notifications = await prisma.notification.findMany({
             where: {
                 userId: parseInt(session.user.id),
-                read: false,
+                read: false
             },
-            orderBy: {
-                createdAt: 'desc',
-            },
-            take: 10,
+            orderBy: { createdAt: 'desc' },
+            take: limit
         });
 
-        return notifications;
+        // Also get count of unread
+        const unreadCount = await prisma.notification.count({
+            where: {
+                userId: parseInt(session.user.id),
+                read: false
+            }
+        });
+
+        return { notifications, unreadCount };
     } catch (error) {
-        console.error('Failed to fetch notifications:', error);
-        return [];
+        return { notifications: [], unreadCount: 0 };
     }
 }
 
 export async function markAsRead(id: number) {
     const session = await auth();
-    if (!session || !session.user) return { success: false };
+    if (!session?.user?.id) return { error: "Unauthorized" };
 
     try {
         await prisma.notification.update({
             where: { id },
-            data: { read: true },
+            data: { read: true }
         });
-        revalidatePath('/');
+        revalidatePath('/dashboard');
         return { success: true };
     } catch (error) {
-        return { success: false };
-    }
-}
-
-export async function markAllAsRead() {
-    const session = await auth();
-    if (!session || !session.user || !session.user.id) return { success: false };
-
-    try {
-        await prisma.notification.updateMany({
-            where: {
-                userId: parseInt(session.user.id),
-                read: false,
-            },
-            data: { read: true },
-        });
-        revalidatePath('/');
-        return { success: true };
-    } catch (error) {
-        return { success: false };
-    }
-}
-
-export async function createNotification(userId: number, text: string) {
-    try {
-        await prisma.notification.create({
-            data: {
-                userId,
-                text,
-                read: false,
-            },
-        });
-        return { success: true };
-    } catch (error) {
-        console.error('Failed to create notification:', error);
-        return { success: false };
+        return { error: "Failed to update" };
     }
 }

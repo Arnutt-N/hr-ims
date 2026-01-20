@@ -1,6 +1,6 @@
 import { auth } from '@/auth';
 import { Bell, Search, ChevronDown, User as UserIcon } from 'lucide-react';
-import Notifications from './Notifications';
+import { NotificationBell } from './notification-bell';
 import { redirect } from 'next/navigation';
 import { formatThaiDate } from '@/lib/date-utils';
 
@@ -35,8 +35,7 @@ export async function Header() {
                 </div>
 
                 {/* Notifications */}
-                {/* Notifications */}
-                <Notifications />
+                <NotificationBell />
 
                 {/* User Profile */}
                 <div className="flex items-center gap-3 pl-4 border-l border-slate-200">

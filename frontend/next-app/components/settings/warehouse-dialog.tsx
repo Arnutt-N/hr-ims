@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Loader2, Plus, X } from 'lucide-react';
+import { Check, Loader2, Plus, X } from 'lucide-react';
 import { toast } from 'sonner';
 
 import {
@@ -213,9 +213,8 @@ export function WarehouseDialog({ open, onOpenChange, warehouse, onSuccess }: Wa
 
 function CheckBadge() {
     return (
-        <div className="bg-blue-600 text-white rounded-full p-0.5">
-            <Plus className="h-3 w-3 rotate-45" />
-            {/* Using a rotated plus as check for now or just import Check */}
+        <div className="bg-blue-600 text-white rounded-full p-1">
+            <Check className="h-3 w-3" />
         </div>
     );
 }

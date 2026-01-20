@@ -54,22 +54,47 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         async jwt({ token, user, trigger, session }) {
             if (user) {
                 token.id = user.id?.toString() || "";
+                // Backward compatibility: keep role string for now, but use new system primarily
                 token.role = user.role || "user";
                 token.tokenVersion = (user as any).tokenVersion || 0;
-            }
 
-            // Periodically check token validity (e.g., every request or optimised)
-            // For now, checks whenever JWT is accessed
-            if (token.id) {
-                const dbUser = await prisma.user.findUnique({
-                    where: { id: parseInt(token.id as string) },
-                    select: { tokenVersion: true }
-                });
+                try {
+                    // 1. Fetch User Roles (Many-to-Many)
+                    const userWithRoles = await prisma.user.findUnique({
+                        where: { id: parseInt(token.id) },
+                        include: {
+                            userRoles: {
+                                include: { role: true }
+                            }
+                        }
+                    });
 
-                // If user doesn't exist or token version mismatch, invalidate
-                if (!dbUser || (dbUser.tokenVersion && dbUser.tokenVersion > (token.tokenVersion as number))) {
-                    console.log(`[Auth] Invalidation triggered for user ${token.id}. DB Version: ${dbUser?.tokenVersion}, Token Version: ${token.tokenVersion}`);
-                    return null; // This will trigger sign out in most cases
+                    // Extract role slugs e.g. ["admin", "approver"]
+                    const roles = userWithRoles?.userRoles.map(ur => ur.role.slug) || [];
+                    // Fallback: if no relation, use string field
+                    if (roles.length === 0 && token.role) {
+                        roles.push(token.role);
+                    }
+                    token.roles = roles;
+
+                    // 2. Fetch Permissions for ALL roles
+                    // Get role definitions for slug array
+                    const permissions = await prisma.rolePermission.findMany({
+                        where: {
+                            OR: [
+                                { role: { in: roles } }, // Legacy string match
+                                { roleRef: { slug: { in: roles } } } // New relation match
+                            ],
+                            canView: true
+                        }
+                    });
+
+                    token.permissions = Array.from(new Set(permissions.map(p => p.path))); // Unique paths only
+
+                } catch (e) {
+                    console.error('Failed to fetch roles/permissions:', e);
+                    token.roles = [token.role];
+                    token.permissions = [];
                 }
             }
 
@@ -78,7 +103,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         async session({ session, token }) {
             if (token && session.user) {
                 session.user.id = token.id;
-                session.user.role = token.role;
+                session.user.role = token.role; // Legacy
+                (session.user as any).roles = token.roles || [token.role]; // New Array
+                (session.user as any).permissions = token.permissions;
             }
             return session;
         },

@@ -114,7 +114,7 @@ export function Sidebar({ user }: { user?: any }) {
             {/* Sidebar Container */}
             <aside
                 className={cn(
-                    "fixed md:static inset-y-0 left-0 z-50 h-[100dvh] w-72 transform transition-transform duration-300 ease-in-out md:translate-x-0 flex flex-col overflow-hidden shadow-2xl border-r border-white/5",
+                    "fixed md:relative inset-y-0 left-0 z-50 h-[100dvh] w-72 transform transition-transform duration-300 ease-in-out md:translate-x-0 flex flex-col overflow-hidden shadow-2xl border-r border-white/5",
                     isOpen ? "translate-x-0" : "-translate-x-full",
                     "bg-[#0f172a] text-white"
                 )}
@@ -139,9 +139,23 @@ export function Sidebar({ user }: { user?: any }) {
                 {/* Navigation */}
                 <nav className="relative z-10 flex-1 px-4 py-6 space-y-1 overflow-y-auto sidebar-scrollbar">
                     {sidebarItems.map((item, idx) => {
-                        // Role check
-                        if (item.allowedRoles && (!user?.role || !item.allowedRoles.includes(user.role))) return null;
-                        if (!item.allowedRoles && item.adminOnly && user?.role !== 'admin') return null;
+                        // 1. Superadmin bypass
+                        if (user?.role === 'superadmin') {
+                            // Proceed to render
+                        }
+                        // 2. Dynamic Permission Check (if permissions exist)
+                        else if (user?.permissions && Array.isArray(user.permissions)) {
+                            // Check if current item path is in permissions
+                            // We need to handle exact match or prefix match? 
+                            // For simplicity: match exact href or if submenu parent.
+                            const hasPermission = user.permissions.includes(item.href);
+                            if (!hasPermission) return null;
+                        }
+                        // 3. Fallback to Legacy Role check (if no permissions set yet or for backward compat)
+                        else {
+                            if (item.allowedRoles && (!user?.role || !item.allowedRoles.includes(user.role))) return null;
+                            if (!item.allowedRoles && item.adminOnly && user?.role !== 'admin') return null;
+                        }
 
                         if (item.hasSubMenu) {
                             const isActiveParent = pathname.startsWith('/inventory');
@@ -180,11 +194,14 @@ export function Sidebar({ user }: { user?: any }) {
                                                         // Check if pathname matches
                                                         const pathMatches = pathname === subPath;
 
-                                                        // Check if query params match
-                                                        let queryMatches = !subQuery; // true if no query params
+                                                        // Check if query params match strictly
+                                                        let queryMatches = false;
                                                         if (subQuery) {
                                                             const [key, value] = subQuery.split('=');
                                                             queryMatches = searchParams.get(key) === value;
+                                                        } else {
+                                                            // If no subQuery (e.g. "All Items"), only match if there's no "type" param in URL
+                                                            queryMatches = !searchParams.has('type');
                                                         }
 
                                                         const isSubActive = pathMatches && queryMatches;
@@ -194,15 +211,16 @@ export function Sidebar({ user }: { user?: any }) {
                                                                 key={subIdx}
                                                                 href={sub.href}
                                                                 className={cn(
-                                                                    "flex items-center gap-3 p-3 rounded-lg transition-all text-sm pl-11 relative",
+                                                                    "flex items-center gap-3 p-3 rounded-xl transition-all duration-200 text-sm pl-11 relative group/sub mb-1",
                                                                     isSubActive
-                                                                        ? "text-white font-medium bg-white/5"
-                                                                        : "text-slate-500 hover:text-slate-300"
+                                                                        ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold shadow-lg shadow-blue-900/30"
+                                                                        : "text-slate-400 hover:bg-white/5 hover:text-white"
                                                                 )}
                                                             >
-                                                                {sub.label === 'All Items' && <Box size={16} />}
-                                                                {sub.label.includes('Borrow') && <History size={16} />}
-                                                                {sub.label.includes('Withdraw') && <ClipboardList size={16} />}
+                                                                {sub.icon && <sub.icon size={16} className={cn(
+                                                                    "transition-colors",
+                                                                    isSubActive ? "text-white" : "text-slate-500 group-hover/sub:text-blue-300"
+                                                                )} />}
                                                                 <span>{sub.label}</span>
                                                             </Link>
                                                         )

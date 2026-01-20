@@ -4,6 +4,7 @@ import prisma from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { redirect } from 'next/navigation';
+import { checkLowStock } from './notifications';
 
 const InventorySchema = z.object({
     id: z.coerce.number(),
@@ -115,17 +116,9 @@ export async function createInventoryItem(data: z.infer<typeof CreateInventory>)
     try {
         const validated = CreateInventory.parse(data);
 
-        // Find or create category relation
-        let categoryId = null;
-        if (validated.category) {
-            const category = await prisma.category.findUnique({ where: { name: validated.category } });
-            if (category) categoryId = category.id;
-        }
-
         await prisma.inventoryItem.create({
             data: {
-                ...validated,
-                categoryId
+                ...validated
             }
         });
 
@@ -141,20 +134,15 @@ export async function updateInventoryItem(id: number, data: z.infer<typeof Updat
     try {
         const validated = UpdateInventory.parse(data);
 
-        // Find or create category relation
-        let categoryId = null;
-        if (validated.category) {
-            const category = await prisma.category.findUnique({ where: { name: validated.category } });
-            if (category) categoryId = category.id;
-        }
-
         await prisma.inventoryItem.update({
             where: { id },
             data: {
-                ...validated,
-                categoryId
+                ...validated
             }
         });
+
+        // Trigger low stock check
+        await checkLowStock();
 
         revalidatePath('/inventory');
         return { success: true, message: 'Item updated successfully' };

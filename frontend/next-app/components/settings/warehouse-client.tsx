@@ -162,7 +162,7 @@ export function WarehouseClient({ initialWarehouses }: WarehouseClientProps) {
                     <AlertDialogHeader>
                         <AlertDialogTitle>Are you sure?</AlertDialogTitle>
                         <AlertDialogDescription>
-                            This will delete the warehouse. Stock levels associated with this warehouse will be deleted.
+                            This action cannot be undone. This will permanently delete the warehouse and cascade delete all associated stock levels.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>

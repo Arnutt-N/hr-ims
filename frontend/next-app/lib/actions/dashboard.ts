@@ -5,58 +5,84 @@ import { auth } from '@/auth';
 
 export async function getDashboardStats() {
     const session = await auth();
-    if (!session) return null;
+    if (!session?.user) return null;
 
     try {
-        const totalItems = await prisma.inventoryItem.count();
+        const [totalItems, lowStockItemsCount, pendingRequests, lowStockList, recentActivity] = await Promise.all([
+            prisma.inventoryItem.count(),
+            prisma.stockLevel.count({
+                where: {
+                    minStock: { not: null },
+                    quantity: { lte: prisma.stockLevel.fields.minStock }
+                }
+            }),
+            prisma.request.count({
+                where: { status: 'pending' }
+            }),
+            prisma.stockLevel.findMany({
+                where: {
+                    minStock: { not: null },
+                    quantity: { lte: prisma.stockLevel.fields.minStock }
+                },
+                include: { item: true, warehouse: true },
+                take: 5
+            }),
+            // Mock recent activity for now or fetch from StockTransaction if schema allows
+            prisma.stockTransaction.findMany({
+                take: 5,
+                orderBy: { createdAt: 'desc' },
+                include: { user: true, item: true }
+            })
+        ]);
 
-        // Fetch stock levels with minStock defined
-        const stockLevels = await prisma.stockLevel.findMany({
+        return {
+            totalItems,
+            lowStockItems: lowStockItemsCount,
+            pendingRequests,
+            lowStockList, // For existing page usage
+            recentActivity: recentActivity.map(a => ({
+                action: a.type === 'outbound' ? 'Withdraw' : a.type === 'inbound' ? 'Return' : 'Update',
+                user: { name: a.user.name },
+                item: a.item.name,
+                date: a.createdAt,
+                status: 'Completed'
+            }))
+        };
+    } catch (error) {
+        console.error("Dashboard Stats Error:", error);
+        return {
+            totalItems: 0,
+            lowStockItems: 0,
+            pendingRequests: 0,
+            lowStockList: [],
+            recentActivity: []
+        };
+    }
+}
+
+export async function getLowStockItems() {
+    const session = await auth();
+    if (!session?.user) return [];
+
+    try {
+        // Find items where quantity <= minStock
+        const lowStockItems = await prisma.stockLevel.findMany({
             where: {
-                minStock: { not: null }
+                minStock: { not: null },
+                quantity: {
+                    lte: prisma.stockLevel.fields.minStock
+                }
             },
             include: {
                 item: true,
                 warehouse: true
-            }
-        });
-
-        // Filter for low stock
-        const lowStockList = stockLevels.filter(sl => sl.quantity <= (sl.minStock || 0));
-        const lowStockCount = lowStockList.length;
-
-        const pendingRequests = await prisma.request.count({
-            where: {
-                status: 'pending'
-            }
-        });
-
-        // Get recent activity
-        const recentActivity = await prisma.history.findMany({
-            take: 5,
-            orderBy: {
-                date: 'desc'
             },
-            include: {
-                user: {
-                    select: {
-                        name: true,
-                        email: true,
-                        avatar: true
-                    }
-                }
-            }
+            take: 5 // Limit to top 5 for widget
         });
 
-        return {
-            totalItems,
-            lowStockItems: lowStockCount,
-            lowStockList: lowStockList.slice(0, 5), // Top 5 for widget
-            pendingRequests,
-            recentActivity
-        };
+        return lowStockItems;
     } catch (error) {
-        console.error('Failed to fetch dashboard stats:', error);
-        throw new Error('Failed to fetch dashboard stats');
+        console.error('Failed to fetch low stock items:', error);
+        return [];
     }
 }

@@ -13,7 +13,6 @@ model User {
   id        Int       @id @default(autoincrement())
   email     String    @unique
   password  String
-  role      String    @default("user") // superadmin, admin, approver, auditor, technician, user
   name      String?
   department String?
   status    String    @default("active")
@@ -28,10 +27,34 @@ model User {
   stockTransactions StockTransaction[]
   tokenVersion Int      @default(1) // For session invalidation
   managedWarehouses Warehouse[] @relation("WarehouseManagers")
+  userRoles   UserRole[] // Relation to roles
 }
 
 // Note: SQLite doesn't support enums, so Role is now String
 // Valid values: "superadmin", "admin", "approver", "auditor", "technician", "user"
+
+// New Multi-Role System
+model Role {
+  id          Int          @id @default(autoincrement())
+  slug        String       @unique // e.g. "admin", "approver"
+  name        String       // Display Name e.g. "Administrator"
+  description String?
+  userRoles   UserRole[]
+  permissions RolePermission[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+}
+
+model UserRole {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  roleId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role      Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  assignedAt DateTime @default(now())
+
+  @@unique([userId, roleId])
+}
 
 model InventoryItem {
   id        Int       @id @default(autoincrement())
@@ -408,4 +431,18 @@ model StockTransaction {
   userId      Int
   user        User      @relation(fields: [userId], references: [id])
   createdAt   DateTime  @default(now())
+}
+
+model RolePermission {
+  id        Int      @id @default(autoincrement())
+  role      String   // DEPRECATED: Use roleId
+  roleId    Int?     // Link to Role table
+  roleRef   Role?    @relation(fields: [roleId], references: [id])
+  menu      String   // e.g., "inventory", "settings"
+  path      String   // e.g., "/inventory", "/settings"
+  canView   Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@unique([role, menu]) // Keep for now until migrated
 }
