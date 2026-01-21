@@ -147,8 +147,11 @@ model Warehouse {
   id          Int       @id @default(autoincrement())
   name        String    // ชื่อคลัง เช่น "คลังกลาง - กองบริหารการคลัง"
   code        String    @unique // รหัสคลัง เช่น "WH-CENTRAL", "WH-IT"
-  type        String    // "central" | "division"
+  type        String    // "main" | "division" | "provincial"
   divisionId  Int?      // Link to Division (if type = division)
+  division    Division? @relation(fields: [divisionId], references: [id])
+  provinceId  Int?      // Link to Province (if type = provincial)
+  province    Province? @relation(fields: [provinceId], references: [id])
   isActive    Boolean   @default(true)
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
@@ -250,6 +253,7 @@ model Division {
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
   workGroups1  WorkGroup1[]
+  warehouses   Warehouse[]
 }
 
 // กลุ่มงาน ระดับ 1
@@ -285,6 +289,7 @@ model Province {
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
   customZones      CustomProvinceZone[]
+  warehouses       Warehouse[]
 }
 
 // เขตจังหวัด (ภาค)

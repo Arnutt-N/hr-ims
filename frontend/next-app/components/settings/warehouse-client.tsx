@@ -13,11 +13,12 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Warehouse, Plus, Edit, Trash2 } from 'lucide-react';
+import { Warehouse as WarehouseIcon, Plus, Edit, Trash2, Search, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { WarehouseDialog } from '@/components/settings/warehouse-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Input } from '@/components/ui/input';
 import {
     AlertDialog,
     AlertDialogAction,
@@ -28,38 +29,50 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Warehouse } from '@/types/schema';
 
 interface WarehouseClientProps {
-    initialWarehouses: any[];
+    initialWarehouses: Warehouse[];
 }
 
 export function WarehouseClient({ initialWarehouses }: WarehouseClientProps) {
     const router = useRouter();
     const [dialogOpen, setDialogOpen] = useState(false);
-    const [selectedWarehouse, setSelectedWarehouse] = useState<any>(null);
+    const [selectedWarehouse, setSelectedWarehouse] = useState<Warehouse | null>(null);
     const [deleteId, setDeleteId] = useState<number | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
+    const [searchQuery, setSearchQuery] = useState('');
 
     const handleDelete = async () => {
         if (!deleteId) return;
         setIsDeleting(true);
-        const res = await deleteWarehouse(deleteId);
-        if (res.success) {
-            toast.success('Warehouse deleted');
-            router.refresh();
-        } else {
-            toast.error(res.error || 'Failed to delete');
+        try {
+            const res = await deleteWarehouse(deleteId);
+            if (res.success) {
+                toast.success('Warehouse deleted');
+                router.refresh();
+            } else {
+                toast.error(res.error || 'Failed to delete');
+            }
+        } catch (error) {
+            toast.error('An error occurred');
+        } finally {
+            setIsDeleting(false);
+            setDeleteId(null);
         }
-        setIsDeleting(false);
-        setDeleteId(null);
     };
+
+    const filteredWarehouses = initialWarehouses.filter(wh =>
+        wh.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        wh.code.toLowerCase().includes(searchQuery.toLowerCase())
+    );
 
     return (
         <div className="space-y-6 max-w-5xl mx-auto p-6 animate-fade-in-up">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
                     <h1 className="text-3xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
-                        <Warehouse className="text-blue-600" /> Warehouse Management
+                        <WarehouseIcon className="text-blue-600" /> Warehouse Management
                     </h1>
                     <p className="text-slate-500">Configure warehouses and assign managers.</p>
                 </div>
@@ -69,11 +82,24 @@ export function WarehouseClient({ initialWarehouses }: WarehouseClientProps) {
             </div>
 
             <Card>
-                <CardHeader>
-                    <CardTitle>All Warehouses</CardTitle>
-                    <CardDescription>
-                        List of registered warehouses in the system.
-                    </CardDescription>
+                <CardHeader className="pb-3">
+                    <div className="flex justify-between items-center">
+                        <div>
+                            <CardTitle>All Warehouses</CardTitle>
+                            <CardDescription>
+                                List of registered warehouses in the system.
+                            </CardDescription>
+                        </div>
+                        <div className="relative w-64">
+                            <Search className="absolute left-2 top-2.5 h-4 w-4 text-slate-400" />
+                            <Input
+                                placeholder="Search by name or code..."
+                                className="pl-8"
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                            />
+                        </div>
+                    </div>
                 </CardHeader>
                 <CardContent>
                     <div className="rounded-md border overflow-hidden">
@@ -89,44 +115,77 @@ export function WarehouseClient({ initialWarehouses }: WarehouseClientProps) {
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {initialWarehouses.length === 0 ? (
+                                {filteredWarehouses.length === 0 ? (
                                     <TableRow>
-                                        <TableCell colSpan={6} className="text-center py-8 text-slate-500">
-                                            No warehouses found.
+                                        <TableCell colSpan={6} className="text-center py-12 text-slate-500">
+                                            {searchQuery ? (
+                                                <div className="flex flex-col items-center gap-2">
+                                                    <Search className="h-8 w-8 text-slate-300" />
+                                                    <p>No warehouses found matching "{searchQuery}"</p>
+                                                    <Button variant="link" onClick={() => setSearchQuery('')}>Clear search</Button>
+                                                </div>
+                                            ) : (
+                                                <div className="flex flex-col items-center gap-2">
+                                                    <WarehouseIcon className="h-8 w-8 text-slate-300" />
+                                                    <p>No warehouses registered yet.</p>
+                                                    <Button variant="outline" size="sm" onClick={() => setDialogOpen(true)}>
+                                                        Create your first warehouse
+                                                    </Button>
+                                                </div>
+                                            )}
                                         </TableCell>
                                     </TableRow>
                                 ) : (
-                                    initialWarehouses.map((wh) => (
+                                    filteredWarehouses.map((wh) => (
                                         <TableRow key={wh.id} className="hover:bg-slate-50/50 transition-colors">
-                                            <TableCell className="font-mono text-xs">{wh.code}</TableCell>
+                                            <TableCell className="font-mono text-xs font-medium">{wh.code}</TableCell>
                                             <TableCell className="font-medium">{wh.name}</TableCell>
                                             <TableCell>
-                                                <Badge variant="outline" className="uppercase text-[10px]">
-                                                    {wh.type}
+                                                <Badge variant={
+                                                    wh.type === 'main' ? 'default' :
+                                                        wh.type === 'division' ? 'secondary' : 'outline'
+                                                }>
+                                                    {wh.type === 'main' ? 'Main' :
+                                                        wh.type === 'division' ? 'Division' : 'Provincial'}
                                                 </Badge>
+                                                {wh.type === 'division' && wh.division && (
+                                                    <div className="text-xs text-muted-foreground mt-1">
+                                                        {wh.division.name}
+                                                    </div>
+                                                )}
+                                                {wh.type === 'provincial' && wh.province && (
+                                                    <div className="text-xs text-muted-foreground mt-1">
+                                                        {wh.province.name}
+                                                    </div>
+                                                )}
                                             </TableCell>
                                             <TableCell>
                                                 <div className="flex -space-x-2">
-                                                    {wh.managers?.map((m: any) => (
-                                                        <Avatar key={m.id} className="h-6 w-6 border-2 border-white shadow-sm">
-                                                            <AvatarImage src={m.avatar} />
-                                                            <AvatarFallback className="text-[10px] bg-blue-50 text-blue-700">{m.name?.substring(0, 2)}</AvatarFallback>
+                                                    {wh.managers?.map((m) => (
+                                                        <Avatar key={m.id} className="h-6 w-6 border-2 border-white shadow-sm ring-1 ring-slate-100" title={m.name || 'User'}>
+                                                            <AvatarImage src={m.avatar || undefined} />
+                                                            <AvatarFallback className="text-[10px] bg-blue-50 text-blue-700">
+                                                                {m.name?.substring(0, 2).toUpperCase() || 'UN'}
+                                                            </AvatarFallback>
                                                         </Avatar>
                                                     ))}
-                                                    {(!wh.managers || wh.managers.length === 0) && <span className="text-slate-400 text-xs italic">Unassigned</span>}
+                                                    {(!wh.managers || wh.managers.length === 0) && (
+                                                        <span className="text-slate-400 text-xs italic">Unassigned</span>
+                                                    )}
                                                 </div>
                                             </TableCell>
                                             <TableCell className="text-center">
-                                                <Badge variant="secondary" className="rounded-full">
+                                                <div className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-slate-100 text-xs font-medium">
                                                     {wh._count?.stockLevels || 0}
-                                                </Badge>
+                                                    <span className="text-slate-400">items</span>
+                                                </div>
                                             </TableCell>
                                             <TableCell className="text-right">
-                                                <div className="flex justify-end gap-2">
+                                                <div className="flex justify-end gap-1">
                                                     <Button
                                                         variant="ghost"
                                                         size="icon"
-                                                        className="hover:text-blue-600 hover:bg-blue-50"
+                                                        className="h-8 w-8 hover:text-blue-600 hover:bg-blue-50"
                                                         onClick={() => { setSelectedWarehouse(wh); setDialogOpen(true); }}
                                                     >
                                                         <Edit className="h-4 w-4" />
@@ -134,7 +193,7 @@ export function WarehouseClient({ initialWarehouses }: WarehouseClientProps) {
                                                     <Button
                                                         variant="ghost"
                                                         size="icon"
-                                                        className="hover:text-red-600 hover:bg-red-50"
+                                                        className="h-8 w-8 hover:text-red-600 hover:bg-red-50"
                                                         onClick={() => setDeleteId(wh.id)}
                                                     >
                                                         <Trash2 className="h-4 w-4" />
@@ -154,15 +213,14 @@ export function WarehouseClient({ initialWarehouses }: WarehouseClientProps) {
                 open={dialogOpen}
                 onOpenChange={setDialogOpen}
                 warehouse={selectedWarehouse}
-                onSuccess={() => router.refresh()}
             />
 
             <AlertDialog open={!!deleteId} onOpenChange={(open) => !open && !isDeleting && setDeleteId(null)}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
-                        <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                        <AlertDialogTitle>Delete Warehouse?</AlertDialogTitle>
                         <AlertDialogDescription>
-                            This action cannot be undone. This will permanently delete the warehouse and cascade delete all associated stock levels.
+                            This will permanently delete <strong>{initialWarehouses.find(w => w.id === deleteId)?.name}</strong> and all associated stock levels. This action cannot be undone.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
@@ -172,7 +230,13 @@ export function WarehouseClient({ initialWarehouses }: WarehouseClientProps) {
                             className="bg-red-600 hover:bg-red-700"
                             disabled={isDeleting}
                         >
-                            {isDeleting ? 'Deleting...' : 'Delete'}
+                            {isDeleting ? (
+                                <>
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Deleting...
+                                </>
+                            ) : (
+                                'Delete Warehouse'
+                            )}
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>

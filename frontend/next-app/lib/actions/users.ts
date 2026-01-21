@@ -261,3 +261,26 @@ export async function revokeUserSessions(userId: number) {
         return { error: 'Failed to revoke sessions' };
     }
 }
+
+export async function getUsersForAssignment() {
+    const session = await auth();
+    if (!session) return { error: 'Unauthorized' };
+
+    try {
+        const users = await prisma.user.findMany({
+            select: {
+                id: true,
+                name: true,
+                email: true,
+                avatar: true,
+            },
+            where: { status: 'active' },
+            orderBy: { name: 'asc' }
+        });
+
+        return { success: true, users };
+    } catch (error) {
+        console.error('Failed to fetch users for assignment:', error);
+        return { error: 'Failed to fetch users' };
+    }
+}

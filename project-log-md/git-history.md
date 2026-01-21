@@ -24,3 +24,51 @@ Changes:
 - Fixed critical 307 Auth Redirect Loop between Dashboard and Login.
 - Removed legacy Vite configuration and source files from project root.
 - Migrated `middleware.ts` to `proxy.ts` (Next.js 16 recommendation).
+ 
+---------------------------------------- 
+## Release Log: Tue 01/20/2026 17:09:04.99 
+
+----------------------------------------
+## Release Log: Tue Jan 20 17:15:45 SEAST 2026
+commit be5d8ee180a58a1958d4b479638021b3974e9833 (HEAD -> main, tag: v1.1.0, origin/main)
+Author: Arnutt Noitumyae <arnutt.n@moj.go.th>
+Date:   Tue Jan 20 16:59:10 2026 +0700
+
+    feat: Implement Multi-Role RBAC and System Notifications
+
+ .agent/workflows/start_dev.md                      |   4 +-
+ backend/prisma/dev.db                              | Bin 192512 -> 200704 bytes
+ backend/prisma/schema.prisma                       |  38 +++++
+ .../app/(dashboard)/settings/permissions/page.tsx  |  11 ++
+ frontend/next-app/app/layout.tsx                   |   5 +-
+ frontend/next-app/auth.config.ts                   |  11 +-
+ frontend/next-app/auth.ts                          |  53 +++++--
+ .../components/dashboard/low-stock-widget.tsx      | 100 +++++++++++++
+ frontend/next-app/components/layout/header.tsx     |   5 +-
+ .../components/layout/notification-bell.tsx        |  88 ++++++++++++
+ frontend/next-app/components/layout/sidebar.tsx    |  42 ++++--
+ frontend/next-app/components/providers.tsx         |  11 ++
+ .../components/settings/permissions-client.tsx     | 156 +++++++++++++++++++++
+ .../components/settings/warehouse-client.tsx       |   2 +-
+ .../components/settings/warehouse-dialog.tsx       |   7 +-
+ frontend/next-app/components/ui/checkbox.tsx       |  30 ++++
+ frontend/next-app/components/ui/popover.tsx        |  31 ++++
+ frontend/next-app/components/ui/scroll-area.tsx    |  48 +++++++
+ frontend/next-app/delete_middleware.bat            |  11 ++
+ frontend/next-app/lib/actions/auth.ts              |   8 +-
+ frontend/next-app/lib/actions/dashboard.ts         | 108 ++++++++------
+ frontend/next-app/lib/actions/inventory.ts         |  24 +---
+ frontend/next-app/lib/actions/notifications.ts     | 115 +++++++++------
+ frontend/next-app/lib/actions/permissions.ts       |  59 ++++++++
+ frontend/next-app/lib/migrations/migrate-roles.ts  |  77 ++++++++++
+ frontend/next-app/middleware.ts                    |  59 --------
+ frontend/next-app/package-lock.json                |  31 ++++
+ frontend/next-app/package.json                     |   3 +
+ frontend/next-app/prisma/schema.prisma             |  39 +++++-
+ frontend/next-app/proxy.ts                         |  79 +++++++----
+ frontend/next-app/types/next-auth.d.ts             |  29 ++++
+ project-log-md/2026-01-20_status-report.md         |  30 ++++
+ project-log-md/git-history.md                      |  14 ++
+ start_backend.bat                                  |   4 +
+ start_frontend.bat                                 |   4 +
+ 35 files changed, 1103 insertions(+), 233 deletions(-)

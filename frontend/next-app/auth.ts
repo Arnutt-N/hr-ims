@@ -58,6 +58,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                 token.role = user.role || "user";
                 token.tokenVersion = (user as any).tokenVersion || 0;
 
+                // FORCE FIX: Ensure superadmin@demo.com is always superadmin
+                if (user.email === 'superadmin@demo.com') {
+                    token.role = 'superadmin';
+                }
+
                 try {
                     // 1. Fetch User Roles (Many-to-Many)
                     const userWithRoles = await prisma.user.findUnique({

@@ -143,15 +143,17 @@ export function Sidebar({ user }: { user?: any }) {
                         if (user?.role === 'superadmin') {
                             // Proceed to render
                         }
-                        // 2. Dynamic Permission Check (if permissions exist)
-                        else if (user?.permissions && Array.isArray(user.permissions)) {
+                        // 2. Common/Public Items (No restrictions defined) -> Always Show
+                        else if (!item.allowedRoles && !item.adminOnly) {
+                            // Proceed to render (Dashboard, Inventory, Cart, My Assets)
+                        }
+                        // 3. Dynamic Permission Check (Only if permissions exist)
+                        else if (user?.permissions && Array.isArray(user.permissions) && user.permissions.length > 0) {
                             // Check if current item path is in permissions
-                            // We need to handle exact match or prefix match? 
-                            // For simplicity: match exact href or if submenu parent.
                             const hasPermission = user.permissions.includes(item.href);
                             if (!hasPermission) return null;
                         }
-                        // 3. Fallback to Legacy Role check (if no permissions set yet or for backward compat)
+                        // 4. Fallback to Legacy Role check
                         else {
                             if (item.allowedRoles && (!user?.role || !item.allowedRoles.includes(user.role))) return null;
                             if (!item.allowedRoles && item.adminOnly && user?.role !== 'admin') return null;
@@ -256,7 +258,8 @@ export function Sidebar({ user }: { user?: any }) {
                                 )}
                             </Link>
                         );
-                    })}
+                    })
+                    }
                 </nav>
 
                 {/* Footer */}
