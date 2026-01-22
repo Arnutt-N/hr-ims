@@ -40,16 +40,25 @@ export async function checkLowStock() {
             const message = `Low Stock Alert: ${stock.item.name} in ${stock.warehouse.name} is down to ${stock.quantity} (Min: ${stock.minStock})`;
 
             for (const manager of managers) {
-                // Prevent duplicate unread notifications for same item to same user to avoid spam?
-                // For now, simple create.
-                await prisma.notification.create({
-                    data: {
+                // Prevent duplicate unread notifications for same item
+                const existing = await prisma.notification.findFirst({
+                    where: {
                         userId: manager.id,
                         text: message,
                         read: false
                     }
                 });
-                count++;
+
+                if (!existing) {
+                    await prisma.notification.create({
+                        data: {
+                            userId: manager.id,
+                            text: message,
+                            read: false
+                        }
+                    });
+                    count++;
+                }
             }
         }
 

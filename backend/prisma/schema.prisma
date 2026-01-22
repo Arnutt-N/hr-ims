@@ -3,12 +3,17 @@ generator client {
   provider = "prisma-client-js"
 }
 
+generator client_frontend {
+  provider = "prisma-client-js"
+  output   = "../../frontend/next-app/node_modules/@prisma/client"
+}
+
 datasource db {
   provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
-// ... existing User model ...
+// User model
 model User {
   id        Int       @id @default(autoincrement())
   email     String    @unique
@@ -29,6 +34,7 @@ model User {
   tokenVersion Int      @default(1) // For session invalidation
   managedWarehouses Warehouse[] @relation("WarehouseManagers")
   userRoles   UserRole[] // Relation to roles
+  auditLogs   AuditLog[] // Relation to AuditLog
 }
 
 // Note: SQLite doesn't support enums, so Role is now String
@@ -74,6 +80,8 @@ model InventoryItem {
   stockTransfers StockTransfer[] // NEW: Transfer history
   stockTransactions StockTransaction[]
   repairNotes  String?   // Maintenance/repair notes
+  categoryId      Int?
+  categoryRef     Category? @relation(fields: [categoryId], references: [id])
   currentHolderId Int?
   currentHolder   User? @relation("CurrentHolder", fields: [currentHolderId], references: [id])
 }
@@ -451,4 +459,24 @@ model RolePermission {
   updatedAt DateTime @updatedAt
   
   @@unique([role, menu]) // Keep for now until migrated
+}
+
+model Category {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  items       InventoryItem[]
+}
+
+model AuditLog {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id])
+  action    String
+  entity    String
+  entityId  String?
+  details   String?
+  createdAt DateTime @default(now())
 }

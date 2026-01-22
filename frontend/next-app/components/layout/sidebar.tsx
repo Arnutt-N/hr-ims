@@ -77,7 +77,7 @@ export function Sidebar({ user }: { user?: any }) {
     const pathname = usePathname();
     const searchParams = useSearchParams();
     const [isOpen, setIsOpen] = useState(false); // Mobile state
-    const [isInventoryOpen, setIsInventoryOpen] = useState(true);
+    const [isInventoryOpen, setIsInventoryOpen] = useState(false);
 
     // Close sidebar on route change (mobile)
     useEffect(() => {
