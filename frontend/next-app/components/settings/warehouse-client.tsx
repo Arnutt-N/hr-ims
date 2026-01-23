@@ -76,7 +76,7 @@ export function WarehouseClient({ initialWarehouses }: WarehouseClientProps) {
                     </h1>
                     <p className="text-slate-500">Configure warehouses and assign managers.</p>
                 </div>
-                <Button onClick={() => { setSelectedWarehouse(null); setDialogOpen(true); }}>
+                <Button className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-200" onClick={() => { setSelectedWarehouse(null); setDialogOpen(true); }}>
                     <Plus className="mr-2 h-4 w-4" /> Add Warehouse
                 </Button>
             </div>

@@ -72,3 +72,36 @@ Date:   Tue Jan 20 16:59:10 2026 +0700
  start_backend.bat                                  |   4 +
  start_frontend.bat                                 |   4 +
  35 files changed, 1103 insertions(+), 233 deletions(-)
+-e "\n----------------------------------------\n## Release Log: $(date)\n" 
+ 
+---------------------------------------- 
+## Release Log: Fri 01/23/2026 12:44:49.65 
+
+----------------------------------------
+## Release Log: Fri Jan 23 12:45:03 SEAST 2026
+
+commit 8b319d58e25a3d93852bff28c72d48b58eee7509 (HEAD -> main, origin/main)
+Author: Arnutt Noitumyae <arnutt.n@moj.go.th>
+Date:   Fri Jan 23 12:42:36 2026 +0700
+
+    feat: implement notifications, 3-tier warehouse, cf-tunnel, enhanced reports, and session management
+
+ CLOUDFLARE-TUNNEL.md                               |  39 ++++
+ backend/prisma/dev.db                              | Bin 233472 -> 233472 bytes
+ frontend/next-app/app/(dashboard)/reports/page.tsx |  33 ++--
+ .../next-app/app/(dashboard)/settings/page.tsx     |   6 +-
+ .../app/(dashboard)/settings/sessions/page.tsx     | 127 ++++++++++++
+ frontend/next-app/app/print.css                    |  68 +++++++
+ frontend/next-app/auth.ts                          |  45 +++--
+ frontend/next-app/lib/actions/sessions.ts          |  68 +++++++
+ frontend/next-app/next-auth.d.ts                   |  26 +--
+ frontend/next-app/package-lock.json                |  42 ++++
+ frontend/next-app/package.json                     |   7 +-
+ frontend/next-app/prisma/schema.prisma             |  39 ++++
+ frontend/next-app/scripts/check-history.js         |  16 ++
+ .../next-app/scripts/check-latest-notification.js  |  17 ++
+ frontend/next-app/scripts/seed-history.js          |  27 +++
+ .../next-app/scripts/test-notification-flow.js     | 217 +++++++++++++++++++++
+ .../next-app/scripts/test-provincial-warehouse.js  | 123 ++++++++++++
+ start-tunnel.sh                                    |   9 +
+ 18 files changed, 851 insertions(+), 58 deletions(-)

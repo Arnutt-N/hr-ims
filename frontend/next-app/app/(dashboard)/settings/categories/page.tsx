@@ -96,7 +96,7 @@ export default function CategoriesPage() {
                         <RefreshCw className={`mr-2 h-4 w-4 ${syncing ? 'animate-spin' : ''}`} />
                         Sync from Items
                     </Button>
-                    <Button onClick={() => { setSelectedCategory(null); setDialogOpen(true); }}>
+                    <Button className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-200" onClick={() => { setSelectedCategory(null); setDialogOpen(true); }}>
                         <Plus className="mr-2 h-4 w-4" /> Add Category
                     </Button>
                 </div>

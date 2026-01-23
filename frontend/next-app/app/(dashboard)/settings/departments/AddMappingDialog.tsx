@@ -59,7 +59,7 @@ export default function AddMappingDialog({ uniqueDepartments, warehouses }: AddM
 
     return (
         <>
-            <Button onClick={() => setOpen(true)}>
+            <Button className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-200" onClick={() => setOpen(true)}>
                 <Plus className="mr-2 h-4 w-4" />
                 Add Mapping
             </Button>
