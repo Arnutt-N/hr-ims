@@ -1,0 +1,68 @@
+@media print {
+    /* Hide non-printable elements */
+    aside, 
+    nav, 
+    header, 
+    button, 
+    .no-print {
+        display: none !important;
+    }
+
+    /* Reset background and text colors */
+    body {
+        background-color: white !important;
+        color: black !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        font-family: 'Sarabun', sans-serif; /* Optional: Ensure a clean font */
+    }
+
+    /* Layout adjustments for print */
+    .max-w-7xl {
+        max-width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        box-shadow: none !important;
+    }
+
+    /* Chart containers should break nicely */
+    .grid {
+        display: block !important;
+    }
+
+    .grid > div {
+        break-inside: avoid;
+        margin-bottom: 2rem;
+        page-break-inside: avoid;
+        border: 1px solid #ccc;
+        box-shadow: none !important;
+    }
+
+    /* Typography */
+    h2, h3 {
+        color: black !important;
+    }
+
+    /* Add print header */
+    .print-header {
+        display: block !important;
+        text-align: center;
+        margin-bottom: 2rem;
+        border-bottom: 2px solid #000;
+        padding-bottom: 1rem;
+    }
+
+    .print-header h1 {
+        font-size: 24pt;
+        font-weight: bold;
+    }
+    
+    .print-header p {
+        font-size: 12pt;
+    }
+}
+
+/* Hide print header on screen */
+.print-header {
+    display: none;
+}

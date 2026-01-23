@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
-import { Save, Settings as SettingsIcon } from 'lucide-react';
+import { Save, Settings as SettingsIcon, Shield } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { TestEmailButton } from '@/components/settings/test-email-button';
 
@@ -103,6 +103,10 @@ export default function SettingsPage() {
                     <p className="text-slate-500 mt-1">Manage application-wide settings and defaults.</p>
                 </div>
                 <div className="flex items-center gap-3">
+                    <Button variant="outline" size="sm" onClick={() => window.location.href = '/settings/sessions'}>
+                        <Shield size={16} className="mr-2" />
+                        Active Sessions
+                    </Button>
                     <TestEmailButton />
                     {hasChanges && (
                         <Badge variant="secondary" className="animate-pulse">

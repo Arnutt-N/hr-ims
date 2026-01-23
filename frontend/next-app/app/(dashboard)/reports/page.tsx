@@ -6,6 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Calendar, Download, TrendingUp } from 'lucide-react';
 import { PieChart, Pie, Cell, BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
+import '@/app/print.css'; // Add global print styles
+
 const COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6'];
 
 export default function ReportsPage() {
@@ -20,6 +22,7 @@ export default function ReportsPage() {
         setLoading(true);
         const res = await getReportStats();
         if (res.success) {
+            console.log("Stats loaded:", res.stats);
             setStats(res.stats);
         }
         setLoading(false);
@@ -32,12 +35,12 @@ export default function ReportsPage() {
     const handleExportCSV = () => {
         if (!stats) return;
 
-        // Flatten data for CSV
-        // combines status breakdown, top items, etc?
-        // Let's export the "Top Items" list as it's the most granular "usage report"
+        // Combine data for a comprehensive CSV
+        // Here we export Top Borrowed Items as the main dataset
         const data = stats.topBorrowed.map((item: any) => ({
             ItemName: item.item,
-            UsageCount: item._count.id
+            UsageCount: item._count.id,
+            Type: 'Borrowed/Withdrawn'
         }));
 
         if (data.length === 0) {
@@ -51,12 +54,12 @@ export default function ReportsPage() {
             ...data.map((row: any) => headers.map(fieldName => JSON.stringify(row[fieldName])).join(','))
         ];
         const csvString = csvRows.join('\n');
-        const blob = new Blob([csvString], { type: 'text/csv' });
+        const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.setAttribute('hidden', '');
         a.setAttribute('href', url);
-        a.setAttribute('download', 'inventory_usage_report.csv');
+        a.setAttribute('download', `inventory_report_${new Date().toISOString().split('T')[0]}.csv`);
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
@@ -82,21 +85,27 @@ export default function ReportsPage() {
 
     return (
         <div className="space-y-6 animate-fade-in-up max-w-7xl mx-auto">
-            <div className="flex justify-between items-center">
+            {/* Print Header - Visible only in Print Mode */}
+            <div className="print-header">
+                <h1>IMS Inventory Report</h1>
+                <p>Generated on: {new Date().toLocaleString('th-TH', { dateStyle: 'long', timeStyle: 'short' })}</p>
+            </div>
+
+            <div className="flex justify-between items-center no-print">
                 <div>
                     <h2 className="text-3xl font-bold text-slate-900">Reports & Analytics</h2>
                     <p className="text-slate-500">System usage summary and insights.</p>
                 </div>
                 <div className="flex gap-2">
-                    <Button variant="outline" size="sm">
-                        <Calendar size={16} className="mr-2" /> Last 6 Months
+                    <Button variant="outline" size="sm" onClick={() => loadStats()}>
+                        <Calendar size={16} className="mr-2" /> Refresh Data
                     </Button>
                     <Button size="sm" onClick={handleExportCSV} className="bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-500">
                         <Download size={16} className="mr-2" /> Export CSV
                     </Button>
-                    <Button size="sm" onClick={handleExport} className="bg-indigo-600 hover:bg-indigo-700">
-                        <Download size={16} className="mr-2" /> Export PDF
-                    </Button>
+                    {/* <Button size="sm" onClick={handleExport} className="bg-indigo-600 hover:bg-indigo-700">
+                        <Download size={16} className="mr-2" /> Print PDF
+                    </Button> */}
                 </div>
             </div>
 
