@@ -4,12 +4,14 @@ const nextConfig = {
         root: process.cwd(), // Fix Turbopack workspace root detection
     },
     async rewrites() {
-        return [
-            {
-                source: '/api/:path((?!auth).*)*',  // Match all /api/* except /api/auth/*
-                destination: 'http://localhost:3001/api/:path*', // Proxy to express backend
-            },
-        ];
+        return {
+            fallback: [
+                {
+                    source: '/api/:path*',
+                    destination: 'http://localhost:3001/api/:path*', // Proxy to express backend
+                },
+            ],
+        };
     },
 };
 

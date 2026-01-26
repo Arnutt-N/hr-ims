@@ -105,3 +105,26 @@ Date:   Fri Jan 23 12:42:36 2026 +0700
  .../next-app/scripts/test-provincial-warehouse.js  | 123 ++++++++++++
  start-tunnel.sh                                    |   9 +
  18 files changed, 851 insertions(+), 58 deletions(-)
+  
+----------------------------------------  
+## Release Log: Fri 01/23/2026 13:28:58.94  
+  
+----------------------------------------  
+## Release Log: Fri 01/23/2026 13:29:25.74  
+  
+----------------------------------------  
+## Release Log: Fri 01/23/2026 13:29:44.93  
+commit c415028f373df1d1e880b64df0c53cfa9b1aecbc (HEAD -> main, origin/main)
+Author: Arnutt Noitumyae <arnutt.n@moj.go.th>
+Date:   Fri Jan 23 13:26:11 2026 +0700
+
+    feat(ui): improve UI consistency - button colors, focus ring, and audit logs pagination
+
+ .../app/(dashboard)/settings/categories/page.tsx   |  2 +-
+ .../settings/departments/AddMappingDialog.tsx      |  2 +-
+ frontend/next-app/app/globals.css                  |  8 +--
+ .../components/settings/warehouse-client.tsx       |  2 +-
+ frontend/next-app/components/ui/checkbox.tsx       |  2 +-
+ project-log-md/git-history.md                      | 33 +++++++++++
+ project-log-md/session_2026-01-23_132031.md        | 65 ++++++++++++++++++++++
+ 7 files changed, 106 insertions(+), 8 deletions(-)

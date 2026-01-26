@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { getCategories, deleteCategory, syncCategories } from '@/lib/actions/categories';
 import { Button } from '@/components/ui/button';
 import {
@@ -13,7 +13,7 @@ import {
 } from '@/components/ui/table';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Plus, Search, Edit, Trash2, RefreshCw, FolderOpen } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, RefreshCw, FolderOpen, ChevronLeft, ChevronRight } from 'lucide-react';
 import { toast } from 'sonner';
 import { CategoryDialog } from '@/components/settings/category-dialog';
 import { Badge } from '@/components/ui/badge';
@@ -28,6 +28,8 @@ import {
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
+const ITEMS_PER_PAGE = 10;
+
 export default function CategoriesPage() {
     const [categories, setCategories] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
@@ -36,6 +38,7 @@ export default function CategoriesPage() {
     const [selectedCategory, setSelectedCategory] = useState<any>(null);
     const [deleteId, setDeleteId] = useState<number | null>(null);
     const [syncing, setSyncing] = useState(false);
+    const [currentPage, setCurrentPage] = useState(1);
 
     useEffect(() => {
         loadData();
@@ -77,10 +80,26 @@ export default function CategoriesPage() {
         setSyncing(false);
     };
 
-    const filteredCategories = categories.filter(c =>
-        c.name.toLowerCase().includes(search.toLowerCase()) ||
-        c.description?.toLowerCase().includes(search.toLowerCase())
-    );
+    const filteredCategories = useMemo(() => {
+        const query = search.toLowerCase().trim();
+        if (!query) return categories;
+        return categories.filter(c =>
+            c.name.toLowerCase().includes(query) ||
+            c.description?.toLowerCase().includes(query)
+        );
+    }, [categories, search]);
+
+    // Pagination
+    const totalPages = Math.ceil(filteredCategories.length / ITEMS_PER_PAGE);
+    const paginatedCategories = useMemo(() => {
+        const start = (currentPage - 1) * ITEMS_PER_PAGE;
+        return filteredCategories.slice(start, start + ITEMS_PER_PAGE);
+    }, [filteredCategories, currentPage]);
+
+    // Reset page on search
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [search]);
 
     return (
         <div className="space-y-6 max-w-5xl mx-auto p-6 animate-fade-in-up">
@@ -138,14 +157,14 @@ export default function CategoriesPage() {
                                             Loading...
                                         </TableCell>
                                     </TableRow>
-                                ) : filteredCategories.length === 0 ? (
+                                ) : paginatedCategories.length === 0 ? (
                                     <TableRow>
                                         <TableCell colSpan={4} className="text-center py-8 text-slate-500">
                                             No categories found.
                                         </TableCell>
                                     </TableRow>
                                 ) : (
-                                    filteredCategories.map((category) => (
+                                    paginatedCategories.map((category) => (
                                         <TableRow key={category.id}>
                                             <TableCell className="font-medium">{category.name}</TableCell>
                                             <TableCell className="text-slate-500">{category.description || '-'}</TableCell>
@@ -178,6 +197,35 @@ export default function CategoriesPage() {
                             </TableBody>
                         </Table>
                     </div>
+
+                    {/* Pagination Controls */}
+                    {!loading && totalPages > 1 && (
+                        <div className="flex items-center justify-between mt-4 px-2">
+                            <p className="text-sm text-slate-500">
+                                Page {currentPage} of {totalPages}
+                            </p>
+                            <div className="flex items-center gap-2">
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                                    disabled={currentPage === 1}
+                                >
+                                    <ChevronLeft className="h-4 w-4 mr-1" />
+                                    Previous
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                                    disabled={currentPage === totalPages}
+                                >
+                                    Next
+                                    <ChevronRight className="h-4 w-4 ml-1" />
+                                </Button>
+                            </div>
+                        </div>
+                    )}
                 </CardContent>
             </Card>
 

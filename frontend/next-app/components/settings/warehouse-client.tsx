@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { deleteWarehouse } from '@/lib/actions/warehouse';
 import { Button } from '@/components/ui/button';
@@ -13,7 +13,7 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Warehouse as WarehouseIcon, Plus, Edit, Trash2, Search, Loader2 } from 'lucide-react';
+import { Warehouse as WarehouseIcon, Plus, Edit, Trash2, Search, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { toast } from 'sonner';
 import { WarehouseDialog } from '@/components/settings/warehouse-dialog';
 import { Badge } from '@/components/ui/badge';
@@ -35,6 +35,8 @@ interface WarehouseClientProps {
     initialWarehouses: Warehouse[];
 }
 
+const ITEMS_PER_PAGE = 10;
+
 export function WarehouseClient({ initialWarehouses }: WarehouseClientProps) {
     const router = useRouter();
     const [dialogOpen, setDialogOpen] = useState(false);
@@ -42,6 +44,7 @@ export function WarehouseClient({ initialWarehouses }: WarehouseClientProps) {
     const [deleteId, setDeleteId] = useState<number | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
+    const [currentPage, setCurrentPage] = useState(1);
 
     const handleDelete = async () => {
         if (!deleteId) return;
@@ -62,10 +65,26 @@ export function WarehouseClient({ initialWarehouses }: WarehouseClientProps) {
         }
     };
 
-    const filteredWarehouses = initialWarehouses.filter(wh =>
-        wh.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        wh.code.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    const filteredWarehouses = useMemo(() => {
+        const query = searchQuery.toLowerCase().trim();
+        if (!query) return initialWarehouses;
+        return initialWarehouses.filter(wh =>
+            wh.name.toLowerCase().includes(query) ||
+            wh.code.toLowerCase().includes(query)
+        );
+    }, [initialWarehouses, searchQuery]);
+
+    // Pagination
+    const totalPages = Math.ceil(filteredWarehouses.length / ITEMS_PER_PAGE);
+    const paginatedWarehouses = useMemo(() => {
+        const start = (currentPage - 1) * ITEMS_PER_PAGE;
+        return filteredWarehouses.slice(start, start + ITEMS_PER_PAGE);
+    }, [filteredWarehouses, currentPage]);
+
+    // Reset page on search
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [searchQuery]);
 
     return (
         <div className="space-y-6 max-w-5xl mx-auto p-6 animate-fade-in-up">
@@ -115,7 +134,7 @@ export function WarehouseClient({ initialWarehouses }: WarehouseClientProps) {
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {filteredWarehouses.length === 0 ? (
+                                {paginatedWarehouses.length === 0 ? (
                                     <TableRow>
                                         <TableCell colSpan={6} className="text-center py-12 text-slate-500">
                                             {searchQuery ? (
@@ -136,7 +155,7 @@ export function WarehouseClient({ initialWarehouses }: WarehouseClientProps) {
                                         </TableCell>
                                     </TableRow>
                                 ) : (
-                                    filteredWarehouses.map((wh) => (
+                                    paginatedWarehouses.map((wh) => (
                                         <TableRow key={wh.id} className="hover:bg-slate-50/50 transition-colors">
                                             <TableCell className="font-mono text-xs font-medium">{wh.code}</TableCell>
                                             <TableCell className="font-medium">{wh.name}</TableCell>
@@ -206,8 +225,37 @@ export function WarehouseClient({ initialWarehouses }: WarehouseClientProps) {
                             </TableBody>
                         </Table>
                     </div>
-                </CardContent>
-            </Card>
+
+                    {/* Pagination Controls */}
+                    {totalPages > 1 && (
+                        <div className="flex items-center justify-between mt-4 px-2">
+                            <p className="text-sm text-slate-500">
+                                Page {currentPage} of {totalPages}
+                            </p>
+                            <div className="flex items-center gap-2">
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                                    disabled={currentPage === 1}
+                                >
+                                    <ChevronLeft className="h-4 w-4 mr-1" />
+                                    Previous
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                                    disabled={currentPage === totalPages}
+                                >
+                                    Next
+                                    <ChevronRight className="h-4 w-4 ml-1" />
+                                </Button>
+                            </div>
+                        </div>
+                    )}
+                </CardContent >
+            </Card >
 
             <WarehouseDialog
                 open={dialogOpen}
@@ -241,6 +289,6 @@ export function WarehouseClient({ initialWarehouses }: WarehouseClientProps) {
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
-        </div>
+        </div >
     );
 }

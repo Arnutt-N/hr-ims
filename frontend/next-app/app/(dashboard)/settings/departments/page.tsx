@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { getDepartmentMappings, getUniqueDepartments, deleteDepartmentMapping } from '@/lib/actions/departments';
 import AddMappingDialog from './AddMappingDialog';
 import DeleteMappingButton from './DeleteMappingButton';
+import MappingClient from './mapping-client';
 
 // Fetch warehouses directly from API for the dropdown
 async function getWarehouses() {
@@ -37,54 +38,7 @@ export default async function DepartmentMappingsPage() {
                 <AddMappingDialog uniqueDepartments={availableDepartments} warehouses={warehouses} />
             </div>
 
-            <Card>
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                        <MapPin className="h-5 w-5 text-indigo-500" />
-                        Active Mappings
-                    </CardTitle>
-                    <CardDescription>
-                        Users from these departments will automatically be assigned to the corresponding warehouse.
-                    </CardDescription>
-                </CardHeader>
-                <CardContent>
-                    {mappings.length === 0 ? (
-                        <div className="text-center py-8 text-slate-500">
-                            No mappings configured yet.
-                        </div>
-                    ) : (
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Department</TableHead>
-                                    <TableHead>Default Warehouse</TableHead>
-                                    <TableHead>Status</TableHead>
-                                    <TableHead className="text-right">Actions</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {mappings.map((mapping: any) => (
-                                    <TableRow key={mapping.id}>
-                                        <TableCell className="font-medium">
-                                            <div className="flex items-center gap-2">
-                                                <Building2 className="h-4 w-4 text-slate-400" />
-                                                {mapping.department}
-                                            </div>
-                                        </TableCell>
-                                        <TableCell>{mapping.warehouse.name}</TableCell>
-                                        <TableCell>
-                                            <Badge variant="success">Active</Badge>
-                                        </TableCell>
-                                        <TableCell className="text-right">
-                                            <DeleteMappingButton id={mapping.id} />
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
-                    )}
-                </CardContent>
-            </Card>
+            <MappingClient initialMappings={mappings} />
         </div>
     );
 }

@@ -115,3 +115,22 @@ export async function markAsRead(id: number) {
         return { error: "Failed to update" };
     }
 }
+
+export async function markAllAsRead() {
+    const session = await auth();
+    if (!session?.user?.id) return { error: "Unauthorized" };
+
+    try {
+        await prisma.notification.updateMany({
+            where: {
+                userId: parseInt(session.user.id),
+                read: false
+            },
+            data: { read: true }
+        });
+        revalidatePath('/dashboard');
+        return { success: true };
+    } catch (error) {
+        return { error: "Failed to update all" };
+    }
+}
