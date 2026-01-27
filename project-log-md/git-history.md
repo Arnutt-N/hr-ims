@@ -128,3 +128,38 @@ Date:   Fri Jan 23 13:26:11 2026 +0700
  project-log-md/git-history.md                      | 33 +++++++++++
  project-log-md/session_2026-01-23_132031.md        | 65 ++++++++++++++++++++++
  7 files changed, 106 insertions(+), 8 deletions(-)
+  
+----------------------------------------  
+## Release Log: Mon 01/26/2026 18:07:16.93  
+---------------------------------------- 
+## Release Log: Mon 01/26/2026 18:15:00 
+Message: feat: implement low stock notification system and fix auth proxy for Next.js 16 
+ 
+Changes: 
+- Added NotificationBell and automated low stock checks 
+- Migrated middleware.ts to proxy.ts for Next.js 16 compatibility 
+- Fixed Cloudflare Tunnel redirect back to localhost 
+- Standardized RBAC and removed legacy debugging files 
+----------------------------------------
+## Release Log: Mon Jan 26 18:11:50 SEAST 2026
+commit 153913c2ad1b73beb8a8b92ac049be12c324d752 (HEAD -> main, tag: v1.0.1, origin/main)
+Author: Arnutt Noitumyae <arnutt.n@moj.go.th>
+Date:   Mon Jan 26 18:06:23 2026 +0700
+
+    feat: implement low stock notification system and fix auth redirect logic
+
+ .agent/workflows/start_dev.md                      |   5 +
+ backend/prisma/dev.db                              | Bin 233472 -> 233472 bytes
+ .../app/(dashboard)/settings/categories/page.tsx   |  64 ++++++-
+ .../settings/departments/mapping-client.tsx        | 147 +++++++++++++++
+ .../app/(dashboard)/settings/departments/page.tsx  |  50 +----
+ .../components/layout/notification-bell.tsx        | 201 ++++++++++++++-------
+ .../components/settings/warehouse-client.tsx       |  70 +++++--
+ frontend/next-app/lib/actions/notifications.ts     |  19 ++
+ frontend/next-app/next.config.mjs                  |  14 +-
+ frontend/next-app/proxy.ts                         |  26 +--
+ frontend/next-app/scripts/seed-notifications.js    |  56 ++++++
+ project-log-md/git-history.md                      |  23 +++
+ project-log-md/session_2026-01-26_164851.md        |  49 +++++
+ start_tunnel.bat                                   |  12 ++
+ 14 files changed, 577 insertions(+), 159 deletions(-)

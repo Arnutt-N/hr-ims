@@ -91,6 +91,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                     }
                     token.roles = roles;
 
+                    // PROMOTE ROLE: If superadmin is in the list, ensure token.role is also superadmin
+                    // This handles legacy pages that only check token.role
+                    if (roles.includes('superadmin')) {
+                        token.role = 'superadmin';
+                    } else if (roles.includes('admin') && token.role !== 'superadmin') {
+                        token.role = 'admin';
+                    }
+
                     // 2. Fetch Permissions for ALL assigned roles
                     const permissions = await prisma.rolePermission.findMany({
                         where: {

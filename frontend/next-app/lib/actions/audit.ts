@@ -36,7 +36,10 @@ export async function logActivity(
 export async function getAuditLogs(limit = 50) {
     try {
         const session = await auth();
-        if (session?.user?.role !== 'superadmin' && session?.user?.role !== 'admin' && session?.user?.role !== 'auditor') {
+        const userRoles = (session?.user as any)?.roles || [session?.user?.role];
+        const isAuthorized = userRoles.some((r: string) => ['superadmin', 'admin', 'auditor'].includes(r));
+
+        if (!isAuthorized) {
             return { error: 'Unauthorized' };
         }
 
