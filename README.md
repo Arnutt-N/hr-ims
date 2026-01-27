@@ -52,9 +52,9 @@
 
 ระบบพัฒนาด้วยเทคโนโลยีระดับ Enterprise Grade:
 
-- **Frontend Core:** [Next.js 16 (App Router)](https://nextjs.org/) - Framework ผู้นำระดับโลก
+- **Frontend Core:** [Next.js 16.1 (Turbopack)](https://nextjs.org/) - Framework ผู้นำระดับโลก เร็วแรงด้วย Turbopack Engine
 - **Language:** [TypeScript](https://www.typescriptlang.org/) - เพิ่มความเสถียรและลดบั๊กของโค้ด
-- **UI Framework:** [Tailwind CSS](https://tailwindcss.com/) + [Shadcn UI](https://ui.shadcn.com/) - ดีไซน์ทันสมัยและรองรับ Responsive
+- **UI Framework:** [Tailwind CSS v4](https://tailwindcss.com/) + [Shadcn UI](https://ui.shadcn.com/) - ดีไซน์ Modern & Clean Theme พร้อม Oxide Engine ใหม่ล่าสุด
 - **Database ORM:** [Prisma](https://www.prisma.io/) - จัดการฐานข้อมูลอย่างมีประสิทธิภาพ
 - **Database:** SQLite (Development) / PostgreSQL (Production Support)
 - **Container:** Docker & Docker Compose

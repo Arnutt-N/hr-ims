@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -20,6 +20,13 @@ export default function ImportItemsDialog() {
     const [open, setOpen] = useState(false);
     const [csvData, setCsvData] = useState('');
     const [isLoading, setIsLoading] = useState(false);
+    const [mounted, setMounted] = useState(false);
+
+    useEffect(() => {
+        setMounted(true);
+    }, []);
+
+    if (!mounted) return null;
 
     const handleImport = async () => {
         if (!csvData.trim()) {

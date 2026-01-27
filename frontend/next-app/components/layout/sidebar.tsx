@@ -93,7 +93,7 @@ export function Sidebar({ user }: { user?: any }) {
             {/* Mobile Trigger */}
             <button
                 onClick={() => setIsOpen(!isOpen)}
-                className="md:hidden fixed top-4 left-4 z-50 p-2 bg-white rounded-xl shadow-lg border border-slate-100 text-slate-600"
+                className="md:hidden fixed top-4 left-4 z-50 p-2 bg-white rounded-xl shadow-lg border border-slate-100 text-slate-600 cursor-pointer"
             >
                 {isOpen ? <X size={24} /> : <Menu size={24} />}
             </button>
@@ -167,7 +167,7 @@ export function Sidebar({ user }: { user?: any }) {
                                     <button
                                         onClick={() => setIsInventoryOpen(!isInventoryOpen)}
                                         className={cn(
-                                            "w-full flex items-center justify-between p-3.5 rounded-xl transition-all duration-200 group",
+                                            "w-full flex items-center justify-between p-3.5 rounded-xl transition-all duration-200 group cursor-pointer",
                                             isActiveParent ? "bg-white/10 text-white" : "text-slate-400 hover:bg-white/5 hover:text-white"
                                         )}
                                     >
@@ -266,7 +266,7 @@ export function Sidebar({ user }: { user?: any }) {
                 <div className="relative z-10 p-6 border-t border-white/10 bg-black/10 backdrop-blur-sm mt-2">
                     <button
                         onClick={handleLogout}
-                        className="flex items-center justify-center gap-4 w-full p-3 rounded-xl text-slate-400 hover:text-white hover:bg-white/5 transition-all group"
+                        className="flex items-center justify-center gap-4 w-full p-3 rounded-xl text-slate-400 hover:text-white hover:bg-white/5 transition-all group cursor-pointer"
                     >
                         <LogOut size={22} className="group-hover:-translate-x-1 transition-transform" />
                         <span className="font-medium text-sm">Sign Out</span>

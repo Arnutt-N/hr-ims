@@ -17,6 +17,7 @@ import { InventoryCard } from '@/components/ui/inventory-card';
 import { cn } from '@/lib/utils'; // You might need to make sure this exists or use standard class string
 
 import InventoryRemoteControls from '@/components/inventory/InventoryRemoteControls';
+import InventoryItemActions from './InventoryItemActions';
 
 import ImportItemsDialog from './ImportDialog';
 
@@ -80,7 +81,7 @@ export default async function InventoryPage({
                                 scroll={false}
                             >
                                 <button className={cn(
-                                    "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all",
+                                    "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all cursor-pointer",
                                     type === tab.id
                                         ? "bg-white text-indigo-600 shadow-md transform scale-105"
                                         : "text-slate-500 hover:text-slate-700"
@@ -98,7 +99,7 @@ export default async function InventoryPage({
                     <div className="flex bg-slate-100 p-1 rounded-lg">
                         <Link href={`/inventory?view=grid&type=${type}&query=${query}`} scroll={false}>
                             <button className={cn(
-                                "p-2 rounded-md transition-all",
+                                "p-2 rounded-md transition-all cursor-pointer",
                                 isGrid ? "bg-white text-indigo-600 shadow-sm" : "text-slate-400 hover:text-slate-600"
                             )}>
                                 <LayoutGrid size={18} />
@@ -106,7 +107,7 @@ export default async function InventoryPage({
                         </Link>
                         <Link href={`/inventory?view=list&type=${type}&query=${query}`} scroll={false}>
                             <button className={cn(
-                                "p-2 rounded-md transition-all",
+                                "p-2 rounded-md transition-all cursor-pointer",
                                 !isGrid ? "bg-white text-indigo-600 shadow-sm" : "text-slate-400 hover:text-slate-600"
                             )}>
                                 <List size={18} />
@@ -167,14 +168,9 @@ export default async function InventoryPage({
                                             </TableCell>
                                             <TableCell className="text-right font-medium">{item.stock}</TableCell>
                                             <TableCell>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    className="h-8 w-8"
-                                                    onClick={(e) => e.preventDefault()}
-                                                >
-                                                    <MoreHorizontal className="h-4 w-4 text-slate-400" />
-                                                </Button>
+                                                <div onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
+                                                    <InventoryItemActions itemId={item.id} />
+                                                </div>
                                             </TableCell>
                                         </TableRow>
                                     </Link>
