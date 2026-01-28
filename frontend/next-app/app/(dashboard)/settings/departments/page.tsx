@@ -38,7 +38,7 @@ export default async function DepartmentMappingsPage() {
                 <AddMappingDialog uniqueDepartments={availableDepartments} warehouses={warehouses} />
             </div>
 
-            <MappingClient initialMappings={mappings} />
+            <MappingClient initialMappings={mappings} warehouses={warehouses} />
         </div>
     );
 }

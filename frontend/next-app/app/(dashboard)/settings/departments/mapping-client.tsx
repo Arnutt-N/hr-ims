@@ -8,16 +8,20 @@ import { Building2, MapPin, Search, ChevronLeft, ChevronRight } from 'lucide-rea
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import DeleteMappingButton from './DeleteMappingButton';
+import EditMappingDialog from './EditMappingDialog';
 
 interface MappingClientProps {
     initialMappings: any[];
+    warehouses: any[];
 }
 
 const ITEMS_PER_PAGE = 10;
 
-export default function MappingClient({ initialMappings }: MappingClientProps) {
+export default function MappingClient({ initialMappings, warehouses }: MappingClientProps) {
     const [search, setSearch] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
+    // ... existing code ...
+
 
     const filteredMappings = useMemo(() => {
         const query = search.toLowerCase().trim();
@@ -103,7 +107,14 @@ export default function MappingClient({ initialMappings }: MappingClientProps) {
                                                 <Badge variant="success" className="bg-emerald-50 text-emerald-700 border-emerald-200">Active</Badge>
                                             </TableCell>
                                             <TableCell className="text-right">
-                                                <DeleteMappingButton id={mapping.id} />
+                                                <div className="flex items-center justify-end gap-1">
+                                                    <EditMappingDialog
+                                                        department={mapping.department}
+                                                        initialWarehouseId={mapping.warehouseId}
+                                                        warehouses={warehouses}
+                                                    />
+                                                    <DeleteMappingButton id={mapping.id} />
+                                                </div>
                                             </TableCell>
                                         </TableRow>
                                     ))}
