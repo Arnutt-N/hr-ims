@@ -26,7 +26,14 @@ import {
     QrCode,
     MapPin,
     Activity,
-    FolderOpen
+    FolderOpen,
+    Shield,
+    Gauge,
+    Mail,
+    Database,
+    Lock,
+    FileCode,
+    HeartPulse
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -65,12 +72,33 @@ const sidebarItems: SidebarItem[] = [
     { href: '/reports', icon: BarChart3, label: 'Reports', allowedRoles: ['superadmin', 'admin', 'auditor'] },
     { href: '/scanner', icon: ScanLine, label: 'Scanner', allowedRoles: ['superadmin', 'admin', 'technician'] },
     { href: '/tags', icon: QrCode, label: 'Tags', allowedRoles: ['superadmin', 'admin'] },
-    { href: '/settings/departments', icon: MapPin, label: 'Dept Mapping', allowedRoles: ['superadmin', 'admin'] },
     { href: '/users', icon: Users, label: 'Users', allowedRoles: ['superadmin', 'admin'] },
     { href: '/logs', icon: Activity, label: 'Audit Logs', allowedRoles: ['superadmin', 'admin', 'auditor'] },
-    { href: '/settings/categories', icon: FolderOpen, label: 'Categories', allowedRoles: ['superadmin', 'admin'] },
-    { href: '/settings/warehouses', icon: Box, label: 'Warehouses', allowedRoles: ['superadmin', 'admin'] },
-    { href: '/settings', icon: Settings, label: 'Settings', allowedRoles: ['superadmin'] },
+
+    // Settings Menu with Sub-menu (รวมเมนูเดิมและใหม่)
+    {
+        label: 'Settings',
+        icon: Settings,
+        href: '/settings',
+        hasSubMenu: true,
+        allowedRoles: ['superadmin', 'admin'],
+        submenu: [
+            // เมนูเดิม
+            { href: '/settings/categories', label: 'Categories', icon: FolderOpen },
+            { href: '/settings/warehouses', label: 'Warehouses', icon: Box },
+            { href: '/settings/departments', label: 'Dept Mapping', icon: MapPin },
+
+            // เมนูใหม่ - System Configuration (Superadmin only)
+            { href: '/settings/system', label: 'System Config', icon: Settings },
+            { href: '/settings/security', label: 'Security', icon: Shield },
+            { href: '/settings/rate-limit', label: 'Rate Limiting', icon: Gauge },
+            { href: '/settings/logging', label: 'Logging', icon: FileCode },
+            { href: '/settings/backup', label: 'Backup & Restore', icon: Database },
+            { href: '/settings/password-policy', label: 'Password Policy', icon: Lock },
+            { href: '/settings/email', label: 'Email Config', icon: Mail },
+            { href: '/settings/health', label: 'System Health', icon: HeartPulse },
+        ]
+    },
 ];
 
 export function Sidebar({ user }: { user?: any }) {

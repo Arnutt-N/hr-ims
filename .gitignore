@@ -102,4 +102,7 @@ prisma/dev.db-journal
 
 
 examples/
+secrets/
+research/
+
 

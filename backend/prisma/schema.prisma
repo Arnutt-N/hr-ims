@@ -35,6 +35,8 @@ model User {
   managedWarehouses Warehouse[] @relation("WarehouseManagers")
   userRoles   UserRole[] // Relation to roles
   auditLogs   AuditLog[] // Relation to AuditLog
+  passwordHistory PasswordHistory[] // Relation to PasswordHistory
+  emailVerification EmailVerification? // Relation to EmailVerification
 }
 
 // Note: SQLite doesn't support enums, so Role is now String
@@ -224,6 +226,57 @@ model Settings {
   maintenanceAlert Boolean @default(true)
   allowRegistration Boolean @default(false)
   footerText       String? @default("IMS Asset Management System")
+  
+  // Rate Limiting Settings
+  rateLimitEnabled            Boolean  @default(true)
+  rateLimitWindowMs           Int      @default(900000)
+  rateLimitMaxRequests        Int      @default(100)
+  rateLimitAuthMaxRequests    Int      @default(5)
+  
+  // Logging Settings
+  loggingEnabled              Boolean  @default(true)
+  logLevel                    String   @default("info")
+  logRetentionDays            Int      @default(30)
+  auditLogEnabled             Boolean  @default(true)
+  
+  // Backup Settings
+  backupEnabled               Boolean  @default(true)
+  backupSchedule              String   @default("0 2 * * *")
+  backupRetentionCount        Int      @default(7)
+  backupStoragePath           String   @default("./backups")
+  backupIncludeUploads        Boolean  @default(true)
+  
+  // Password Policy Settings
+  passwordPolicyEnabled       Boolean  @default(true)
+  passwordMinLength           Int      @default(8)
+  passwordRequireUppercase    Boolean  @default(true)
+  passwordRequireLowercase    Boolean  @default(true)
+  passwordRequireNumbers      Boolean  @default(true)
+  passwordRequireSymbols      Boolean  @default(true)
+  passwordExpiryDays          Int      @default(0)
+  passwordHistoryCount        Int      @default(5)
+  
+  // Caching Settings
+  cachingEnabled              Boolean  @default(true)
+  cacheDefaultTTL             Int      @default(300)
+  cacheMaxSize                Int      @default(1000)
+  
+  // Email Settings
+  emailVerificationEnabled    Boolean  @default(false)
+  emailSmtpHost               String?
+  emailSmtpPort               Int      @default(587)
+  emailSmtpUser               String?
+  emailSmtpPass               String?
+  emailFromAddress            String   @default("noreply@hr-ims.local")
+  
+  // System Info
+  lastBackupAt                DateTime?
+  lastBackupStatus            String?
+  lastBackupPath              String?
+  
+  createdAt                   DateTime @default(now())
+  updatedAt                   DateTime @default(now()) @updatedAt
+  updatedBy                   Int?
 }
 
 // ==========================================
@@ -471,12 +524,46 @@ model Category {
 }
 
 model AuditLog {
+  id          Int      @id @default(autoincrement())
+  userId      Int?
+  user        User?    @relation(fields: [userId], references: [id])
+  action      String   // CREATE, UPDATE, DELETE, LOGIN, LOGOUT, EXPORT, VIEW
+  entity      String   // ชื่อ Table/Entity
+  entityId    String?  // ID ของ Record
+  oldValue    String?  // JSON ค่าเก่า
+  newValue    String?  // JSON ค่าใหม่
+  details     String?  // รายละเอียดเพิ่มเติม
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime @default(now())
+  
+  @@index([userId])
+  @@index([action])
+  @@index([entity])
+  @@index([createdAt])
+}
+
+// Password History for preventing reuse
+model PasswordHistory {
   id        Int      @id @default(autoincrement())
   userId    Int
-  user      User     @relation(fields: [userId], references: [id])
-  action    String
-  entity    String
-  entityId  String?
-  details   String?
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  password  String   // เก็บ Hash
   createdAt DateTime @default(now())
+  
+  @@index([userId])
+}
+
+// Email Verification
+model EmailVerification {
+  id          Int       @id @default(autoincrement())
+  userId      Int       @unique
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token       String    @unique
+  expiresAt   DateTime
+  verifiedAt  DateTime?
+  createdAt   DateTime  @default(now())
+  
+  @@index([token])
+  @@index([userId])
 }

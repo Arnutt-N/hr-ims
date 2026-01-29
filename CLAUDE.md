@@ -320,3 +320,80 @@ All Server Actions that modify data should create audit log entries in the `Audi
 - **Type Safety**: Use Prisma-generated types; avoid type assertions
 - **Revalidation**: Call `revalidatePath()` after mutations to refresh cached data
 - **Multi-Role**: Users can have multiple roles - check `userRoles` array, not just single `role` field
+
+## AI Collaboration Protocol
+
+This project uses multiple AI assistants working together. You may encounter work done by other AIs.
+
+### AI Assistants in This Project
+
+| AI | Role | Specialty |
+|----|------|-----------|
+| **Antigravity (Gemini)** | Lead Developer | Full-stack development, security testing, implementations |
+| **Claude Code (Claude)** | Developer | Code quality, architecture, complex logic |
+| **Kilo Code** | Researcher | System analysis, documentation, recommendations |
+| **CodeX (OpenAI)** | Developer | Code generation, debugging, optimization |
+
+### Key Collaboration Files
+
+1. **`.agent/AI_COLLABORATION_PROTOCOL.md`** - Full collaboration guide (READ THIS FIRST)
+2. **`research/handoffs/`** - Task handoff documents between AIs
+3. **`research/kilo/`** - Kilo Code's analysis and recommendations
+4. **`.agent/skills/`** - Reusable skills/knowledge for all AIs
+5. **`.agent/workflows/`** - Shared workflow commands
+
+### Before Starting Work
+
+1. Check `research/handoffs/` for any pending tasks from other AIs
+2. Review recent Git commits to see what was changed
+3. Read relevant skills in `.agent/skills/` if working on specific domains
+
+### After Completing Work
+
+Create a handoff document at `research/handoffs/YYYY-MM-DD_task-name_claude-to-any.md`:
+
+```markdown
+# Task Handoff: [Task Name]
+
+**From:** Claude Code
+**To:** Any
+**Date:** YYYY-MM-DD
+**Status:** Completed/In Progress
+
+## Summary
+[What you did]
+
+## Files Changed
+- `path/to/file.ts` - Description
+
+## Next Steps
+- [ ] Task 1
+- [ ] Task 2
+
+## Notes
+[Important context for next AI]
+```
+
+### Recent Work Done by Other AIs
+
+#### Security Testing Framework (by Antigravity - 2026-01-29)
+- Created comprehensive security tests in `backend/src/tests/security/`
+- Covers OWASP Top 10: SQLi, XSS, JWT, IDOR, Privilege Escalation
+- Includes automated scanner and report generator
+- **Run tests:** `cd backend && npm test -- --testPathPattern=security`
+
+#### System Analysis (by Kilo Code - 2026-01-29)
+- Analysis report: `research/kilo/01_system_analysis_report.md`
+- Recommendations: `research/kilo/02_system_improvement_recommendations.md`
+- Priority items: Rate Limiting, Logging, Password Policy
+
+### Git Commit Convention for AIs
+
+```
+[AI-NAME] Brief description
+
+Examples:
+[Claude] Refactor authentication middleware
+[Antigravity] Add security testing framework
+[Kilo] System analysis documentation
+```
