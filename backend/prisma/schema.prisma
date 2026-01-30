@@ -5,7 +5,7 @@ generator client {
 
 generator client_frontend {
   provider = "prisma-client-js"
-  output   = "../../frontend/next-app/node_modules/@prisma/client"
+  output   = "../../frontend/next-app/node_modules/.prisma/client"
 }
 
 datasource db {
@@ -36,7 +36,7 @@ model User {
   userRoles   UserRole[] // Relation to roles
   auditLogs   AuditLog[] // Relation to AuditLog
   passwordHistory PasswordHistory[] // Relation to PasswordHistory
-  emailVerification EmailVerification? // Relation to EmailVerification
+  emailVerification EmailVerification[] // Relation to EmailVerification
 }
 
 // Note: SQLite doesn't support enums, so Role is now String
@@ -557,9 +557,10 @@ model PasswordHistory {
 // Email Verification
 model EmailVerification {
   id          Int       @id @default(autoincrement())
-  userId      Int       @unique
+  userId      Int
   user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   token       String    @unique
+  type        String    @default("EMAIL_VERIFICATION") // EMAIL_VERIFICATION, PASSWORD_RESET
   expiresAt   DateTime
   verifiedAt  DateTime?
   createdAt   DateTime  @default(now())

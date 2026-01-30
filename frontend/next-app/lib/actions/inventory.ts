@@ -17,7 +17,7 @@ const InventorySchema = z.object({
 });
 
 const CreateInventory = InventorySchema.omit({ id: true });
-const UpdateInventory = InventorySchema;
+const UpdateInventory = InventorySchema.omit({ id: true });
 
 export async function fetchInventoryItems(
     query: string,

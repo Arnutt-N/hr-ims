@@ -2,7 +2,6 @@ import NextAuth from 'next-auth';
 import Credentials from 'next-auth/providers/credentials';
 import { authConfig } from './auth.config';
 import { z } from 'zod';
-import { PrismaAdapter } from '@auth/prisma-adapter';
 import prisma from './lib/prisma';
 import bcrypt from 'bcrypt';
 import { User as PrismaUser } from '@prisma/client';
@@ -19,8 +18,7 @@ async function getUser(email: string): Promise<PrismaUser | undefined> {
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
     ...authConfig,
-    adapter: PrismaAdapter(prisma),
-    session: { strategy: 'jwt' }, // Keep JWT for compatibility with current flow, but PrismaAdapter will help with session tracking if we use it manually or switch later.
+    session: { strategy: 'jwt' },
     providers: [
         Credentials({
             async authorize(credentials) {

@@ -21,6 +21,9 @@ import stockLevelsRoutes from './routes/stock-levels';
 import stockTransfersRoutes from './routes/stock-transfers';
 import stockTransactionsRoutes from './routes/stock-transactions';
 import departmentRoutes from './routes/departments';
+import emailRoutes from './routes/email';
+import healthRoutes from './routes/health';
+import { setupSwagger } from './utils/swagger';
 
 app.use(helmet());
 app.use(cors());
@@ -38,8 +41,14 @@ app.use('/api/stock-levels', stockLevelsRoutes);
 app.use('/api/stock-transfers', stockTransfersRoutes);
 app.use('/api/stock-transactions', stockTransactionsRoutes);
 app.use('/api/departments', departmentRoutes);
+app.use('/api/email', emailRoutes);
+app.use('/api/health', healthRoutes);
 
-app.get('/api/health', (req, res) => {
+// Setup Swagger API Documentation
+setupSwagger(app);
+
+// Legacy health endpoint (for backward compatibility)
+app.get('/api/health-check', (req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 

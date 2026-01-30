@@ -1,5 +1,5 @@
 import rateLimit from 'express-rate-limit';
-import { Request, Response } from 'express';
+import { Request, Response, NextFunction } from 'express';
 import { getRateLimitSettings, isFeatureEnabled } from '../utils/settings';
 
 /**
@@ -104,7 +104,7 @@ export async function createStrictLimiter() {
  * อ่านค่าจาก Database ทุกครั้ง (สำหรับ Development)
  */
 export function dynamicRateLimit() {
-    return async (req: Request, res: Response, next: Function) => {
+    return async (req: Request, res: Response, next: NextFunction) => {
         const enabled = await isFeatureEnabled('rateLimit');
 
         if (!enabled) {

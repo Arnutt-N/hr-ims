@@ -140,7 +140,7 @@ export function WarehouseDialog({ open, onOpenChange, warehouse }: WarehouseDial
     };
 
     const filteredUsers = users.filter(u =>
-        u.name.toLowerCase().includes(managerSearch.toLowerCase()) ||
+        (u.name?.toLowerCase().includes(managerSearch.toLowerCase()) ?? false) ||
         u.email.toLowerCase().includes(managerSearch.toLowerCase())
     );
 
@@ -265,7 +265,7 @@ export function WarehouseDialog({ open, onOpenChange, warehouse }: WarehouseDial
                                                         <div className="flex items-center gap-2">
                                                             <Avatar className="h-8 w-8">
                                                                 <AvatarImage src={user.avatar || undefined} />
-                                                                <AvatarFallback>{user.name.substring(0, 2).toUpperCase()}</AvatarFallback>
+                                                                <AvatarFallback>{(user.name || 'U').substring(0, 2).toUpperCase()}</AvatarFallback>
                                                             </Avatar>
                                                             <div>
                                                                 <p className="text-sm font-medium leading-none">{user.name}</p>

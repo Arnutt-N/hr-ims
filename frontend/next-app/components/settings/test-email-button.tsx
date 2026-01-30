@@ -18,13 +18,13 @@ export function TestEmailButton() {
             const res = await sendTestEmail();
 
             if (res.success) {
-                if (res.mock) {
+                if ('mock' in res && res.mock) {
                     toast.success('Mock email logged to console (No SMTP config)', { id: toastId });
                 } else {
                     toast.success('Test email sent successfully! Check your inbox.', { id: toastId });
                 }
             } else {
-                toast.error(res.error || 'Failed to send email', { id: toastId });
+                toast.error('error' in res ? res.error : 'Failed to send email', { id: toastId });
             }
         } catch (error) {
             toast.error('An unexpected error occurred', { id: toastId });

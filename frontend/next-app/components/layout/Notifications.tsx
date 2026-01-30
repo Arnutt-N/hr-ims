@@ -30,8 +30,14 @@ export default function Notifications() {
     }, []);
 
     const fetchData = async () => {
-        const data = await getNotifications();
-        setNotifications(data);
+        const result = await getNotifications();
+        if (Array.isArray(result)) {
+            setNotifications(result);
+        } else if (result && 'notifications' in result) {
+            setNotifications(result.notifications);
+        } else {
+            setNotifications([]);
+        }
     };
 
     const handleMarkRead = async (id: number, e: React.MouseEvent) => {
