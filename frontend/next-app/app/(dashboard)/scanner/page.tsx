@@ -9,6 +9,8 @@ import { ScanLine, QrCode, Package, AlertCircle, Wrench, ShoppingCart, Clock, Ca
 import { formatThaiDateShort } from '@/lib/date-utils';
 import { Html5QrcodeScanner } from 'html5-qrcode';
 
+// [2026-02-11] Modified by CodeX: add cursor-pointer to native buttons
+
 export default function ScannerPage() {
     const [code, setCode] = useState('');
     const [scanning, setScanning] = useState(false);
@@ -139,7 +141,7 @@ export default function ScannerPage() {
                     )}
 
                     <h2 className="text-2xl md:text-3xl font-bold text-slate-800 mb-2">Device Scanner</h2>
-                    <p className="text-sm md:text-base text-slate-500 mb-6 md:mb-10">Use your handheld scanner, <button onClick={() => setUseCamera(true)} className="text-indigo-600 font-bold hover:underline">enable camera</button>, or manually enter SN.</p>
+                    <p className="text-sm md:text-base text-slate-500 mb-6 md:mb-10">Use your handheld scanner, <button onClick={() => setUseCamera(true)} className="text-indigo-600 font-bold hover:underline cursor-pointer">enable camera</button>, or manually enter SN.</p>
 
                     <form onSubmit={handleSubmit} className="space-y-4">
                         <div className="relative">
@@ -229,7 +231,7 @@ export default function ScannerPage() {
                                 <button
                                     key={scan.id}
                                     onClick={() => { setCode(scan.item.split(' ')[0]); processScan(scan.item.split(' ')[0]); }}
-                                    className="flex-shrink-0 px-4 py-2 bg-slate-50 hover:bg-slate-100 active:bg-slate-200 rounded-full border border-slate-200 transition-colors min-h-[48px] flex items-center gap-2"
+                                    className="flex-shrink-0 px-4 py-2 bg-slate-50 hover:bg-slate-100 active:bg-slate-200 rounded-full border border-slate-200 transition-colors cursor-pointer min-h-[48px] flex items-center gap-2"
                                 >
                                     <Package size={14} className="text-slate-400" />
                                     <span className="text-sm font-medium text-slate-700 whitespace-nowrap">{scan.item.split(' ')[0]}</span>

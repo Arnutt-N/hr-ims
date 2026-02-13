@@ -1,8 +1,10 @@
-import { auth } from '@/auth';
+﻿import { auth } from '@/auth';
 import { Bell, Search, ChevronDown, User as UserIcon } from 'lucide-react';
 import { NotificationBell } from './notification-bell';
 import { redirect } from 'next/navigation';
 import { formatThaiDate } from '@/lib/date-utils';
+
+// [2026-02-11] Modified by CodeX: add cursor-pointer to native buttons
 
 export async function Header() {
     const session = await auth();
@@ -44,7 +46,7 @@ export async function Header() {
                         <p className="text-[10px] uppercase font-bold text-blue-500 mt-1 tracking-wide">{user?.email || 'Guest'}</p>
                     </div>
 
-                    <button className="flex items-center gap-2 group">
+                    <button className="flex items-center gap-2 group cursor-pointer">
                         <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-500 to-indigo-600 p-[2px] shadow-lg shadow-blue-500/20 group-hover:shadow-blue-500/30 transition-all">
                             <div className="w-full h-full rounded-[10px] bg-white flex items-center justify-center overflow-hidden relative">
                                 {user?.image ? (
@@ -61,3 +63,4 @@ export async function Header() {
         </header>
     );
 }
+

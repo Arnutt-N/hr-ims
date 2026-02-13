@@ -6,9 +6,21 @@ export interface AuthRequest extends Request {
     user?: {
         id: number;
         role: string;
+        roles?: string[];
         email?: string;
     };
 }
+
+const parseRoles = (raw: unknown): string[] => {
+    if (!raw) return [];
+    if (Array.isArray(raw)) {
+        return raw.map((r) => String(r).trim()).filter(Boolean);
+    }
+    return String(raw)
+        .split(',')
+        .map((r) => r.trim())
+        .filter(Boolean);
+};
 
 // JWT-based authentication (for direct API calls)
 export const authenticateToken = (req: AuthRequest, res: Response, next: NextFunction) => {
@@ -23,7 +35,13 @@ export const authenticateToken = (req: AuthRequest, res: Response, next: NextFun
         if (err) {
             return res.status(403).json({ message: 'Invalid or expired token' });
         }
-        req.user = user;
+        // [2026-02-10] Modified by CodeX: normalize roles from token payload
+        const roles = parseRoles(user?.roles ?? user?.role);
+        req.user = {
+            ...user,
+            roles,
+            role: roles[0] || user?.role
+        };
         next();
     });
 };
@@ -41,10 +59,14 @@ export const requireAuth = (req: AuthRequest, res: Response, next: NextFunction)
         });
     }
 
+    // [2026-02-10] Modified by CodeX: support comma-separated multi-role header
+    const roles = parseRoles(userRole);
+
     // Attach user info to request
     req.user = {
         id: parseInt(userId),
-        role: userRole
+        role: roles[0] || userRole,
+        roles
     };
 
     next();
@@ -60,7 +82,12 @@ export const requireRole = (allowedRoles: string[]) => {
             });
         }
 
-        if (!allowedRoles.includes(req.user.role)) {
+        // [2026-02-10] Modified by CodeX: accept any of multiple roles
+        const roles = req.user.roles && req.user.roles.length > 0
+            ? req.user.roles
+            : parseRoles(req.user.role);
+        const hasRole = roles.some((role) => allowedRoles.includes(role));
+        if (!hasRole) {
             return res.status(403).json({
                 error: 'Forbidden',
                 message: `Access denied. Required roles: ${allowedRoles.join(', ')}. Your role: ${req.user.role}`

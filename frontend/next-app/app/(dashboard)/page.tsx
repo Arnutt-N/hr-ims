@@ -1,8 +1,10 @@
-import { getDashboardStats } from "@/lib/actions/dashboard";
+﻿import { getDashboardStats } from "@/lib/actions/dashboard";
 import { Package, AlertTriangle, FileText, Activity } from "lucide-react";
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { formatThaiDateTime, formatRelativeTime } from "@/lib/date-utils";
+
+// [2026-02-11] Modified by CodeX: add cursor-pointer to native buttons
 
 export default async function DashboardPage() {
     const session = await auth();
@@ -101,7 +103,7 @@ export default async function DashboardPage() {
                                     <div key={i} className="p-4 hover:bg-slate-50 transition-colors flex items-center justify-between group">
                                         <div className="flex items-center gap-3">
                                             <div className="w-10 h-10 bg-slate-100 rounded-lg flex items-center justify-center text-lg">
-                                                {level.item.image || '📦'}
+                                                {level.item.image || '๐“ฆ'}
                                             </div>
                                             <div>
                                                 <p className="font-bold text-slate-700">{level.item.name}</p>
@@ -115,7 +117,7 @@ export default async function DashboardPage() {
                                             <div className="text-sm text-amber-600 font-bold">
                                                 {level.quantity} <span className="text-slate-400 font-normal">/ {level.minStock}</span>
                                             </div>
-                                            <button className="text-xs text-blue-600 hover:text-blue-800 font-medium opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <button className="text-xs text-blue-600 hover:text-blue-800 font-medium opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
                                                 Restock
                                             </button>
                                         </div>
@@ -133,7 +135,7 @@ export default async function DashboardPage() {
                     </div>
                     {stats.lowStockList && stats.lowStockList.length > 0 && (
                         <div className="p-3 bg-slate-50 border-t border-slate-100 text-center">
-                            <button className="text-sm text-slate-500 hover:text-slate-700 font-medium">View All Alerts</button>
+                            <button className="text-sm text-slate-500 hover:text-slate-700 font-medium cursor-pointer">View All Alerts</button>
                         </div>
                     )}
                 </div>
@@ -145,7 +147,7 @@ export default async function DashboardPage() {
                             <h2 className="text-lg font-bold text-slate-800">Recent Activity</h2>
                             <p className="text-sm text-slate-500">Latest transactions and updates</p>
                         </div>
-                        <button className="text-sm font-medium text-blue-600 hover:text-blue-700">View All</button>
+                        <button className="text-sm font-medium text-blue-600 hover:text-blue-700 cursor-pointer">View All</button>
                     </div>
 
                     <div className="divide-y divide-slate-100">
@@ -184,3 +186,4 @@ export default async function DashboardPage() {
         </div>
     );
 }
+

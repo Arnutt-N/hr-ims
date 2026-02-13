@@ -56,7 +56,7 @@ export default function Notifications() {
         <div className="relative" ref={wrapperRef}>
             <button
                 onClick={() => setOpen(!open)}
-                className="relative p-2.5 rounded-xl text-slate-400 hover:text-indigo-600 hover:bg-slate-50 transition-all outline-none"
+                className="relative p-2.5 rounded-xl text-slate-400 hover:text-indigo-600 hover:bg-slate-50 transition-all outline-none cursor-pointer"
             >
                 <Bell size={20} />
                 {notifications.length > 0 && (

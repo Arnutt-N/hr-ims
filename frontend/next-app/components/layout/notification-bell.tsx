@@ -75,7 +75,7 @@ export function NotificationBell() {
             <button
                 onClick={() => setOpen(!open)}
                 className={cn(
-                    "relative p-2.5 rounded-xl transition-all outline-none",
+                    "relative p-2.5 rounded-xl transition-all outline-none cursor-pointer",
                     open ? "text-indigo-600 bg-indigo-50" : "text-slate-400 hover:text-indigo-600 hover:bg-slate-50"
                 )}
             >
@@ -140,7 +140,7 @@ export function NotificationBell() {
                                         </div>
                                         <button
                                             onClick={(e) => handleMarkRead(item.id, e)}
-                                            className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-lg bg-white border border-slate-100 text-slate-400 hover:text-indigo-600 hover:border-indigo-100 shadow-sm"
+                                            className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-lg bg-white border border-slate-100 text-slate-400 hover:text-indigo-600 hover:border-indigo-100 shadow-sm cursor-pointer"
                                             title="Mark as read"
                                         >
                                             <Check size={14} />
@@ -153,7 +153,7 @@ export function NotificationBell() {
 
                     {notifications.length > 0 && (
                         <div className="p-3 bg-slate-50 border-t border-slate-100 text-center">
-                            <button className="text-xs font-semibold text-slate-500 hover:text-indigo-600 transition-colors">
+                            <button className="text-xs font-semibold text-slate-500 hover:text-indigo-600 transition-colors cursor-pointer">
                                 View all notification history
                             </button>
                         </div>

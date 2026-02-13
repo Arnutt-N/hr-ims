@@ -4,7 +4,8 @@ import { sendVerificationEmail, sendTestEmail, verifyEmailConnection } from '../
 import { createVerificationToken, verifyToken, createPasswordResetToken, verifyPasswordResetToken, usePasswordResetToken, getVerificationStatus } from '../services/verificationService';
 import { cacheGet, cacheSet } from '../utils/cache';
 import prisma from '../utils/prisma';
-import crypto from 'crypto';
+import bcrypt from 'bcrypt';
+import { validatePassword } from '../utils/passwordPolicy';
 
 const router = Router();
 
@@ -135,6 +136,12 @@ router.post('/reset-password', async (req: Request, res: Response) => {
         }
 
         // ตรวจสอบโทเค็น
+        // [2026-02-10] Modified by CodeX: enforce password policy (if enabled)
+        const policy = await validatePassword(newPassword);
+        if (!policy.valid) {
+            return res.status(400).json({ error: policy.errors[0] || 'Invalid password' });
+        }
+
         const verification = await verifyPasswordResetToken(token);
 
         if (!verification.valid) {
@@ -142,7 +149,7 @@ router.post('/reset-password', async (req: Request, res: Response) => {
         }
 
         // อัปเดตรหัสผ่าน
-        const hashedPassword = crypto.createHash('sha256').update(newPassword).digest('hex');
+        const hashedPassword = await bcrypt.hash(newPassword, 10);
         await prisma.user.update({
             where: { id: verification.userId },
             data: { password: hashedPassword },

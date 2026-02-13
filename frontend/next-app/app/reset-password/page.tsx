@@ -86,7 +86,7 @@ export default function ResetPasswordPage() {
                                 <button
                                     type="button"
                                     onClick={() => setShowPassword(!showPassword)}
-                                    className="absolute right-4 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-blue-300"
+                                    className="absolute right-4 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-blue-300 cursor-pointer"
                                 >
                                     {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                                 </button>
@@ -112,7 +112,7 @@ export default function ResetPasswordPage() {
                                 <button
                                     type="button"
                                     onClick={() => setShowConfirm(!showConfirm)}
-                                    className="absolute right-4 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-blue-300"
+                                    className="absolute right-4 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-blue-300 cursor-pointer"
                                 >
                                     {showConfirm ? <EyeOff size={18} /> : <Eye size={18} />}
                                 </button>
@@ -128,7 +128,7 @@ export default function ResetPasswordPage() {
                         <button
                             type="submit"
                             disabled={loading}
-                            className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold py-3 rounded-xl transition-all shadow-lg shadow-indigo-600/30 disabled:opacity-70"
+                            className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold py-3 rounded-xl transition-all shadow-lg shadow-indigo-600/30 disabled:opacity-70 cursor-pointer"
                         >
                             {loading ? 'Resetting...' : 'Reset Password'}
                         </button>
