@@ -1,16 +1,25 @@
 {
-    "permissions":  {
-                        "allow":  [
-                                      "Bash(ls:*)"
-                                  ]
-                    },
-    "primaryModel":  "glm-4.7",
-    "anthropicApiBaseUrl":  "https://api.z.ai/api/anthropic",
-    "env":  {
-                "ANTHROPIC_DEFAULT_HAIKU_MODEL":  "glm-4.7-flashX",
-                "ANTHROPIC_AUTH_TOKEN":  "2f6394866b3f4ed6b7b3d99ec80ffc6e.wTno0wbEn0AN1Ozu",
-                "ANTHROPIC_DEFAULT_SONNET_MODEL":  "glm-5",
-                "ANTHROPIC_DEFAULT_OPUS_MODEL":  "glm-5",
-                "ANTHROPIC_BASE_URL":  "https://api.z.ai/api/anthropic"
-            }
+  "env": {
+    "ANTHROPIC_DEFAULT_HAIKU_MODEL": "glm-4.7-flashX",
+    "ANTHROPIC_AUTH_TOKEN": "2f6394866b3f4ed6b7b3d99ec80ffc6e.wTno0wbEn0AN1Ozu",
+    "ANTHROPIC_DEFAULT_SONNET_MODEL": "glm-5",
+    "ANTHROPIC_DEFAULT_OPUS_MODEL": "glm-5",
+    "ANTHROPIC_BASE_URL": "https://api.z.ai/api/anthropic"
+  },
+  "permissions": {
+    "allow": [
+      "Bash(ls:*)",
+      "Bash(npm install)",
+      "Bash(npm install --legacy-peer-deps)",
+      "Bash(npm run lint)",
+      "Bash(npx eslint \"app/\\(dashboard\\)/tags/page.tsx\" \"app/\\(dashboard\\)/scanner/page.tsx\" --max-warnings=0)",
+      "Bash(npx next lint)",
+      "Bash(npx tsc --noEmit)",
+      "Bash(npx tsc --noEmit \"app/\\(dashboard\\)/scanner/page.tsx\" \"app/\\(dashboard\\)/tags/page.tsx\")",
+      "Bash(npm run build)",
+      "Bash(npx next lint --dir app --file \"app/\\(dashboard\\)/tags/page.tsx\" --file \"app/\\(dashboard\\)/scanner/page.tsx\")"
+    ]
+  },
+  "primaryModel": "glm-4.7",
+  "anthropicApiBaseUrl": "https://api.z.ai/api/anthropic"
 }

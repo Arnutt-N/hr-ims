@@ -40,6 +40,8 @@
         "nodemailer": "^7.0.7",
         "react": "^19.0.0",
         "react-dom": "^19.0.0",
+        "html2canvas": "^1.4.1",
+        "jsbarcode": "^3.11.6",
         "react-hook-form": "^7.71.1",
         "react-is": "^19.2.3",
         "react-qr-code": "^2.0.18",

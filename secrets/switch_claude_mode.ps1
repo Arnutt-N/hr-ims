@@ -9,7 +9,8 @@ $ZAI_Settings = @{
     "anthropicApiBaseUrl" = "https://api.z.ai/api/anthropic";
     "primaryModel"        = "glm-4.7";
     "env"                 = @{
-        "ANTHROPIC_AUTH_TOKEN"           = "2f6394866b3f4ed6b7b3d99ec80ffc6e.wTno0wbEn0AN1Ozu"; # FILL THIS IN
+        # Get from environment variable or fill in manually
+        "ANTHROPIC_AUTH_TOKEN"           = if ($env:ANTHROPIC_AUTH_TOKEN) { $env:ANTHROPIC_AUTH_TOKEN } else { "YOUR_TOKEN_HERE" };
         "ANTHROPIC_BASE_URL"             = "https://api.z.ai/api/anthropic";
         "ANTHROPIC_DEFAULT_HAIKU_MODEL"  = "glm-4.7-flashX";
         "ANTHROPIC_DEFAULT_SONNET_MODEL" = "glm-5";
