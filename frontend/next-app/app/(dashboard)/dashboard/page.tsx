@@ -4,6 +4,7 @@ import { getDashboardStats } from "@/lib/actions/dashboard";
 import { Package, AlertTriangle, FileText, Activity } from "lucide-react";
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
+import { MagicCard } from "@/components/ui/magic-card";
 
 export default async function DashboardPage() {
     const session = await auth();
@@ -23,7 +24,7 @@ export default async function DashboardPage() {
 
             {/* Stats Grid */}
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                <Card>
+                <MagicCard className="border-none shadow-sm h-full">
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium">Total Inventory</CardTitle>
                         <Package className="h-4 w-4 text-muted-foreground" />
@@ -32,9 +33,9 @@ export default async function DashboardPage() {
                         <div className="text-2xl font-bold">{stats.totalItems}</div>
                         <p className="text-xs text-muted-foreground">items in system</p>
                     </CardContent>
-                </Card>
+                </MagicCard>
 
-                <Card>
+                <MagicCard className="border-none shadow-sm h-full">
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium">Low Stock Items</CardTitle>
                         <AlertTriangle className="h-4 w-4 text-amber-500" />
@@ -43,9 +44,9 @@ export default async function DashboardPage() {
                         <div className="text-2xl font-bold">{stats.lowStockItems}</div>
                         <p className="text-xs text-muted-foreground">needs reordering</p>
                     </CardContent>
-                </Card>
+                </MagicCard>
 
-                <Card>
+                <MagicCard className="border-none shadow-sm h-full">
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium">Pending Requests</CardTitle>
                         <FileText className="h-4 w-4 text-blue-500" />
@@ -54,9 +55,9 @@ export default async function DashboardPage() {
                         <div className="text-2xl font-bold">{stats.pendingRequests}</div>
                         <p className="text-xs text-muted-foreground">awaiting approval</p>
                     </CardContent>
-                </Card>
+                </MagicCard>
 
-                <Card>
+                <MagicCard className="border-none shadow-sm h-full">
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium">Active Tasks</CardTitle>
                         <Activity className="h-4 w-4 text-green-500" />
@@ -65,12 +66,12 @@ export default async function DashboardPage() {
                         <div className="text-2xl font-bold">+12</div>
                         <p className="text-xs text-muted-foreground">managed tasks today</p>
                     </CardContent>
-                </Card>
+                </MagicCard>
             </div>
 
             {/* Recent Activity Section */}
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-                <Card className="col-span-4">
+                <MagicCard className="col-span-4 border-none shadow-sm h-full">
                     <CardHeader>
                         <CardTitle>Recent Activity</CardTitle>
                     </CardHeader>
@@ -94,7 +95,7 @@ export default async function DashboardPage() {
                             )}
                         </div>
                     </CardContent>
-                </Card>
+                </MagicCard>
             </div>
         </div>
     );

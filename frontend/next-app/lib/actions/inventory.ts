@@ -19,6 +19,8 @@ const InventorySchema = z.object({
 const CreateInventory = InventorySchema.omit({ id: true });
 const UpdateInventory = InventorySchema.omit({ id: true });
 
+import { searchInventoryItems } from '../meilisearch';
+
 export async function fetchInventoryItems(
     query: string,
     currentPage: number,
@@ -30,18 +32,46 @@ export async function fetchInventoryItems(
 
     const typeFilter = type && type !== 'all' ? { type: type } : {};
 
+    let searchFilter = {};
+    if (query) {
+        try {
+            // Use Meilisearch to get IDs
+            const matchingIds = await searchInventoryItems(query);
+            if (matchingIds.length > 0) {
+                searchFilter = { id: { in: matchingIds } };
+            } else {
+                // Nothing found in Meilisearch, we can force an empty result 
+                // or falback to Prisma fuzzy. Let's trust Meilisearch for exact empty match
+                // if the query failed, searchInventoryItems returns [] and we can fallback.
+                // To distinguish error from empty, we could refine, but for now:
+
+                // If Meilisearch returns nothing, let's do Prisma fallback just in case MS isn't synced
+                searchFilter = {
+                    OR: [
+                        { name: { contains: query } },
+                        { category: { contains: query } },
+                        { serial: { contains: query } },
+                    ],
+                };
+            }
+        } catch (e) {
+            // Prisma fallback query
+            searchFilter = {
+                OR: [
+                    { name: { contains: query } },
+                    { category: { contains: query } },
+                    { serial: { contains: query } },
+                ],
+            };
+        }
+    }
+
     try {
         const items = await prisma.inventoryItem.findMany({
             where: {
                 AND: [
                     typeFilter,
-                    {
-                        OR: [
-                            { name: { contains: query } },
-                            { category: { contains: query } },
-                            { serial: { contains: query } },
-                        ],
-                    }
+                    searchFilter
                 ]
             },
             include: {
@@ -78,18 +108,38 @@ export async function fetchInventoryPages(query: string, type?: string) {
     const ITEMS_PER_PAGE = 12;
     const typeFilter = type && type !== 'all' ? { type: type } : {};
 
+    let searchFilter = {};
+    if (query) {
+        try {
+            const matchingIds = await searchInventoryItems(query);
+            if (matchingIds.length > 0) {
+                searchFilter = { id: { in: matchingIds } };
+            } else {
+                searchFilter = {
+                    OR: [
+                        { name: { contains: query } },
+                        { category: { contains: query } },
+                        { serial: { contains: query } },
+                    ],
+                };
+            }
+        } catch (e) {
+            searchFilter = {
+                OR: [
+                    { name: { contains: query } },
+                    { category: { contains: query } },
+                    { serial: { contains: query } },
+                ],
+            };
+        }
+    }
+
     try {
         const count = await prisma.inventoryItem.count({
             where: {
                 AND: [
                     typeFilter,
-                    {
-                        OR: [
-                            { name: { contains: query } },
-                            { category: { contains: query } },
-                            { serial: { contains: query } },
-                        ],
-                    }
+                    searchFilter
                 ]
             },
         });

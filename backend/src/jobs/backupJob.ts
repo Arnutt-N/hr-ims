@@ -1,83 +1,29 @@
-import * as cron from 'node-cron';
-import { createBackup, shouldBackup } from '../services/backupService';
-import { getBackupSettings, isFeatureEnabled } from '../utils/settings';
-import { logInfo, logError } from '../utils/logger';
+import { logInfo } from '../utils/logger';
+import { backupQueue, scheduleBackupJob } from '../queues/backupQueue';
 
 /**
- * Backup Cron Job
- * รันตาม Schedule ที่กำหนดใน Settings
+ * Backup Job Management (Migrated to BullMQ)
  */
 
-let backupTask: ReturnType<typeof cron.schedule> | null = null;
-
-/**
- * เริ่มต้น Backup Job
- */
 export async function startBackupJob(): Promise<void> {
-    // หยุด Task เดิมถ้ามี
-    stopBackupJob();
-
-    const enabled = await isFeatureEnabled('backup');
-    if (!enabled) {
-        console.log('Backup job is disabled');
-        return;
-    }
-
-    const settings = await getBackupSettings();
-
-    // สร้าง Cron Task
-    backupTask = cron.schedule(settings.schedule, async () => {
-        console.log('Running scheduled backup...');
-
-        try {
-            const shouldRun = await shouldBackup();
-            if (!shouldRun) {
-                console.log('Skipping backup - not due yet');
-                return;
-            }
-
-            const result = await createBackup();
-
-            if (result.success) {
-                await logInfo('Scheduled backup completed', {
-                    filename: result.filename,
-                    size: result.size
-                });
-            } else {
-                await logError('Scheduled backup failed', result.error);
-            }
-
-        } catch (error) {
-            await logError('Backup job error', error);
-        }
-    });
-
-    await logInfo('Backup job started', { schedule: settings.schedule });
-    console.log(`Backup job scheduled: ${settings.schedule}`);
+    await scheduleBackupJob();
+    await logInfo('Backup job started via BullMQ');
 }
 
-/**
- * หยุด Backup Job
- */
-export function stopBackupJob(): void {
-    if (backupTask) {
-        backupTask.stop();
-        backupTask = null;
-        console.log('Backup job stopped');
+export async function stopBackupJob(): Promise<void> {
+    const repeatableJobs = await backupQueue.getRepeatableJobs();
+    for (const job of repeatableJobs) {
+        await backupQueue.removeRepeatableByKey(job.key);
     }
+    console.log('Backup jobs cleared from BullMQ');
 }
 
-/**
- * รีสตาร์ท Backup Job (ใช้เมื่อมีการอัปเดต Settings)
- */
 export async function restartBackupJob(): Promise<void> {
-    stopBackupJob();
+    await stopBackupJob();
     await startBackupJob();
 }
 
-/**
- * ตรวจสอบสถานะ Backup Job
- */
-export function isBackupJobRunning(): boolean {
-    return backupTask !== null;
+export async function isBackupJobRunning(): Promise<boolean> {
+    const repeatableJobs = await backupQueue.getRepeatableJobs();
+    return repeatableJobs.length > 0;
 }

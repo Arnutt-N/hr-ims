@@ -1,0 +1,28 @@
+version: '3.8'
+
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: hr-ims-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+
+  meilisearch:
+    image: getmeili/meilisearch:v1.7
+    container_name: hr-ims-meilisearch
+    environment:
+      - MEILI_MASTER_KEY=hr-ims-dev-key
+      - MEILI_ENV=development
+    ports:
+      - "7700:7700"
+    volumes:
+      - meilisearch_data:/meili_data
+    restart: unless-stopped
+
+volumes:
+  redis_data:
+  meilisearch_data:
