@@ -1,0 +1,192 @@
+# Configuration for Bilingual Task Handler Skill
+
+language:
+  # Primary language for HR-IMS project
+  default: th
+  fallback: en
+  detect_automatically: true
+
+  # Detection thresholds
+  thai_threshold: 0.3
+  mixed_threshold_low: 0.1
+  mixed_threshold_high: 0.9
+
+mcp_servers:
+  # Available MCP servers in this project
+  available:
+    - context7
+    - sequential
+    - playwright
+    - magic
+
+  # Auto-activation settings
+  auto_activate:
+    context7:
+      enabled: true
+      triggers:
+        - external_library
+        - framework_question
+        - documentation_request
+      keywords:
+        en: [library, framework, docs, npm, package, install]
+        th: [ไลบรารี่, เอกสาร]
+
+    sequential:
+      enabled: true
+      triggers:
+        - complex_analysis
+        - multi_step_problem
+        - debugging
+      keywords:
+        en: [analyze, debug, troubleshoot, investigate, plan]
+        th: [วิเคราะห์, แก้ไข, ตรวจสอบ, วางแผน]
+      min_complexity: 0.5
+
+    magic:
+      enabled: true
+      triggers:
+        - ui_component
+        - frontend_work
+      keywords:
+        en: [component, UI, UX, frontend, design, page, style]
+        th: [สร้างหน้า, ออกแบบ, component]
+
+    playwright:
+      enabled: true
+      triggers:
+        - testing
+        - browser_automation
+      keywords:
+        en: [test, E2E, browser, spec, coverage]
+        th: [ทดสอบ]
+      min_complexity: 0.3
+
+  # Default MCP combinations by domain
+  domain_defaults:
+    frontend: [magic, context7]
+    backend: [context7, sequential]
+    fullstack: [context7, sequential, magic]
+    testing: [playwright, sequential]
+    devops: [sequential]
+    security: [sequential, context7]
+    documentation: [context7]
+
+personas:
+  # Available personas
+  available:
+    - architect
+    - frontend
+    - backend
+    - analyzer
+    - security
+    - performance
+    - qa
+    - devops
+    - scribe
+    - mentor
+    - refactorer
+
+  # Auto-activation rules
+  activation_rules:
+    frontend:
+      keywords_en: [component, UI, UX, page, CSS, responsive, accessibility]
+      keywords_th: [หน้า, ออกแบบ]
+      file_patterns: ["*.tsx", "*.jsx", "*.css", "*.scss", "app/**", "components/**"]
+      priority: 80
+
+    backend:
+      keywords_en: [API, endpoint, database, server, middleware, auth]
+      keywords_th: [API, database]
+      file_patterns: ["*.ts", "routes/**", "controllers/**", "services/**", "lib/actions/**"]
+      priority: 80
+
+    security:
+      keywords_en: [security, vulnerability, auth, XSS, injection, OWASP]
+      keywords_th: [ความปลอดภัย, ช่องโหว่]
+      file_patterns: ["*auth*", "*security*", "middleware/*"]
+      priority: 90
+
+    performance:
+      keywords_en: [optimize, performance, slow, bottleneck, speed]
+      keywords_th: [เร็ว, ช้า, ปรับปรุง]
+      priority: 75
+
+    qa:
+      keywords_en: [test, spec, coverage, E2E, unit, integration]
+      keywords_th: [ทดสอบ]
+      file_patterns: ["*.test.*", "*.spec.*", "tests/**", "__tests__/**"]
+      priority: 85
+
+    scribe:
+      keywords_en: [document, README, guide, wiki, manual, explain]
+      keywords_th: [เอกสาร, คู่มือ, อธิบาย]
+      file_patterns: ["*.md", "docs/**", "README*"]
+      priority: 70
+
+    architect:
+      keywords_en: [architecture, design, structure, refactor, system]
+      keywords_th: [โครงสร้าง, ระบบ]
+      min_complexity: 0.7
+      priority: 85
+
+    analyzer:
+      keywords_en: [analyze, debug, troubleshoot, investigate, issue]
+      keywords_th: [วิเคราะห์, แก้ไข, หาสาเหตุ]
+      priority: 80
+
+task_management:
+  # Auto task creation criteria
+  auto_create: true
+  min_steps: 3
+  min_files: 2
+  min_complexity: 0.5
+
+  # Priority mapping
+  priority_mapping:
+    security: critical
+    bug: high
+    feature: medium
+    improvement: low
+    documentation: low
+
+project_context:
+  # HR-IMS specific settings
+  name: HR-IMS
+  type: monorepo
+  primary_language: TypeScript
+
+  frameworks:
+    frontend: Next.js 16.1
+    backend: Express.js
+    orm: Prisma
+    auth: NextAuth.js v5
+    ui: Shadcn UI
+    css: Tailwind CSS v4
+
+  database:
+    type: SQLite
+    location: backend/prisma/dev.db
+
+  conventions:
+    api_style: Server Actions
+    auth_check: session + roles
+    validation: Zod
+    audit: AuditLog table
+
+  key_files:
+    - CLAUDE.md
+    - backend/prisma/schema.prisma
+    - frontend/next-app/lib/actions/*.ts
+    - frontend/next-app/auth.ts
+
+output_settings:
+  use_symbols: true
+  use_abbreviations: true
+  token_efficiency: false
+  include_metadata: true
+
+  response_format: |
+    {response_content}
+
+    ---
+    MCP: {mcp_used} | Persona: {persona}
