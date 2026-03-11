@@ -10,19 +10,14 @@ export async function getRequests(status?: string) {
     const session = await auth();
     if (!session) return { error: 'Unauthorized' };
 
-    // If user is admin, show all. If user, show only theirs?
-    // Requests page usually for Admin to approve.
-    // User sees their history in 'history' or 'my-assets'.
-    // Assuming this page is for Admin.
+    const adminRoles = ['admin', 'superadmin', 'approver'];
+    const isAdmin = adminRoles.includes(session.user.role);
 
-    /* 
-    // Role check (uncomment when role logic is strict)
-    if (session.user.role !== 'admin') {
-       return { error: 'Forbidden' };
+    // Admins/approvers see all requests; regular users see only their own
+    const where: any = status ? { status } : {};
+    if (!isAdmin) {
+        where.userId = parseInt(session.user.id);
     }
-    */
-
-    const where = status ? { status } : {};
 
     try {
         const requests = await prisma.request.findMany({
@@ -51,6 +46,11 @@ export async function getRequests(status?: string) {
 export async function updateRequestStatus(id: number, status: 'approved' | 'rejected', dueDate?: Date) {
     const session = await auth();
     if (!session) return { error: 'Unauthorized' };
+
+    const allowedRoles = ['admin', 'superadmin', 'approver'];
+    if (!allowedRoles.includes(session.user.role)) {
+        return { error: 'Forbidden' };
+    }
 
     try {
         // 1. Get request with items
