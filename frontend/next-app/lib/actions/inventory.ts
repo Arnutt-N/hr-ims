@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { redirect } from 'next/navigation';
 import { checkLowStock } from './notifications';
+import { auth } from '@/auth';
 
 const InventorySchema = z.object({
     id: z.coerce.number(),
@@ -151,6 +152,12 @@ export async function fetchInventoryPages(query: string, type?: string) {
 }
 
 export async function deleteInventoryItem(id: number) {
+    const session = await auth();
+    if (!session) return { error: 'Unauthorized' };
+    if (!['admin', 'superadmin'].includes(session.user.role)) {
+        return { error: 'Forbidden' };
+    }
+
     try {
         await prisma.inventoryItem.delete({
             where: { id },
@@ -163,6 +170,12 @@ export async function deleteInventoryItem(id: number) {
 }
 
 export async function createInventoryItem(data: z.infer<typeof CreateInventory>) {
+    const session = await auth();
+    if (!session) return { success: false, message: 'Unauthorized' };
+    if (!['admin', 'superadmin'].includes(session.user.role)) {
+        return { success: false, message: 'Forbidden' };
+    }
+
     try {
         const validated = CreateInventory.parse(data);
 
@@ -181,6 +194,12 @@ export async function createInventoryItem(data: z.infer<typeof CreateInventory>)
 }
 
 export async function updateInventoryItem(id: number, data: z.infer<typeof UpdateInventory>) {
+    const session = await auth();
+    if (!session) return { success: false, message: 'Unauthorized' };
+    if (!['admin', 'superadmin'].includes(session.user.role)) {
+        return { success: false, message: 'Forbidden' };
+    }
+
     try {
         const validated = UpdateInventory.parse(data);
 
@@ -204,6 +223,12 @@ export async function updateInventoryItem(id: number, data: z.infer<typeof Updat
 
 
 export async function importInventoryItems(items: any[]) {
+    const session = await auth();
+    if (!session) return { success: false, error: 'Unauthorized' };
+    if (!['admin', 'superadmin'].includes(session.user.role)) {
+        return { success: false, error: 'Forbidden' };
+    }
+
     try {
         let successCount = 0;
         let errors: string[] = [];

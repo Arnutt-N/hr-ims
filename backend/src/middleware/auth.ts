@@ -47,10 +47,21 @@ export const authenticateToken = (req: AuthRequest, res: Response, next: NextFun
 };
 
 // Header-based authentication (for Next.js proxy requests)
-// Next.js middleware injects x-user-id and x-user-role headers
+// Next.js injects x-user-id, x-user-role, and x-internal-key headers.
+// IMPORTANT: The backend must only be reachable from the Next.js proxy (bind to 127.0.0.1).
+// The INTERNAL_API_KEY provides an additional layer of defense.
 export const requireAuth = (req: AuthRequest, res: Response, next: NextFunction) => {
     const userId = req.headers['x-user-id'] as string;
     const userRole = req.headers['x-user-role'] as string;
+    const internalKey = req.headers['x-internal-key'] as string;
+
+    // Verify internal shared secret to prevent direct header spoofing
+    if (!process.env.INTERNAL_API_KEY || internalKey !== process.env.INTERNAL_API_KEY) {
+        return res.status(401).json({
+            error: 'Unauthorized',
+            message: 'Invalid internal API key.'
+        });
+    }
 
     if (!userId || !userRole) {
         return res.status(401).json({

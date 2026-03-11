@@ -7,19 +7,24 @@ export const authConfig = {
     callbacks: {
         authorized({ auth, request: { nextUrl } }) {
             const isLoggedIn = !!auth?.user;
-            const isOnDashboard = nextUrl.pathname.startsWith('/dashboard');
             const isOnLogin = nextUrl.pathname === '/login';
-            const isOnSettings = nextUrl.pathname.startsWith('/settings');
+            const isOnRegister = nextUrl.pathname === '/register';
+            const isOnForgotPassword = nextUrl.pathname === '/forgot-password';
+            const isOnResetPassword = nextUrl.pathname.startsWith('/reset-password');
+            const isApiAuth = nextUrl.pathname.startsWith('/api/auth');
+            const isApiCron = nextUrl.pathname.startsWith('/api/cron');
 
-            if (isOnDashboard || isOnSettings) {
-                if (isLoggedIn) return true;
-                return false; // Redirect to login
-            } else if (isLoggedIn && isOnLogin) {
-                return true;
+            const isPublic = isOnLogin || isOnRegister || isOnForgotPassword || isOnResetPassword || isApiAuth || isApiCron;
+
+            if (!isPublic && !isLoggedIn) {
+                return false; // Redirect unauthenticated users to login
+            }
+            if (isLoggedIn && isOnLogin) {
+                return Response.redirect(new URL('/dashboard', nextUrl));
             }
             return true;
         },
     },
     providers: [], // Add providers with an empty array for now
-    secret: process.env.AUTH_SECRET || "fallback-secret-key-for-dev",
+    secret: process.env.AUTH_SECRET,
 } satisfies NextAuthConfig;

@@ -6,22 +6,23 @@ import { revalidatePath } from 'next/cache';
 
 export async function checkLowStock() {
     const session = await auth();
-    // Allow system trigger or admin trigger
+    // Require authentication: only admin/superadmin or system cron may trigger this
     if (!session?.user) {
-        // console.log("System trigger...");
+        return { error: 'Unauthorized' };
+    }
+    const allowedRoles = ['admin', 'superadmin', 'approver'];
+    if (!allowedRoles.includes(session.user.role)) {
+        return { error: 'Forbidden' };
     }
 
     try {
         console.log("Checking low stock levels...");
 
         // 1. Find items where quantity <= minStock
-        // Note: We only check StockLevel, assuming minStock is set there.
-        const lowStockItems = await prisma.stockLevel.findMany({
+        // Use raw comparison to support column-vs-column check
+        const allStockLevels = await prisma.stockLevel.findMany({
             where: {
                 minStock: { not: null },
-                quantity: {
-                    lte: prisma.stockLevel.fields.minStock
-                }
             },
             include: {
                 item: true,
@@ -32,6 +33,11 @@ export async function checkLowStock() {
                 }
             }
         });
+
+        // Filter in application code: quantity <= minStock
+        const lowStockItems = allStockLevels.filter(
+            s => s.minStock !== null && s.quantity <= s.minStock
+        );
 
         // 2. Create Notifications
         let count = 0;
@@ -106,7 +112,7 @@ export async function markAsRead(id: number) {
 
     try {
         await prisma.notification.update({
-            where: { id },
+            where: { id, userId: parseInt(session.user.id) },
             data: { read: true }
         });
         revalidatePath('/dashboard');

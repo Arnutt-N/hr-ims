@@ -50,18 +50,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             },
         }),
     ],
-    secret: process.env.AUTH_SECRET || "fallback-secret-key-for-dev",
+    secret: process.env.AUTH_SECRET,
     callbacks: {
         async jwt({ token, user }) {
             if (user) {
                 token.id = user.id?.toString() || "";
                 token.role = (user as any).role || "user";
                 token.tokenVersion = (user as any).tokenVersion || 1;
-
-                // FORCE FIX: Ensure superadmin@demo.com is always superadmin
-                if (user.email === 'superadmin@demo.com') {
-                    token.role = 'superadmin';
-                }
 
                 try {
                     // 1. Fetch User Roles & current Token Version

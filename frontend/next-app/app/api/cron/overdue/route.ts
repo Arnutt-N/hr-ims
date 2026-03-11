@@ -5,9 +5,9 @@ export const dynamic = 'force-dynamic'; // Ensure not cached
 
 export async function GET(request: Request) {
     try {
-        // Simple security check (Authorization header)
+        // Security check: CRON_SECRET must be set and match
         const authHeader = request.headers.get('authorization');
-        if (process.env.CRON_SECRET && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+        if (!process.env.CRON_SECRET || authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
             return new NextResponse('Unauthorized', { status: 401 });
         }
 
