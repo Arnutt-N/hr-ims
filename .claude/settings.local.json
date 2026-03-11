@@ -1,11 +1,5 @@
 {
-  "env": {
-    "ANTHROPIC_DEFAULT_HAIKU_MODEL": "glm-4.7-flashX",
-    "ANTHROPIC_AUTH_TOKEN": "2f6394866b3f4ed6b7b3d99ec80ffc6e.wTno0wbEn0AN1Ozu",
-    "ANTHROPIC_DEFAULT_SONNET_MODEL": "glm-5",
-    "ANTHROPIC_DEFAULT_OPUS_MODEL": "glm-5",
-    "ANTHROPIC_BASE_URL": "https://api.z.ai/api/anthropic"
-  },
+  "env": {},
   "permissions": {
     "allow": [
       "Bash(ls:*)",
@@ -17,9 +11,16 @@
       "Bash(npx tsc --noEmit)",
       "Bash(npx tsc --noEmit \"app/\\(dashboard\\)/scanner/page.tsx\" \"app/\\(dashboard\\)/tags/page.tsx\")",
       "Bash(npm run build)",
-      "Bash(npx next lint --dir app --file \"app/\\(dashboard\\)/tags/page.tsx\" --file \"app/\\(dashboard\\)/scanner/page.tsx\")"
+      "Bash(npx next lint --dir app --file \"app/\\(dashboard\\)/tags/page.tsx\" --file \"app/\\(dashboard\\)/scanner/page.tsx\")",
+      "Bash(cd:*)",
+      "Bash(git:*)",
+      "Bash(powershell:*)",
+      "Skill(sc:analyze)",
+      "Skill(sc:improve)",
+      "Bash(scoop install:*)",
+      "Bash(export PATH=\"$PATH:/c/Users/arnutt.n/scoop/shims\" && gh --version 2>&1)",
+      "Bash(export PATH=\"$PATH:/c/Users/arnutt.n/scoop/shims\" && cd \"D:/02 genAI/hr-ims\" && gh auth status 2>&1)",
+      "Skill(sc:git)"
     ]
-  },
-  "primaryModel": "glm-4.7",
-  "anthropicApiBaseUrl": "https://api.z.ai/api/anthropic"
+  }
 }
