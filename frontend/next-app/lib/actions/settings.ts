@@ -4,9 +4,7 @@ import prisma from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
 import { auth } from '@/auth';
 import { z } from 'zod';
-import { requireRole } from '@/lib/auth-guards';
-
-const SUPERADMIN_ONLY = ['superadmin'] as const;
+import { requireRole, SUPERADMIN_ONLY } from '@/lib/auth-guards';
 
 const settingsSchema = z.object({
     orgName: z.string().min(2, 'Organization name must be at least 2 characters'),

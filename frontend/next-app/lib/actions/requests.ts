@@ -11,7 +11,7 @@ export async function getRequests(status?: string) {
     const session = await auth();
     if (!session) return { error: 'Unauthorized' };
 
-    const isAdmin = APPROVER_ROLES.includes(session.user.role as any);
+    const isAdmin = APPROVER_ROLES.includes(session.user.role);
 
     // Admins/approvers see all requests; regular users see only their own
     const where: any = status ? { status } : {};

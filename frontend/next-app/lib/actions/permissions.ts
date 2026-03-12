@@ -3,9 +3,7 @@
 import prisma from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
 import { logActivity } from '@/lib/actions/audit';
-import { requireRole } from '@/lib/auth-guards';
-
-const SUPERADMIN_ONLY = ['superadmin'] as const;
+import { requireRole, SUPERADMIN_ONLY } from '@/lib/auth-guards';
 
 export async function getPermissions() {
     const session = await requireRole(...SUPERADMIN_ONLY);

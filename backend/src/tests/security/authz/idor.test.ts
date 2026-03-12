@@ -307,7 +307,7 @@ describe('🔒 Authorization Security - IDOR Vulnerabilities', () => {
                     .get(`/api/users/${id}`)
                     .set('x-user-id', attacker.id.toString())
                     .set('x-user-role', attacker.role)
-                .set('x-internal-key', internalApiKey);
+                    .set('x-internal-key', internalApiKey);
 
                 if (response.status === 200) {
                     accessibleResources.push(id);

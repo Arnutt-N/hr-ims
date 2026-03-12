@@ -75,16 +75,20 @@ export async function getNotifications(limit = 10) {
     if (!session?.user?.id) return { notifications: [] };
 
     try {
-        const notifications = await prisma.notification.findMany({
-            where: {
-                userId: parseInt(session.user.id),
-                read: false
-            },
-            orderBy: { createdAt: 'desc' },
-            take: limit
-        });
+        const userId = parseInt(session.user.id);
 
-        return { notifications, unreadCount: notifications.length };
+        const [notifications, unreadCount] = await Promise.all([
+            prisma.notification.findMany({
+                where: { userId, read: false },
+                orderBy: { createdAt: 'desc' },
+                take: limit
+            }),
+            prisma.notification.count({
+                where: { userId, read: false }
+            }),
+        ]);
+
+        return { notifications, unreadCount };
     } catch (error) {
         console.error('Failed to fetch notifications:', { userId: session.user.id, error });
         return { notifications: [], unreadCount: 0 };

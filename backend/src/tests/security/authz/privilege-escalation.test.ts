@@ -37,7 +37,7 @@ describe('🔒 Authorization Security - Privilege Escalation', () => {
                         .get(ep.url)
                         .set('x-user-id', regularUser.id.toString())
                         .set('x-user-role', regularUser.role)
-                .set('x-internal-key', internalApiKey);
+                        .set('x-internal-key', internalApiKey);
                 } else if (ep.method === 'POST') {
                     response = await request(targets.backend)
                         .post(ep.url)
@@ -50,7 +50,7 @@ describe('🔒 Authorization Security - Privilege Escalation', () => {
                         .delete(ep.url)
                         .set('x-user-id', regularUser.id.toString())
                         .set('x-user-role', regularUser.role)
-                .set('x-internal-key', internalApiKey);
+                        .set('x-internal-key', internalApiKey);
                 }
 
                 results.push({
@@ -413,7 +413,7 @@ describe('🔒 Authorization Security - Privilege Escalation', () => {
                     .get(path)
                     .set('x-user-id', regularUser.id.toString())
                     .set('x-user-role', regularUser.role)
-                .set('x-internal-key', internalApiKey);
+                    .set('x-internal-key', internalApiKey);
 
                 // Should be 400, 404 or properly rejected
                 if (response.status === 200) {
@@ -446,7 +446,7 @@ describe('🔒 Authorization Security - Privilege Escalation', () => {
                     .get(route)
                     .set('x-user-id', regularUser.id.toString())
                     .set('x-user-role', regularUser.role)
-                .set('x-internal-key', internalApiKey);
+                    .set('x-internal-key', internalApiKey);
 
                 // Should be 404 or 403, not 200
                 if (response.status === 200) {
