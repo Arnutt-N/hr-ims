@@ -11,7 +11,7 @@ import request from 'supertest';
 import securityConfig from '../config';
 import { SecurityHttpClient, SecurityTestResult } from '../utils/http-client';
 
-const { targets, endpoints, severity } = securityConfig;
+const { targets, endpoints, severity, internalApiKey } = securityConfig;
 const client = new SecurityHttpClient(targets.backend);
 
 describe('🔒 Authentication Security - Session Security', () => {
@@ -249,7 +249,8 @@ describe('🔒 Authentication Security - Session Security', () => {
                 .set('Cookie', cookies)
                 .set('Authorization', authToken ? `Bearer ${authToken}` : '')
                 .set('x-user-id', '1')
-                .set('x-user-role', 'admin');
+                .set('x-user-role', 'admin')
+                .set('x-internal-key', internalApiKey);
 
             // Should be rejected (401 or 403)
             const sessionInvalidated = protectedResponse.status === 401 ||
@@ -334,7 +335,8 @@ describe('🔒 Authentication Security - Session Security', () => {
                 .set('Authorization', authToken ? `Bearer ${authToken}` : '')
                 .set('X-Forwarded-For', '10.0.0.50') // Different IP
                 .set('x-user-id', '1')
-                .set('x-user-role', 'admin');
+                .set('x-user-role', 'admin')
+                .set('x-internal-key', internalApiKey);
 
             // Ideally should detect and reject or challenge
             const detected = hijackResponse.status === 401 ||
@@ -374,7 +376,8 @@ describe('🔒 Authentication Security - Session Security', () => {
                 .set('Authorization', authToken ? `Bearer ${authToken}` : '')
                 .set('User-Agent', 'curl/7.81.0') // Different UA
                 .set('x-user-id', '1')
-                .set('x-user-role', 'admin');
+                .set('x-user-role', 'admin')
+                .set('x-internal-key', internalApiKey);
 
             const detected = hijackResponse.status === 401 ||
                 hijackResponse.status === 403;
@@ -421,7 +424,8 @@ describe('🔒 Authentication Security - Session Security', () => {
                     .get(endpoints.users.list)
                     .set('Authorization', `Bearer ${token}`)
                     .set('x-user-id', '1')
-                    .set('x-user-role', 'admin');
+                    .set('x-user-role', 'admin')
+                    .set('x-internal-key', internalApiKey);
 
                 if (response.status === 200) {
                     activeSessionCount++;

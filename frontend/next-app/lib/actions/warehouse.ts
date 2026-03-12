@@ -4,7 +4,8 @@ import prisma from '@/lib/prisma';
 import { auth } from '@/auth';
 import { revalidatePath } from 'next/cache';
 import { logActivity } from '@/lib/actions/audit';
-import { z } from 'zod';// Validation Schemas
+import { z } from 'zod';
+import { requireRole, ADMIN_ROLES } from '@/lib/auth-guards';// Validation Schemas
 const warehouseSchema = z.object({
     name: z.string().min(2, 'Name must be at least 2 characters'),
     code: z.string().min(2, 'Code is required'),
@@ -46,12 +47,8 @@ export async function getWarehouses() {
 }
 
 export async function createWarehouse(data: any) {
-    const session = await auth();
-    // Restriction: Only admin/superadmin
-    const role = session?.user?.role;
-    if (!session || (role !== 'superadmin' && role !== 'admin')) {
-        return { error: 'Unauthorized - Admin only' };
-    }
+    const session = await requireRole(...ADMIN_ROLES);
+    if (!session) return { error: 'Unauthorized' };
 
     try {
         const validated = warehouseSchema.parse(data);
@@ -89,12 +86,8 @@ export async function createWarehouse(data: any) {
 }
 
 export async function updateWarehouse(id: number, data: any) {
-    const session = await auth();
-    // Restriction: Only admin/superadmin
-    const role = session?.user?.role;
-    if (!session || (role !== 'superadmin' && role !== 'admin')) {
-        return { error: 'Unauthorized - Admin only' };
-    }
+    const session = await requireRole(...ADMIN_ROLES);
+    if (!session) return { error: 'Unauthorized' };
 
     try {
         const validated = warehouseSchema.parse(data);
@@ -126,10 +119,8 @@ export async function updateWarehouse(id: number, data: any) {
 }
 
 export async function deleteWarehouse(id: number) {
-    const session = await auth();
-    if (!session || (session.user?.role !== 'superadmin')) {
-        return { error: 'Unauthorized - Superadmin only' };
-    }
+    const session = await requireRole('superadmin');
+    if (!session) return { error: 'Unauthorized' };
 
     try {
         const warehouse = await prisma.warehouse.delete({

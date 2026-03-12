@@ -11,13 +11,14 @@ import securityConfig from '../config';
 import { SecurityHttpClient, SecurityTestResult, responseAnalysis } from '../utils/http-client';
 import { sqlInjectionPayloads } from '../utils/payloads';
 
-const { targets, endpoints, severity, testUsers } = securityConfig;
+const { targets, endpoints, severity, testUsers, internalApiKey } = securityConfig;
 const client = new SecurityHttpClient(targets.backend);
 
 describe('🔒 Injection Security - SQL Injection', () => {
     const adminHeaders = {
         'x-user-id': testUsers.admin.id.toString(),
         'x-user-role': testUsers.admin.role,
+        'x-internal-key': internalApiKey,
     };
 
     // ============================================
@@ -341,7 +342,8 @@ describe('🔒 Injection Security - SQL Injection', () => {
                 await request(targets.backend)
                     .delete(`/api/inventory/${itemId}`)
                     .set('x-user-id', testUsers.superadmin.id.toString())
-                    .set('x-user-role', testUsers.superadmin.role);
+                    .set('x-user-role', testUsers.superadmin.role)
+                    .set('x-internal-key', internalApiKey);
             }
         });
     });

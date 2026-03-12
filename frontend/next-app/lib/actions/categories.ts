@@ -1,10 +1,10 @@
 'use server';
 
 import prisma from '@/lib/prisma';
-import { auth } from '@/auth';
 import { revalidatePath } from 'next/cache';
 import { logActivity } from '@/lib/actions/audit';
 import { z } from 'zod';
+import { requireRole, ADMIN_ROLES } from '@/lib/auth-guards';
 
 const categorySchema = z.object({
     name: z.string().min(1, 'Name is required'),
@@ -29,10 +29,8 @@ export async function getCategories() {
 }
 
 export async function createCategory(data: any) {
-    const session = await auth();
-    if (!session || (session.user?.role !== 'superadmin' && session.user?.role !== 'admin')) {
-        return { error: 'Unauthorized' };
-    }
+    const session = await requireRole(...ADMIN_ROLES);
+    if (!session) return { error: 'Unauthorized' };
 
     try {
         const validated = categorySchema.parse(data);
@@ -57,10 +55,8 @@ export async function createCategory(data: any) {
 }
 
 export async function updateCategory(id: number, data: any) {
-    const session = await auth();
-    if (!session || (session.user?.role !== 'superadmin' && session.user?.role !== 'admin')) {
-        return { error: 'Unauthorized' };
-    }
+    const session = await requireRole(...ADMIN_ROLES);
+    if (!session) return { error: 'Unauthorized' };
 
     try {
         const validated = categorySchema.partial().parse(data);
@@ -80,10 +76,8 @@ export async function updateCategory(id: number, data: any) {
 }
 
 export async function deleteCategory(id: number) {
-    const session = await auth();
-    if (!session || (session.user?.role !== 'superadmin' && session.user?.role !== 'admin')) {
-        return { error: 'Unauthorized' };
-    }
+    const session = await requireRole(...ADMIN_ROLES);
+    if (!session) return { error: 'Unauthorized' };
 
     try {
         const category = await prisma.category.delete({
@@ -100,11 +94,8 @@ export async function deleteCategory(id: number) {
 }
 
 export async function syncCategories() {
-    const session = await auth();
-    // Allow admin to run sync as well
-    if (!session || (session.user?.role !== 'superadmin' && session.user?.role !== 'admin')) {
-        return { error: 'Unauthorized' };
-    }
+    const session = await requireRole(...ADMIN_ROLES);
+    if (!session) return { error: 'Unauthorized' };
 
     try {
         // 1. Get all unique category strings from InventoryItem

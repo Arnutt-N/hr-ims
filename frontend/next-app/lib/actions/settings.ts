@@ -4,6 +4,9 @@ import prisma from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
 import { auth } from '@/auth';
 import { z } from 'zod';
+import { requireRole } from '@/lib/auth-guards';
+
+const SUPERADMIN_ONLY = ['superadmin'] as const;
 
 const settingsSchema = z.object({
     orgName: z.string().min(2, 'Organization name must be at least 2 characters'),
@@ -43,12 +46,8 @@ export async function getSettings() {
 }
 
 export async function updateSettings(id: number, data: any) {
-    const session = await auth();
-    // Only superadmin can change system settings
-    const role = session?.user?.role as any;
-    if (role !== 'superadmin') {
-        return { error: 'Unauthorized - Superadmin only' };
-    }
+    const session = await requireRole(...SUPERADMIN_ONLY);
+    if (!session) return { error: 'Unauthorized' };
 
     try {
         // Validate

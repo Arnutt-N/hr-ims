@@ -12,7 +12,7 @@ import jwt from 'jsonwebtoken';
 import securityConfig from '../config';
 import { SecurityHttpClient, SecurityTestResult } from '../utils/http-client';
 
-const { targets, endpoints, severity } = securityConfig;
+const { targets, endpoints, severity, internalApiKey } = securityConfig;
 const client = new SecurityHttpClient(targets.backend);
 
 // Helper to create Base64URL encoding
@@ -58,7 +58,8 @@ describe('🔒 Authentication Security - JWT Attacks', () => {
                 .get(endpoints.users.list)
                 .set('Authorization', `Bearer ${noneToken}`)
                 .set('x-user-id', '1')
-                .set('x-user-role', 'superadmin');
+                .set('x-user-role', 'superadmin')
+                .set('x-internal-key', internalApiKey);
 
             // Should be rejected
             const rejected = response.status === 401 || response.status === 403;
@@ -311,7 +312,8 @@ describe('🔒 Authentication Security - JWT Attacks', () => {
                 .get(endpoints.users.list)
                 .set('Authorization', `Bearer ${token}`)
                 .set('x-user-id', '1')
-                .set('x-user-role', 'admin');
+                .set('x-user-role', 'admin')
+                .set('x-internal-key', internalApiKey);
 
             // Ideally should be rejected, but stateless JWTs may still work
             const rejected = response.status === 401 || response.status === 403;
@@ -406,7 +408,8 @@ describe('🔒 Authentication Security - JWT Attacks', () => {
                         .get(endpoints.users.list)
                         .set('Authorization', `Bearer ${token}`)
                         .set('x-user-id', '1')
-                        .set('x-user-role', 'admin');
+                        .set('x-user-role', 'admin')
+                        .set('x-internal-key', internalApiKey);
 
                     if (response.status === 200) {
                         vulnerableSecretFound = true;

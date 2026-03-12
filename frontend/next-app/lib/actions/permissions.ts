@@ -1,15 +1,15 @@
 'use server';
 
 import prisma from '@/lib/prisma';
-import { auth } from '@/auth';
 import { revalidatePath } from 'next/cache';
 import { logActivity } from '@/lib/actions/audit';
+import { requireRole } from '@/lib/auth-guards';
+
+const SUPERADMIN_ONLY = ['superadmin'] as const;
 
 export async function getPermissions() {
-    const session = await auth();
-    if (!session || session.user?.role !== 'superadmin') {
-        return { error: 'Unauthorized' };
-    }
+    const session = await requireRole(...SUPERADMIN_ONLY);
+    if (!session) return { error: 'Unauthorized' };
 
     try {
         const permissions = await prisma.rolePermission.findMany({
@@ -23,10 +23,8 @@ export async function getPermissions() {
 }
 
 export async function updatePermission(role: string, menu: string, path: string, canView: boolean) {
-    const session = await auth();
-    if (!session || session.user?.role !== 'superadmin') {
-        return { error: 'Unauthorized' };
-    }
+    const session = await requireRole(...SUPERADMIN_ONLY);
+    if (!session) return { error: 'Unauthorized' };
 
     try {
         const permission = await prisma.rolePermission.upsert({

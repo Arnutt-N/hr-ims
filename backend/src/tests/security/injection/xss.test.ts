@@ -11,13 +11,14 @@ import securityConfig from '../config';
 import { SecurityHttpClient, SecurityTestResult, responseAnalysis } from '../utils/http-client';
 import { xssPayloads } from '../utils/payloads';
 
-const { targets, endpoints, severity, testUsers } = securityConfig;
+const { targets, endpoints, severity, testUsers, internalApiKey } = securityConfig;
 const client = new SecurityHttpClient(targets.backend);
 
 describe('🔒 Injection Security - Cross-Site Scripting (XSS)', () => {
     const adminHeaders = {
         'x-user-id': testUsers.admin.id.toString(),
         'x-user-role': testUsers.admin.role,
+        'x-internal-key': internalApiKey,
     };
 
     // ============================================
@@ -116,7 +117,8 @@ describe('🔒 Injection Security - Cross-Site Scripting (XSS)', () => {
                 await request(targets.backend)
                     .delete(`/api/inventory/${itemId}`)
                     .set('x-user-id', testUsers.superadmin.id.toString())
-                    .set('x-user-role', testUsers.superadmin.role);
+                    .set('x-user-role', testUsers.superadmin.role)
+                    .set('x-internal-key', internalApiKey);
             }
 
             const result: SecurityTestResult = {
@@ -144,6 +146,7 @@ describe('🔒 Injection Security - Cross-Site Scripting (XSS)', () => {
                     .put(`/api/users/${testUsers.user.id}`)
                     .set('x-user-id', testUsers.user.id.toString())
                     .set('x-user-role', testUsers.user.role)
+                    .set('x-internal-key', internalApiKey)
                     .send({
                         name: payload,
                     });
@@ -382,7 +385,8 @@ describe('🔒 Injection Security - Cross-Site Scripting (XSS)', () => {
                 await request(targets.backend)
                     .delete(`/api/inventory/${itemId}`)
                     .set('x-user-id', testUsers.superadmin.id.toString())
-                    .set('x-user-role', testUsers.superadmin.role);
+                    .set('x-user-role', testUsers.superadmin.role)
+                    .set('x-internal-key', internalApiKey);
             }
         });
     });

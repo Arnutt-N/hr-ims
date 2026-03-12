@@ -1,15 +1,26 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import { auth } from '@/auth';
+import { requireRole, ADMIN_ROLES } from '@/lib/auth-guards';
 
-// Fetch all department mappings
+const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:3001';
+
+function backendHeaders(session: { user: { id: string; role: string } }): Record<string, string> {
+    return {
+        'x-user-id': session.user.id,
+        'x-user-role': session.user.role,
+        'x-internal-key': process.env.INTERNAL_API_KEY || '',
+    };
+}
+
 export async function getDepartmentMappings() {
+    const session = await requireRole(...ADMIN_ROLES);
+    if (!session) return [];
+
     try {
-        const response = await fetch('http://localhost:3001/api/departments/mappings', {
-            headers: {
-                'x-user-id': '1', // System/Admin ID
-                'x-user-role': 'admin'
-            },
+        const response = await fetch(`${BACKEND_URL}/api/departments/mappings`, {
+            headers: backendHeaders(session),
             cache: 'no-store'
         });
 
@@ -21,14 +32,13 @@ export async function getDepartmentMappings() {
     }
 }
 
-// Fetch unique departments from users
 export async function getUniqueDepartments() {
+    const session = await requireRole(...ADMIN_ROLES);
+    if (!session) return [];
+
     try {
-        const response = await fetch('http://localhost:3001/api/departments/unique', {
-            headers: {
-                'x-user-id': '1',
-                'x-user-role': 'admin'
-            },
+        const response = await fetch(`${BACKEND_URL}/api/departments/unique`, {
+            headers: backendHeaders(session),
             cache: 'no-store'
         });
 
@@ -40,19 +50,13 @@ export async function getUniqueDepartments() {
     }
 }
 
-// Fetch mapping for current user
 export async function getMyMapping() {
+    const session = await auth();
+    if (!session?.user?.id) return { warehouse: null };
+
     try {
-        const { auth } = await import('@/auth');
-        const session = await auth();
-
-        if (!session?.user?.id) return { warehouse: null };
-
-        const response = await fetch('http://localhost:3001/api/departments/my-mapping', {
-            headers: {
-                'x-user-id': session.user.id,
-                'x-user-role': session.user.role || 'user'
-            },
+        const response = await fetch(`${BACKEND_URL}/api/departments/my-mapping`, {
+            headers: backendHeaders(session),
             cache: 'no-store'
         });
 
@@ -64,16 +68,14 @@ export async function getMyMapping() {
     }
 }
 
-// Create or update mapping
 export async function saveDepartmentMapping(department: string, warehouseId: number) {
+    const session = await requireRole(...ADMIN_ROLES);
+    if (!session) return { success: false, message: 'Unauthorized' };
+
     try {
-        const response = await fetch('http://localhost:3001/api/departments/mappings', {
+        const response = await fetch(`${BACKEND_URL}/api/departments/mappings`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'x-user-id': '1',
-                'x-user-role': 'admin'
-            },
+            headers: { ...backendHeaders(session), 'Content-Type': 'application/json' },
             body: JSON.stringify({ department, warehouseId })
         });
 
@@ -90,15 +92,14 @@ export async function saveDepartmentMapping(department: string, warehouseId: num
     }
 }
 
-// Delete mapping
 export async function deleteDepartmentMapping(id: number) {
+    const session = await requireRole(...ADMIN_ROLES);
+    if (!session) return { success: false, message: 'Unauthorized' };
+
     try {
-        const response = await fetch(`http://localhost:3001/api/departments/mappings/${id}`, {
+        const response = await fetch(`${BACKEND_URL}/api/departments/mappings/${id}`, {
             method: 'DELETE',
-            headers: {
-                'x-user-id': '1',
-                'x-user-role': 'admin'
-            }
+            headers: backendHeaders(session),
         });
 
         if (!response.ok) {

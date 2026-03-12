@@ -11,7 +11,7 @@ import request from 'supertest';
 import securityConfig from '../config';
 import { SecurityHttpClient, SecurityTestResult } from '../utils/http-client';
 
-const { targets, endpoints, severity, testUsers } = securityConfig;
+const { targets, endpoints, severity, testUsers, internalApiKey } = securityConfig;
 const client = new SecurityHttpClient(targets.backend);
 
 describe('🔒 Authorization Security - Privilege Escalation', () => {
@@ -36,18 +36,21 @@ describe('🔒 Authorization Security - Privilege Escalation', () => {
                     response = await request(targets.backend)
                         .get(ep.url)
                         .set('x-user-id', regularUser.id.toString())
-                        .set('x-user-role', regularUser.role);
+                        .set('x-user-role', regularUser.role)
+                .set('x-internal-key', internalApiKey);
                 } else if (ep.method === 'POST') {
                     response = await request(targets.backend)
                         .post(ep.url)
                         .set('x-user-id', regularUser.id.toString())
                         .set('x-user-role', regularUser.role)
+                        .set('x-internal-key', internalApiKey)
                         .send({ name: 'Test' });
                 } else if (ep.method === 'DELETE') {
                     response = await request(targets.backend)
                         .delete(ep.url)
                         .set('x-user-id', regularUser.id.toString())
-                        .set('x-user-role', regularUser.role);
+                        .set('x-user-role', regularUser.role)
+                .set('x-internal-key', internalApiKey);
                 }
 
                 results.push({
@@ -82,6 +85,7 @@ describe('🔒 Authorization Security - Privilege Escalation', () => {
                 .put(`/api/users/${regularUser.id}`)
                 .set('x-user-id', regularUser.id.toString())
                 .set('x-user-role', regularUser.role)
+                .set('x-internal-key', internalApiKey)
                 .send({
                     role: 'superadmin', // Trying to escalate
                 });
@@ -114,6 +118,7 @@ describe('🔒 Authorization Security - Privilege Escalation', () => {
                 .put(`/api/users/${admin.id}`)
                 .set('x-user-id', admin.id.toString())
                 .set('x-user-role', admin.role)
+                .set('x-internal-key', internalApiKey)
                 .send({
                     role: 'superadmin',
                 });
@@ -238,7 +243,8 @@ describe('🔒 Authorization Security - Privilege Escalation', () => {
                 const response = await request(targets.backend)
                     .delete('/api/users/9999')
                     .set('x-user-id', '1')
-                    .set('x-user-role', role);
+                    .set('x-user-role', role)
+                    .set('x-internal-key', internalApiKey);
 
                 const isCorrect = response.status === expected ||
                     (expected === 403 && response.status === 401) ||
@@ -265,6 +271,7 @@ describe('🔒 Authorization Security - Privilege Escalation', () => {
                 .post('/api/inventory')
                 .set('x-user-id', regularUser.id.toString())
                 .set('x-user-role', regularUser.role)
+                .set('x-internal-key', internalApiKey)
                 .send({
                     name: 'Test Item',
                     category: 'Test',
@@ -293,6 +300,7 @@ describe('🔒 Authorization Security - Privilege Escalation', () => {
                 .post('/api/requests/1/approve')
                 .set('x-user-id', regularUser.id.toString())
                 .set('x-user-role', regularUser.role)
+                .set('x-internal-key', internalApiKey)
                 .send({ approved: true });
 
             const protected_ = response.status === 403 || response.status === 401;
@@ -322,6 +330,7 @@ describe('🔒 Authorization Security - Privilege Escalation', () => {
                 .put(`/api/users/${regularUser.id}`)
                 .set('x-user-id', regularUser.id.toString())
                 .set('x-user-role', regularUser.role)
+                .set('x-internal-key', internalApiKey)
                 .send({
                     name: 'Updated Name', // Allowed
                     role: 'superadmin',   // Should be filtered
@@ -357,6 +366,7 @@ describe('🔒 Authorization Security - Privilege Escalation', () => {
                 .put(`/api/users/${regularUser.id}`)
                 .set('x-user-id', regularUser.id.toString())
                 .set('x-user-role', regularUser.role)
+                .set('x-internal-key', internalApiKey)
                 .send({
                     profile: {
                         role: 'superadmin', // Trying nested escalation
@@ -402,7 +412,8 @@ describe('🔒 Authorization Security - Privilege Escalation', () => {
                 const response = await request(targets.backend)
                     .get(path)
                     .set('x-user-id', regularUser.id.toString())
-                    .set('x-user-role', regularUser.role);
+                    .set('x-user-role', regularUser.role)
+                .set('x-internal-key', internalApiKey);
 
                 // Should be 400, 404 or properly rejected
                 if (response.status === 200) {
@@ -434,7 +445,8 @@ describe('🔒 Authorization Security - Privilege Escalation', () => {
                 const response = await request(targets.backend)
                     .get(route)
                     .set('x-user-id', regularUser.id.toString())
-                    .set('x-user-role', regularUser.role);
+                    .set('x-user-role', regularUser.role)
+                .set('x-internal-key', internalApiKey);
 
                 // Should be 404 or 403, not 200
                 if (response.status === 200) {

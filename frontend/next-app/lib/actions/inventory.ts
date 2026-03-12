@@ -3,9 +3,8 @@
 import prisma from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
-import { redirect } from 'next/navigation';
 import { checkLowStock } from './notifications';
-import { auth } from '@/auth';
+import { requireRole, ADMIN_ROLES } from '@/lib/auth-guards';
 
 const InventorySchema = z.object({
     id: z.coerce.number(),
@@ -22,50 +21,37 @@ const UpdateInventory = InventorySchema.omit({ id: true });
 
 import { searchInventoryItems } from '../meilisearch';
 
+const ITEMS_PER_PAGE = 12;
+
+const PRISMA_SEARCH_FALLBACK = (query: string) => ({
+    OR: [
+        { name: { contains: query } },
+        { category: { contains: query } },
+        { serial: { contains: query } },
+    ],
+});
+
+async function buildSearchFilter(query: string) {
+    if (!query) return {};
+    try {
+        const matchingIds = await searchInventoryItems(query);
+        return matchingIds.length > 0
+            ? { id: { in: matchingIds } }
+            : PRISMA_SEARCH_FALLBACK(query);
+    } catch {
+        return PRISMA_SEARCH_FALLBACK(query);
+    }
+}
+
 export async function fetchInventoryItems(
     query: string,
     currentPage: number,
     type?: string,
     warehouseId?: number,
 ) {
-    const ITEMS_PER_PAGE = 12; // Increased for grid view
     const offset = (currentPage - 1) * ITEMS_PER_PAGE;
-
     const typeFilter = type && type !== 'all' ? { type: type } : {};
-
-    let searchFilter = {};
-    if (query) {
-        try {
-            // Use Meilisearch to get IDs
-            const matchingIds = await searchInventoryItems(query);
-            if (matchingIds.length > 0) {
-                searchFilter = { id: { in: matchingIds } };
-            } else {
-                // Nothing found in Meilisearch, we can force an empty result 
-                // or falback to Prisma fuzzy. Let's trust Meilisearch for exact empty match
-                // if the query failed, searchInventoryItems returns [] and we can fallback.
-                // To distinguish error from empty, we could refine, but for now:
-
-                // If Meilisearch returns nothing, let's do Prisma fallback just in case MS isn't synced
-                searchFilter = {
-                    OR: [
-                        { name: { contains: query } },
-                        { category: { contains: query } },
-                        { serial: { contains: query } },
-                    ],
-                };
-            }
-        } catch (e) {
-            // Prisma fallback query
-            searchFilter = {
-                OR: [
-                    { name: { contains: query } },
-                    { category: { contains: query } },
-                    { serial: { contains: query } },
-                ],
-            };
-        }
-    }
+    const searchFilter = await buildSearchFilter(query);
 
     try {
         const items = await prisma.inventoryItem.findMany({
@@ -106,34 +92,8 @@ export async function fetchInventoryItems(
 }
 
 export async function fetchInventoryPages(query: string, type?: string) {
-    const ITEMS_PER_PAGE = 12;
     const typeFilter = type && type !== 'all' ? { type: type } : {};
-
-    let searchFilter = {};
-    if (query) {
-        try {
-            const matchingIds = await searchInventoryItems(query);
-            if (matchingIds.length > 0) {
-                searchFilter = { id: { in: matchingIds } };
-            } else {
-                searchFilter = {
-                    OR: [
-                        { name: { contains: query } },
-                        { category: { contains: query } },
-                        { serial: { contains: query } },
-                    ],
-                };
-            }
-        } catch (e) {
-            searchFilter = {
-                OR: [
-                    { name: { contains: query } },
-                    { category: { contains: query } },
-                    { serial: { contains: query } },
-                ],
-            };
-        }
-    }
+    const searchFilter = await buildSearchFilter(query);
 
     try {
         const count = await prisma.inventoryItem.count({
@@ -152,11 +112,8 @@ export async function fetchInventoryPages(query: string, type?: string) {
 }
 
 export async function deleteInventoryItem(id: number) {
-    const session = await auth();
+    const session = await requireRole(...ADMIN_ROLES);
     if (!session) return { error: 'Unauthorized' };
-    if (!['admin', 'superadmin'].includes(session.user.role)) {
-        return { error: 'Forbidden' };
-    }
 
     try {
         await prisma.inventoryItem.delete({
@@ -170,11 +127,8 @@ export async function deleteInventoryItem(id: number) {
 }
 
 export async function createInventoryItem(data: z.infer<typeof CreateInventory>) {
-    const session = await auth();
+    const session = await requireRole(...ADMIN_ROLES);
     if (!session) return { success: false, message: 'Unauthorized' };
-    if (!['admin', 'superadmin'].includes(session.user.role)) {
-        return { success: false, message: 'Forbidden' };
-    }
 
     try {
         const validated = CreateInventory.parse(data);
@@ -194,11 +148,8 @@ export async function createInventoryItem(data: z.infer<typeof CreateInventory>)
 }
 
 export async function updateInventoryItem(id: number, data: z.infer<typeof UpdateInventory>) {
-    const session = await auth();
+    const session = await requireRole(...ADMIN_ROLES);
     if (!session) return { success: false, message: 'Unauthorized' };
-    if (!['admin', 'superadmin'].includes(session.user.role)) {
-        return { success: false, message: 'Forbidden' };
-    }
 
     try {
         const validated = UpdateInventory.parse(data);
@@ -223,11 +174,8 @@ export async function updateInventoryItem(id: number, data: z.infer<typeof Updat
 
 
 export async function importInventoryItems(items: any[]) {
-    const session = await auth();
+    const session = await requireRole(...ADMIN_ROLES);
     if (!session) return { success: false, error: 'Unauthorized' };
-    if (!['admin', 'superadmin'].includes(session.user.role)) {
-        return { success: false, error: 'Forbidden' };
-    }
 
     try {
         let successCount = 0;

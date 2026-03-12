@@ -10,7 +10,7 @@ import request from 'supertest';
 import securityConfig from '../config';
 import { SecurityHttpClient, SecurityTestResult } from '../utils/http-client';
 
-const { targets, endpoints, severity, testUsers } = securityConfig;
+const { targets, endpoints, severity, testUsers, internalApiKey } = securityConfig;
 const client = new SecurityHttpClient(targets.backend);
 
 describe('🔒 Authorization Security - IDOR Vulnerabilities', () => {
@@ -26,7 +26,8 @@ describe('🔒 Authorization Security - IDOR Vulnerabilities', () => {
             const response = await request(targets.backend)
                 .get(`/api/users/${victimId}`)
                 .set('x-user-id', attacker.id.toString())
-                .set('x-user-role', attacker.role);
+                .set('x-user-role', attacker.role)
+                .set('x-internal-key', internalApiKey);
 
             // Regular user should NOT be able to access other user's full data
             const hasAccessControl = response.status === 403 ||
@@ -58,6 +59,7 @@ describe('🔒 Authorization Security - IDOR Vulnerabilities', () => {
                 .put(`/api/users/${victimId}`)
                 .set('x-user-id', attacker.id.toString())
                 .set('x-user-role', attacker.role)
+                .set('x-internal-key', internalApiKey)
                 .send({
                     name: 'Hacked Name',
                     email: 'hacked@evil.com',
@@ -85,7 +87,8 @@ describe('🔒 Authorization Security - IDOR Vulnerabilities', () => {
             const response = await request(targets.backend)
                 .delete(`/api/users/${victimId}`)
                 .set('x-user-id', attacker.id.toString())
-                .set('x-user-role', attacker.role);
+                .set('x-user-role', attacker.role)
+                .set('x-internal-key', internalApiKey);
 
             const protected_ = response.status === 403 || response.status === 401;
 
@@ -115,6 +118,7 @@ describe('🔒 Authorization Security - IDOR Vulnerabilities', () => {
                 .put(`/api/inventory/${itemId}`)
                 .set('x-user-id', attacker.id.toString())
                 .set('x-user-role', attacker.role)
+                .set('x-internal-key', internalApiKey)
                 .send({
                     name: 'Hacked Item',
                     quantity: 99999,
@@ -143,7 +147,8 @@ describe('🔒 Authorization Security - IDOR Vulnerabilities', () => {
             const response = await request(targets.backend)
                 .delete(`/api/inventory/${itemId}`)
                 .set('x-user-id', attacker.id.toString())
-                .set('x-user-role', attacker.role);
+                .set('x-user-role', attacker.role)
+                .set('x-internal-key', internalApiKey);
 
             const protected_ = response.status === 403 || response.status === 401;
 
@@ -173,7 +178,8 @@ describe('🔒 Authorization Security - IDOR Vulnerabilities', () => {
             const response = await request(targets.backend)
                 .get(`/api/requests?userId=${victimUserId}`)
                 .set('x-user-id', attacker.id.toString())
-                .set('x-user-role', attacker.role);
+                .set('x-user-role', attacker.role)
+                .set('x-internal-key', internalApiKey);
 
             // Should return empty or only attacker's requests, not victim's
             let hasOtherUserData = false;
@@ -206,6 +212,7 @@ describe('🔒 Authorization Security - IDOR Vulnerabilities', () => {
                 .post(`/api/requests/${requestId}/approve`)
                 .set('x-user-id', attacker.id.toString())
                 .set('x-user-role', attacker.role)
+                .set('x-internal-key', internalApiKey)
                 .send({ approved: true });
 
             const protected_ = response.status === 403 || response.status === 401;
@@ -235,7 +242,8 @@ describe('🔒 Authorization Security - IDOR Vulnerabilities', () => {
             const response = await request(targets.backend)
                 .get(`/api/warehouses/${warehouseId}/stock-levels`)
                 .set('x-user-id', attacker.id.toString())
-                .set('x-user-role', attacker.role);
+                .set('x-user-role', attacker.role)
+                .set('x-internal-key', internalApiKey);
 
             // Should be restricted based on user's warehouse assignment
             const protected_ = response.status === 403 ||
@@ -263,6 +271,7 @@ describe('🔒 Authorization Security - IDOR Vulnerabilities', () => {
                 .post(`/api/stock-levels/${stockLevelId}/adjust`)
                 .set('x-user-id', attacker.id.toString())
                 .set('x-user-role', attacker.role)
+                .set('x-internal-key', internalApiKey)
                 .send({
                     adjustment: 1000,
                     reason: 'Hacking attempt',
@@ -297,7 +306,8 @@ describe('🔒 Authorization Security - IDOR Vulnerabilities', () => {
                 const response = await request(targets.backend)
                     .get(`/api/users/${id}`)
                     .set('x-user-id', attacker.id.toString())
-                    .set('x-user-role', attacker.role);
+                    .set('x-user-role', attacker.role)
+                .set('x-internal-key', internalApiKey);
 
                 if (response.status === 200) {
                     accessibleResources.push(id);
@@ -328,7 +338,8 @@ describe('🔒 Authorization Security - IDOR Vulnerabilities', () => {
             const response = await request(targets.backend)
                 .get('/api/inventory')
                 .set('x-user-id', testUsers.admin.id.toString())
-                .set('x-user-role', testUsers.admin.role);
+                .set('x-user-role', testUsers.admin.role)
+                .set('x-internal-key', internalApiKey);
 
             let usesUUID = false;
             if (response.status === 200 && Array.isArray(response.body)) {
@@ -367,7 +378,8 @@ describe('🔒 Authorization Security - IDOR Vulnerabilities', () => {
             const response = await request(targets.backend)
                 .get(`/api/users/${user2Id}/profile`)
                 .set('x-user-id', user1.id.toString())
-                .set('x-user-role', user1.role);
+                .set('x-user-role', user1.role)
+                .set('x-internal-key', internalApiKey);
 
             const protected_ = response.status === 403 ||
                 response.status === 401 ||
@@ -394,6 +406,7 @@ describe('🔒 Authorization Security - IDOR Vulnerabilities', () => {
                 .post('/api/requests')
                 .set('x-user-id', attacker.id.toString())
                 .set('x-user-role', attacker.role)
+                .set('x-internal-key', internalApiKey)
                 .send({
                     userId: 1, // Trying to submit request as another user
                     items: [{ id: 1, quantity: 5 }],

@@ -92,6 +92,7 @@ export class SecurityHttpClient {
         return {
             'x-user-id': user.id.toString(),
             'x-user-role': user.role,
+            'x-internal-key': securityConfig.internalApiKey,
             'Content-Type': 'application/json',
         };
     }

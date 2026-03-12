@@ -98,6 +98,9 @@ export const securityConfig = {
         INFO: 'INFO',               // Informational finding
     } as const,
 
+    // Internal API key for header-based auth (must match INTERNAL_API_KEY env var)
+    internalApiKey: process.env.INTERNAL_API_KEY || 'test-internal-key',
+
     // Report settings
     reporting: {
         outputDir: './security-reports',

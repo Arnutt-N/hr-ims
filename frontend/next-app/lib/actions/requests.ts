@@ -5,13 +5,13 @@ import { revalidatePath } from 'next/cache';
 import { checkLowStock } from './notifications';
 import { auth } from '@/auth';
 import { sendOverdueEmail, sendStatusUpdateEmail } from '@/lib/mail';
+import { requireRole, APPROVER_ROLES } from '@/lib/auth-guards';
 
 export async function getRequests(status?: string) {
     const session = await auth();
     if (!session) return { error: 'Unauthorized' };
 
-    const adminRoles = ['admin', 'superadmin', 'approver'];
-    const isAdmin = adminRoles.includes(session.user.role);
+    const isAdmin = APPROVER_ROLES.includes(session.user.role as any);
 
     // Admins/approvers see all requests; regular users see only their own
     const where: any = status ? { status } : {};
@@ -44,13 +44,8 @@ export async function getRequests(status?: string) {
 }
 
 export async function updateRequestStatus(id: number, status: 'approved' | 'rejected', dueDate?: Date) {
-    const session = await auth();
+    const session = await requireRole(...APPROVER_ROLES);
     if (!session) return { error: 'Unauthorized' };
-
-    const allowedRoles = ['admin', 'superadmin', 'approver'];
-    if (!allowedRoles.includes(session.user.role)) {
-        return { error: 'Forbidden' };
-    }
 
     try {
         // 1. Get request with items
@@ -172,20 +167,27 @@ export async function updateRequestStatus(id: number, status: 'approved' | 'reje
             });
         }
 
-        // Send Email Notification for Status Update
-        const requestUser = await prisma.user.findUnique({
-            where: { id: request.userId },
-            select: { email: true, name: true }
-        });
-        if (requestUser?.email) {
-            await sendStatusUpdateEmail(requestUser, request, status);
-        }
-
         revalidatePath('/requests');
         revalidatePath('/inventory');
 
-        // Trigger low stock check
-        await checkLowStock();
+        // Side-effects: email + low-stock check — isolated so failures don't mask a successful approval
+        try {
+            const requestUser = await prisma.user.findUnique({
+                where: { id: request.userId },
+                select: { email: true, name: true }
+            });
+            if (requestUser?.email) {
+                await sendStatusUpdateEmail(requestUser, request, status);
+            }
+        } catch (emailError) {
+            console.error('Failed to send status update email:', emailError);
+        }
+
+        try {
+            await checkLowStock();
+        } catch (stockError) {
+            console.error('Failed to check low stock after request update:', stockError);
+        }
 
         return { success: true };
 
@@ -196,6 +198,8 @@ export async function updateRequestStatus(id: number, status: 'approved' | 'reje
 }
 
 export async function checkOverdueItems() {
+    // Called by CRON endpoint (authenticated via CRON_SECRET) and admin actions.
+    // No session auth check here — callers are responsible for authorization.
     try {
         const now = new Date();
 
@@ -217,15 +221,14 @@ export async function checkOverdueItems() {
         });
 
         if (overdueRequests.length > 0) {
+            // DB updates in transaction (no I/O side-effects)
             await prisma.$transaction(async (tx: any) => {
                 for (const req of overdueRequests) {
-                    // Mark as overdue
                     await tx.request.update({
                         where: { id: req.id },
                         data: { isOverdue: true }
                     });
 
-                    // Notify User
                     await tx.notification.create({
                         data: {
                             userId: req.userId,
@@ -233,17 +236,24 @@ export async function checkOverdueItems() {
                             read: false
                         }
                     });
+                }
+            });
 
-                    // Send Email Notification
-                    const user = await tx.user.findUnique({
+            // Email sending outside transaction — failures won't roll back DB changes
+            for (const req of overdueRequests) {
+                try {
+                    const user = await prisma.user.findUnique({
                         where: { id: req.userId },
                         select: { email: true, name: true }
                     });
                     if (user?.email) {
                         await sendOverdueEmail(user, req);
                     }
+                } catch (emailError) {
+                    console.error(`Failed to send overdue email for request #${req.id}:`, emailError);
                 }
-            });
+            }
+
             return { success: true, count: overdueRequests.length };
         }
 

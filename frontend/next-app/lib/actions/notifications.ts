@@ -3,41 +3,33 @@
 import prisma from '@/lib/prisma';
 import { auth } from '@/auth';
 import { revalidatePath } from 'next/cache';
+import { requireRole, APPROVER_ROLES } from '@/lib/auth-guards';
 
 export async function checkLowStock() {
-    const session = await auth();
-    // Require authentication: only admin/superadmin or system cron may trigger this
-    if (!session?.user) {
-        return { error: 'Unauthorized' };
-    }
-    const allowedRoles = ['admin', 'superadmin', 'approver'];
-    if (!allowedRoles.includes(session.user.role)) {
-        return { error: 'Forbidden' };
-    }
+    const session = await requireRole(...APPROVER_ROLES);
+    if (!session) return { error: 'Unauthorized' };
 
     try {
         console.log("Checking low stock levels...");
 
-        // 1. Find items where quantity <= minStock
-        // Use raw comparison to support column-vs-column check
-        const allStockLevels = await prisma.stockLevel.findMany({
-            where: {
-                minStock: { not: null },
-            },
+        // 1. Find low-stock IDs via raw SQL (column-vs-column comparison not supported in Prisma where clause)
+        const lowStockIds = await prisma.$queryRaw<{ id: number }[]>`
+            SELECT id FROM StockLevel WHERE minStock IS NOT NULL AND quantity <= minStock
+        `;
+
+        if (lowStockIds.length === 0) {
+            console.log('No low stock items found.');
+            return { success: true, count: 0 };
+        }
+
+        // 2. Fetch full data with relations only for matching rows
+        const lowStockItems = await prisma.stockLevel.findMany({
+            where: { id: { in: lowStockIds.map(r => r.id) } },
             include: {
                 item: true,
-                warehouse: {
-                    include: {
-                        managers: true // We need to know who to notify
-                    }
-                }
+                warehouse: { include: { managers: true } }
             }
         });
-
-        // Filter in application code: quantity <= minStock
-        const lowStockItems = allStockLevels.filter(
-            s => s.minStock !== null && s.quantity <= s.minStock
-        );
 
         // 2. Create Notifications
         let count = 0;
@@ -92,16 +84,9 @@ export async function getNotifications(limit = 10) {
             take: limit
         });
 
-        // Also get count of unread
-        const unreadCount = await prisma.notification.count({
-            where: {
-                userId: parseInt(session.user.id),
-                read: false
-            }
-        });
-
-        return { notifications, unreadCount };
+        return { notifications, unreadCount: notifications.length };
     } catch (error) {
+        console.error('Failed to fetch notifications:', { userId: session.user.id, error });
         return { notifications: [], unreadCount: 0 };
     }
 }
