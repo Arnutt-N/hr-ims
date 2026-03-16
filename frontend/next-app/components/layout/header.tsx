@@ -3,6 +3,7 @@ import { Bell, Search, ChevronDown, User as UserIcon } from 'lucide-react';
 import { NotificationBell } from './notification-bell';
 import { redirect } from 'next/navigation';
 import { formatThaiDate } from '@/lib/date-utils';
+import { APPROVER_ROLES, sessionHasAnyRole } from '@/lib/auth-guards';
 
 // [2026-02-11] Modified by CodeX: add cursor-pointer to native buttons
 
@@ -15,6 +16,7 @@ export async function Header() {
 
     const user = session?.user;
     const today = formatThaiDate(new Date());
+    const canTriggerLowStockCheck = sessionHasAnyRole(session, ...APPROVER_ROLES);
 
     return (
         <header className="h-20 bg-white/80 backdrop-blur-md border-b border-slate-200/60 flex items-center justify-between px-6 md:px-8 sticky top-0 z-20 transition-all duration-300">
@@ -37,7 +39,7 @@ export async function Header() {
                 </div>
 
                 {/* Notifications */}
-                <NotificationBell />
+                <NotificationBell canTriggerLowStockCheck={canTriggerLowStockCheck} />
 
                 {/* User Profile */}
                 <div className="flex items-center gap-3 pl-4 border-l border-slate-200">

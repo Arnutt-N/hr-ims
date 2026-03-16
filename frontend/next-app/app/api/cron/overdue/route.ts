@@ -1,4 +1,4 @@
-import { checkOverdueItems } from '@/lib/actions/requests';
+import { checkOverdueItemsInternal } from '@/lib/actions/requests';
 import { NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic'; // Ensure not cached
@@ -11,7 +11,7 @@ export async function GET(request: Request) {
             return new NextResponse('Unauthorized', { status: 401 });
         }
 
-        const result = await checkOverdueItems();
+        const result = await checkOverdueItemsInternal();
 
         if (result.error) {
             return NextResponse.json({ error: result.error }, { status: 500 });

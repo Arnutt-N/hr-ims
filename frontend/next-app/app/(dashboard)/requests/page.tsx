@@ -3,6 +3,8 @@ import RequestsTable from '@/components/dashboard/requests-table';
 import { getRequests } from '@/lib/actions/requests';
 import { CheckOverdueButton } from '@/components/dashboard/check-overdue-button';
 import { ArrowRightLeft } from 'lucide-react';
+import { auth } from '@/auth';
+import { APPROVER_ROLES, sessionHasAnyRole } from '@/lib/auth-guards';
 
 export const metadata = {
     title: 'Requests Management | HR-IMS',
@@ -10,8 +12,9 @@ export const metadata = {
 };
 
 export default async function RequestsPage() {
-    const result = await getRequests();
+    const [result, session] = await Promise.all([getRequests(), auth()]);
     const requests = result.success ? result.data : [];
+    const canCheckOverdue = sessionHasAnyRole(session, ...APPROVER_ROLES);
 
     return (
         <div className="space-y-8 animate-fade-in-up">
@@ -28,7 +31,7 @@ export default async function RequestsPage() {
                             Pending: {requests.filter(r => r.status === 'pending').length}
                         </span>
                     </div>
-                    <CheckOverdueButton />
+                    {canCheckOverdue ? <CheckOverdueButton /> : null}
                 </div>
             </div>
 

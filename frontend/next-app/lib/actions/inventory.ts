@@ -3,7 +3,7 @@
 import prisma from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
-import { checkLowStock } from './notifications';
+import { checkLowStockInternal } from './notifications';
 import { requireRole, ADMIN_ROLES } from '@/lib/auth-guards';
 
 const InventorySchema = z.object({
@@ -162,7 +162,7 @@ export async function updateInventoryItem(id: number, data: z.infer<typeof Updat
         });
 
         // Trigger low stock check
-        await checkLowStock();
+        await checkLowStockInternal();
 
         revalidatePath('/inventory');
         return { success: true, message: 'Item updated successfully' };

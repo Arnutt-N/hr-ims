@@ -11,10 +11,9 @@ export const authConfig = {
             const isOnRegister = nextUrl.pathname === '/register';
             const isOnForgotPassword = nextUrl.pathname === '/forgot-password';
             const isOnResetPassword = nextUrl.pathname.startsWith('/reset-password');
-            const isApiAuth = nextUrl.pathname.startsWith('/api/auth');
-            const isApiCron = nextUrl.pathname.startsWith('/api/cron');
+            const isApiRoute = nextUrl.pathname.startsWith('/api/');
 
-            const isPublic = isOnLogin || isOnRegister || isOnForgotPassword || isOnResetPassword || isApiAuth || isApiCron;
+            const isPublic = isOnLogin || isOnRegister || isOnForgotPassword || isOnResetPassword || isApiRoute;
 
             if (!isPublic && !isLoggedIn) {
                 return false; // Redirect unauthenticated users to login

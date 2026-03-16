@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { formatRelativeTime } from '@/lib/date-utils';
 
-export function NotificationBell() {
+export function NotificationBell({ canTriggerLowStockCheck = false }: { canTriggerLowStockCheck?: boolean }) {
     const [notifications, setNotifications] = useState<any[]>([]);
     const [unreadCount, setUnreadCount] = useState(0);
     const [open, setOpen] = useState(false);
@@ -31,12 +31,16 @@ export function NotificationBell() {
 
     useEffect(() => {
         fetchData();
-        // Trigger a check when component mounts
-        checkLowStock();
+        if (canTriggerLowStockCheck) {
+            // Trigger a check when component mounts for roles allowed to generate alerts
+            checkLowStock();
+        }
 
         const interval = setInterval(() => {
             fetchData();
-            checkLowStock();
+            if (canTriggerLowStockCheck) {
+                checkLowStock();
+            }
         }, 60000); // Check every 1 min
 
         // Click outside to close
@@ -50,7 +54,7 @@ export function NotificationBell() {
             clearInterval(interval);
             document.removeEventListener("mousedown", handleClickOutside);
         };
-    }, []);
+    }, [canTriggerLowStockCheck]);
 
     const handleMarkRead = async (id: number, e: React.MouseEvent) => {
         e.stopPropagation();

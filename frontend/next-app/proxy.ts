@@ -5,6 +5,7 @@ import { NextResponse } from 'next/server';
 export default NextAuth(authConfig).auth((req) => {
     const { nextUrl } = req;
     const user = req.auth?.user as any;
+    const internalApiKey = process.env.INTERNAL_API_KEY;
 
     // Extract roles: Use array if available, fallback to single string in array
     const userRoles: string[] = user?.roles || (user?.role ? [user.role] : []);
@@ -12,8 +13,12 @@ export default NextAuth(authConfig).auth((req) => {
 
     // Inject user headers for API calls to backend
     if (nextUrl.pathname.startsWith('/api/') && !nextUrl.pathname.startsWith('/api/auth/')) {
+        const requestHeaders = new Headers(req.headers);
+        if (internalApiKey) {
+            requestHeaders.set('x-internal-key', internalApiKey);
+        }
+
         if (userId && userRoles.length > 0) {
-            const requestHeaders = new Headers(req.headers);
             requestHeaders.set('x-user-id', userId.toString());
             // Join roles with comma
             requestHeaders.set('x-user-role', userRoles.join(','));
@@ -23,10 +28,14 @@ export default NextAuth(authConfig).auth((req) => {
                     headers: requestHeaders,
                 },
             });
-        } else {
-            // No auth user for API call - let backend reject it
-            return NextResponse.next();
         }
+
+        // No auth user for API call - let backend reject it
+        return NextResponse.next({
+            request: {
+                headers: requestHeaders,
+            },
+        });
     }
 
     // Dynamic RBAC Check
@@ -64,5 +73,5 @@ export default NextAuth(authConfig).auth((req) => {
 
 export const config = {
     // https://nextjs.org/docs/app/building-your-application/routing/middleware#matcher
-    matcher: ['/((?!api|_next/static|_next/image|.*\\.png$).*)'],
+    matcher: ['/((?!_next/static|_next/image|.*\\.png$).*)'],
 };

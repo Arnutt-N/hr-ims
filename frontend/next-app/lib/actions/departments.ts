@@ -2,14 +2,15 @@
 
 import { revalidatePath } from 'next/cache';
 import { auth } from '@/auth';
-import { requireRole, ADMIN_ROLES } from '@/lib/auth-guards';
+import { getSessionRoles, requireRole, ADMIN_ROLES } from '@/lib/auth-guards';
 
 const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:3001';
 
-function backendHeaders(session: { user: { id: string; role: string } }): Record<string, string> {
+function backendHeaders(session: { user: { id: string; role: string; roles?: string[] } }): Record<string, string> {
+    const roles = getSessionRoles(session);
     return {
         'x-user-id': session.user.id,
-        'x-user-role': session.user.role,
+        'x-user-role': roles.join(',') || session.user.role,
         'x-internal-key': process.env.INTERNAL_API_KEY || '',
     };
 }

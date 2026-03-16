@@ -5,10 +5,7 @@ import { auth } from '@/auth';
 import { revalidatePath } from 'next/cache';
 import { requireRole, APPROVER_ROLES } from '@/lib/auth-guards';
 
-export async function checkLowStock() {
-    const session = await requireRole(...APPROVER_ROLES);
-    if (!session) return { error: 'Unauthorized' };
-
+async function runLowStockCheck() {
     try {
         console.log("Checking low stock levels...");
 
@@ -68,6 +65,17 @@ export async function checkLowStock() {
         console.error('Failed to check low stock:', error);
         return { error: 'Failed to generate notifications' };
     }
+}
+
+export async function checkLowStockInternal() {
+    return runLowStockCheck();
+}
+
+export async function checkLowStock() {
+    const session = await requireRole(...APPROVER_ROLES);
+    if (!session) return { error: 'Unauthorized' };
+
+    return runLowStockCheck();
 }
 
 export async function getNotifications(limit = 10) {

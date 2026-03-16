@@ -2,16 +2,16 @@
 
 import prisma from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
-import { checkLowStock } from './notifications';
+import { checkLowStockInternal } from './notifications';
 import { auth } from '@/auth';
 import { sendOverdueEmail, sendStatusUpdateEmail } from '@/lib/mail';
-import { requireRole, APPROVER_ROLES } from '@/lib/auth-guards';
+import { requireRole, APPROVER_ROLES, sessionHasAnyRole } from '@/lib/auth-guards';
 
 export async function getRequests(status?: string) {
     const session = await auth();
     if (!session) return { error: 'Unauthorized' };
 
-    const isAdmin = APPROVER_ROLES.includes(session.user.role);
+    const isAdmin = sessionHasAnyRole(session, ...APPROVER_ROLES);
 
     // Admins/approvers see all requests; regular users see only their own
     const where: any = status ? { status } : {};
@@ -184,7 +184,7 @@ export async function updateRequestStatus(id: number, status: 'approved' | 'reje
         }
 
         try {
-            await checkLowStock();
+            await checkLowStockInternal();
         } catch (stockError) {
             console.error('Failed to check low stock after request update:', stockError);
         }
@@ -197,7 +197,7 @@ export async function updateRequestStatus(id: number, status: 'approved' | 'reje
     }
 }
 
-export async function checkOverdueItems() {
+async function runOverdueCheck() {
     // Called by CRON endpoint (authenticated via CRON_SECRET) and admin actions.
     // No session auth check here — callers are responsible for authorization.
     try {
@@ -262,4 +262,15 @@ export async function checkOverdueItems() {
         console.error('Error checking overdue items:', error);
         return { error: 'Failed to check overdue items' };
     }
+}
+
+export async function checkOverdueItemsInternal() {
+    return runOverdueCheck();
+}
+
+export async function checkOverdueItems() {
+    const session = await requireRole(...APPROVER_ROLES);
+    if (!session) return { error: 'Unauthorized' };
+
+    return runOverdueCheck();
 }
