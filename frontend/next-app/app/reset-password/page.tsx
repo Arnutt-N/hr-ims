@@ -1,13 +1,13 @@
 'use client';
 
-import { useState, use } from 'react';
+import { Suspense, useState } from 'react';
 import { resetPassword } from '@/lib/actions/password-reset';
 import { motion } from 'framer-motion';
 import { Package, Lock, CheckCircle, Eye, EyeOff } from 'lucide-react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 
-export default function ResetPasswordPage() {
+function ResetPasswordContent() {
     const searchParams = useSearchParams();
     const token = searchParams.get('token') || 'demo-token';
 
@@ -153,5 +153,21 @@ export default function ResetPasswordPage() {
                 </div>
             </motion.div>
         </div>
+    );
+}
+
+function ResetPasswordFallback() {
+    return (
+        <div className="flex h-screen bg-[#0f172a] font-['Noto_Sans_Thai'] items-center justify-center p-4">
+            <div className="text-sm text-blue-200">Loading reset form...</div>
+        </div>
+    );
+}
+
+export default function ResetPasswordPage() {
+    return (
+        <Suspense fallback={<ResetPasswordFallback />}>
+            <ResetPasswordContent />
+        </Suspense>
     );
 }

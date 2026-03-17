@@ -1,5 +1,3 @@
-'use server';
-
 import { auth } from '@/auth';
 
 /** Role constants to eliminate stringly-typed role checks across Server Actions */
