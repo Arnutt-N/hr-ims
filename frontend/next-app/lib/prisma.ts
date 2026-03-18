@@ -1,22 +1,9 @@
 import { PrismaClient } from "@prisma/client";
-import path from "path";
 
 const prismaClientSingleton = () => {
-    // Current dir: d:\02 genAI\hr-ims\frontend\next-app
-    // Root dir: d:\02 genAI\hr-ims
-    // Target: d:\02 genAI\hr-ims\backend\prisma\dev.db
-    const dbPath = path.resolve(process.cwd(), "../../backend/prisma/dev.db");
-    const dbUrl = `file:${dbPath.replace(/\\/g, '/')}`;
-
-    console.log('Connecting to DB at:', dbUrl);
-
-    return new PrismaClient({
-        datasources: {
-            db: {
-                url: dbUrl // Force my calculated URL for debugging
-            }
-        }
-    });
+    // Prisma client for the Next app is generated from backend/prisma/schema.prisma.
+    // Runtime DB resolution should come from DATABASE_URL rather than hardcoded paths.
+    return new PrismaClient();
 };
 
 declare global {

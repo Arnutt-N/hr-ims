@@ -1,42 +1,59 @@
 'use server';
 
-import prisma from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
-import { auth } from '@/auth';
 import { z } from 'zod';
-import { requireRole, SUPERADMIN_ONLY } from '@/lib/auth-guards';
+import { getSessionRoles, requireRole, SUPERADMIN_ONLY } from '@/lib/auth-guards';
 
 const settingsSchema = z.object({
     orgName: z.string().min(2, 'Organization name must be at least 2 characters'),
     borrowLimit: z.number().int().min(1).max(365, 'Borrow limit must be between 1 and 365 days'),
-    checkInterval: z.number().int().min(1).max(30, 'Check interval must be between 1 and 30 days'),
+    checkInterval: z.number().int().min(1).max(90, 'Check interval must be between 1 and 90 days'),
     maintenanceAlert: z.boolean(),
     allowRegistration: z.boolean(),
-    footerText: z.string().max(100, 'Footer text must be under 100 characters').optional()
+    footerText: z.string().max(200, 'Footer text must be under 200 characters').optional()
 });
 
+const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:3001';
+type SettingsPayload = z.infer<typeof settingsSchema>;
+type AuthorizedSession = {
+    user: {
+        id: string;
+        email?: string | null;
+        role?: string | null;
+        roles?: string[] | null;
+    };
+};
+
+function backendHeaders(session: AuthorizedSession) {
+    const roles = getSessionRoles(session);
+
+    return {
+        'Content-Type': 'application/json',
+        'x-user-id': session.user.id || '',
+        'x-user-role': roles.join(',') || session.user.role || '',
+        'x-internal-key': process.env.INTERNAL_API_KEY || '',
+    };
+}
+
 export async function getSettings() {
-    const session = await auth();
-    if (!session?.user?.email) return { error: 'Unauthorized' };
+    const session = await requireRole(...SUPERADMIN_ONLY);
+    if (!session?.user?.email || !session.user.id) return { error: 'Unauthorized' };
 
     try {
-        let settings = await prisma.settings.findFirst();
+        const response = await fetch(`${BACKEND_URL}/api/settings`, {
+            method: 'GET',
+            headers: backendHeaders(session),
+            cache: 'no-store',
+        });
 
-        // Create default if doesn't exist
-        if (!settings) {
-            settings = await prisma.settings.create({
-                data: {
-                    orgName: 'IMS Corporation',
-                    borrowLimit: 7,
-                    checkInterval: 7,
-                    maintenanceAlert: true,
-                    allowRegistration: false,
-                    footerText: 'IMS Asset Management System'
-                }
-            });
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok) {
+            return {
+                error: payload.error || payload.message || 'Failed to fetch settings',
+            };
         }
 
-        return { success: true, settings };
+        return { success: true, settings: payload };
     } catch (error) {
         console.error('Failed to fetch settings:', error);
         return { error: 'Failed to fetch settings' };
@@ -45,20 +62,28 @@ export async function getSettings() {
 
 export async function updateSettings(id: number, data: any) {
     const session = await requireRole(...SUPERADMIN_ONLY);
-    if (!session) return { error: 'Unauthorized' };
+    if (!session?.user?.email || !session.user.id) return { error: 'Unauthorized' };
 
     try {
         // Validate
-        const validated = settingsSchema.parse(data);
+        const validated: SettingsPayload = settingsSchema.parse(data);
 
-        // Update
-        await prisma.settings.update({
-            where: { id },
-            data: validated
+        const response = await fetch(`${BACKEND_URL}/api/settings`, {
+            method: 'PUT',
+            headers: backendHeaders(session),
+            body: JSON.stringify(validated),
+            cache: 'no-store',
         });
 
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok) {
+            return {
+                error: payload.error || payload.message || 'Failed to update settings',
+            };
+        }
+
         revalidatePath('/settings');
-        return { success: true };
+        return { success: true, settings: payload.settings || validated };
     } catch (error) {
         if (error instanceof z.ZodError) {
             return { error: error.issues[0].message };

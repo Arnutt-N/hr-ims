@@ -1,11 +1,21 @@
 {
-    "name": "hr-ims-frontend",
+    "name": "hr-ims-root",
     "version": "1.0.0",
+    "private": true,
     "type": "module",
+    "description": "Workspace launcher for the active Next.js frontend and Express backend",
     "scripts": {
-        "dev": "vite",
-        "build": "vite build",
-        "preview": "vite preview"
+        "dev": "npm --prefix frontend/next-app run dev",
+        "dev:frontend": "npm --prefix frontend/next-app run dev",
+        "dev:backend": "npm --prefix backend run dev",
+        "build": "npm --prefix frontend/next-app run build",
+        "start": "npm --prefix frontend/next-app run start",
+        "lint": "npm --prefix frontend/next-app run lint",
+        "test": "npm --prefix frontend/next-app run test",
+        "test:frontend": "npm --prefix frontend/next-app run test",
+        "test:backend": "npm --prefix backend test",
+        "db:generate": "npm --prefix backend exec prisma generate",
+        "db:push": "npm --prefix backend exec prisma db push"
     },
     "dependencies": {
         "react": "^18.2.0",

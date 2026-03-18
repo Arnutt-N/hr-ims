@@ -1,10 +1,25 @@
 import { Router } from 'express';
+import fs from 'fs/promises';
+import path from 'path';
+import { cacheFlush, resetCache } from '../utils/cache';
+import { createBackup, listBackups, restoreBackup } from '../services/backupService';
+import { sendTestEmail } from '../services/emailService';
 import { requireAuth } from '../middleware/auth';
 import { authorize } from '../middleware/rbac';
-import { getSettings, updateSettings } from '../utils/settings';
+import { clearSettingsCache, getSettings, updateSettings } from '../utils/settings';
 import { z } from 'zod';
 
 const router = Router();
+const BACKEND_ROOT = path.resolve(__dirname, '../..');
+
+function resolveStoragePath(storagePath: string): string {
+    return path.isAbsolute(storagePath) ? storagePath : path.resolve(BACKEND_ROOT, storagePath);
+}
+
+function isSafeBackupPath(storagePath: string, targetPath: string): boolean {
+    const relativePath = path.relative(storagePath, targetPath);
+    return !relativePath.startsWith('..') && !path.isAbsolute(relativePath);
+}
 
 /**
  * Validation Schema สำหรับการอัปเดต Settings
@@ -59,6 +74,18 @@ const settingsUpdateSchema = z.object({
     emailSmtpUser: z.string().max(200).optional().nullable(),
     emailSmtpPass: z.string().max(200).optional().nullable(),
     emailFromAddress: z.string().email().max(200).optional(),
+});
+
+const testEmailSchema = z.object({
+    email: z.string().email('Invalid email address'),
+});
+
+const restoreBackupSchema = z.object({
+    backupPath: z.string().min(1, 'Backup path is required'),
+});
+
+const downloadBackupParamsSchema = z.object({
+    filename: z.string().min(1, 'Filename is required'),
 });
 
 /**
@@ -131,17 +158,27 @@ router.get('/public', async (req, res) => {
  */
 router.post('/test-email', requireAuth, authorize(['superadmin']), async (req, res) => {
     try {
-        const { email } = req.body;
-
-        if (!email || !email.includes('@')) {
-            return res.status(400).json({ error: 'Invalid email address' });
+        const validation = testEmailSchema.safeParse(req.body);
+        if (!validation.success) {
+            return res.status(400).json({
+                error: 'Invalid input',
+                details: validation.error.errors
+            });
         }
 
-        // TODO: Implement email sending test
-        // const emailService = require('../services/emailService');
-        // await emailService.sendTestEmail(email);
+        const sent = await sendTestEmail(validation.data.email);
 
-        res.json({ message: 'Test email sent successfully' });
+        if (!sent) {
+            return res.status(503).json({
+                error: 'Failed to send test email',
+                message: 'Email service is unavailable or not configured'
+            });
+        }
+
+        res.json({
+            success: true,
+            message: 'Test email sent successfully'
+        });
     } catch (error) {
         console.error('Error sending test email:', error);
         res.status(500).json({ error: 'Failed to send test email' });
@@ -155,13 +192,19 @@ router.post('/test-email', requireAuth, authorize(['superadmin']), async (req, r
  */
 router.post('/backup-now', requireAuth, authorize(['superadmin']), async (req, res) => {
     try {
-        // TODO: Implement backup service
-        // const backupService = require('../services/backupService');
-        // const result = await backupService.backupNow();
+        const result = await createBackup();
+
+        if (!result.success) {
+            return res.status(503).json({
+                error: 'Failed to create backup',
+                message: result.error || 'Backup service is disabled'
+            });
+        }
 
         res.json({
-            message: 'Backup started',
-            // backupId: result.id 
+            success: true,
+            message: 'Backup created successfully',
+            backup: result
         });
     } catch (error) {
         console.error('Error starting backup:', error);
@@ -176,14 +219,66 @@ router.post('/backup-now', requireAuth, authorize(['superadmin']), async (req, r
  */
 router.get('/backups', requireAuth, authorize(['superadmin']), async (req, res) => {
     try {
-        // TODO: Implement backup listing
-        // const backupService = require('../services/backupService');
-        // const backups = await backupService.listBackups();
+        const backups = await listBackups();
 
-        res.json({ backups: [] });
+        res.json({
+            success: true,
+            count: backups.length,
+            backups
+        });
     } catch (error) {
         console.error('Error listing backups:', error);
         res.status(500).json({ error: 'Failed to list backups' });
+    }
+});
+
+/**
+ * GET /api/settings/backups/:filename/download
+ * Download a backup file
+ */
+router.get('/backups/:filename/download', requireAuth, authorize(['superadmin']), async (req, res) => {
+    try {
+        const validation = downloadBackupParamsSchema.safeParse(req.params);
+        if (!validation.success) {
+            return res.status(400).json({
+                error: 'Invalid input',
+                details: validation.error.errors
+            });
+        }
+
+        const settings = await getSettings();
+        const storagePath = resolveStoragePath(settings.backupStoragePath || './backups');
+        const backups = await listBackups();
+        const backup = backups.find((item) => item.filename === validation.data.filename);
+
+        if (!backup) {
+            return res.status(404).json({
+                error: 'Backup not found',
+                message: 'Backup file not found'
+            });
+        }
+
+        const resolvedBackupPath = path.resolve(storagePath, backup.filename);
+        if (!isSafeBackupPath(storagePath, resolvedBackupPath)) {
+            return res.status(400).json({
+                error: 'Invalid backup path',
+                message: 'Backup file must be inside the configured backup storage directory'
+            });
+        }
+
+        try {
+            await fs.access(resolvedBackupPath);
+        } catch {
+            return res.status(404).json({
+                error: 'Backup not found',
+                message: 'Backup file not found'
+            });
+        }
+
+        res.download(resolvedBackupPath, backup.filename);
+    } catch (error) {
+        console.error('Error downloading backup:', error);
+        res.status(500).json({ error: 'Failed to download backup' });
     }
 });
 
@@ -194,17 +289,46 @@ router.get('/backups', requireAuth, authorize(['superadmin']), async (req, res) 
  */
 router.post('/restore', requireAuth, authorize(['superadmin']), async (req, res) => {
     try {
-        const { backupPath } = req.body;
-
-        if (!backupPath) {
-            return res.status(400).json({ error: 'Backup path is required' });
+        const validation = restoreBackupSchema.safeParse(req.body);
+        if (!validation.success) {
+            return res.status(400).json({
+                error: 'Invalid input',
+                details: validation.error.errors
+            });
         }
 
-        // TODO: Implement restore service
-        // const backupService = require('../services/backupService');
-        // await backupService.restore(backupPath);
+        const settings = await getSettings();
+        const storagePath = resolveStoragePath(settings.backupStoragePath || './backups');
+        const resolvedBackupPath = path.isAbsolute(validation.data.backupPath)
+            ? validation.data.backupPath
+            : path.resolve(storagePath, validation.data.backupPath);
 
-        res.json({ message: 'Restore completed successfully' });
+        if (!isSafeBackupPath(storagePath, resolvedBackupPath)) {
+            return res.status(400).json({
+                error: 'Invalid backup path',
+                message: 'Backup path must be inside the configured backup storage directory'
+            });
+        }
+
+        const result = await restoreBackup(resolvedBackupPath);
+        if (!result.success) {
+            const statusCode = result.status === 'not_found' ? 404 : 500;
+            return res.status(statusCode).json({
+                error: result.error || 'Failed to restore backup',
+                message: result.error || 'Failed to restore backup'
+            });
+        }
+
+        res.json({
+            success: true,
+            message: 'Restore completed successfully',
+            backup: {
+                path: result.restoredPath || resolvedBackupPath,
+                databasePath: result.databasePath,
+                uploadsRestored: result.uploadsRestored
+            }
+        });
+
     } catch (error) {
         console.error('Error restoring backup:', error);
         res.status(500).json({ error: 'Failed to restore backup' });
@@ -218,15 +342,14 @@ router.post('/restore', requireAuth, authorize(['superadmin']), async (req, res)
  */
 router.delete('/cache', requireAuth, authorize(['superadmin']), async (req, res) => {
     try {
-        // Clear settings cache
-        const { clearSettingsCache } = require('../utils/settings');
         clearSettingsCache();
+        await resetCache();
+        await cacheFlush();
 
-        // TODO: Clear other caches
-        // const cacheService = require('../services/cacheService');
-        // cacheService.flushAll();
-
-        res.json({ message: 'Cache cleared successfully' });
+        res.json({
+            success: true,
+            message: 'Caches cleared successfully'
+        });
     } catch (error) {
         console.error('Error clearing cache:', error);
         res.status(500).json({ error: 'Failed to clear cache' });

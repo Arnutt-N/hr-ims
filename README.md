@@ -1,114 +1,53 @@
-# 🛡️ HR-IMS: Human Resource & Inventory Management System (Enterprise Edition)
+﻿# HR-IMS
 
-> **Modern. Secure. Scalable.**
-> ระบบบริหารจัดการทรัพยากรบุคคลและคลังพัสดุสำหรับองค์กรยุคใหม่ ที่เน้นความปลอดภัยของข้อมูลและความยืดหยุ่นในการใช้งาน
+HR-IMS is split into two active codebases:
 
-![Version](https://img.shields.io/badge/version-1.0.1-blue.svg) ![License](https://img.shields.io/badge/license-MIT-green.svg) ![Security](https://img.shields.io/badge/security-RBAC%20%2B%20Audit%20Logs-red.svg)
+- `frontend/next-app` for the Next.js app
+- `backend` for the Express API and Prisma schema
 
----
+The repo root is now a launcher and documentation entry point. The old root Vite app should not be used for active development.
 
-## 🌟 ภาพรวมระบบ (System Overview)
+## Quick Start
 
-**HR-IMS** คือแพลตฟอร์ม Web Application ที่ถูกพัฒนาขึ้นเพื่อแก้ปัญหาการจัดการทรัพย์สินและพัสดุในองค์กรขนาดใหญ่ โดยบูรณาการการทำงานร่วมกับฝ่ายทรัพยากรบุคคล (HR) เพื่อให้การเบิกจ่ายพัสดุมีความรัดกุม ตรวจสอบได้ และลดความผิดพลาดจาก Human Error
+```bash
+cd frontend/next-app
+npm install
 
-ระบบถูกออกแบบด้วยสถาปัตยกรรม **Modern Web Stack** ล่าสุด เน้น Performance และ Security เป็นสำคัญ รองรับการใช้งานพร้อมกันหลาย User และมีการจัดการสิทธิ์ที่ซับซ้อน (Multi-Role RBAC)
+cd ../backend
+npm install
 
----
+cd ../..
+npm run dev
+```
 
-## 🔐 ความปลอดภัยและมาตรฐาน (Security Architecture)
+Run `npm run dev:backend` in a second terminal if you want the API separately. Frontend runs at `http://localhost:3000` and backend runs at `http://localhost:3001`.
 
-เราให้ความสำคัญสูงสุดกับความปลอดภัยของข้อมูลและระบบ โดยมีมาตรการดังนี้:
+## Database
 
-### 1. Authentication & Authorization
-- **NextAuth.js (v5):** ใช้ระบบยืนยันตัวตนมาตรฐานสากล รองรับการเข้ารหัส Password ด้วย **Bcrypt** ระดับสูง
-- **Multi-Role RBAC:** ระบบจัดการสิทธิ์แบบ Role-Based Access Control ที่ยืดหยุ่น ผู้ใช้งาน 1 คนสามารถมีได้หลายบทบาท (เช่น เป็นทั้ง Admin และ Auditor)
-- **Middleware Protection:** ป้องกันการเข้าถึงหน้าเว็บที่ไม่ได้รับอนุญาตในระดับ Server-side Middleware
+The Prisma schema source of truth is `backend/prisma/schema.prisma`.
 
-### 2. Data Integrity & Auditing
-- **Audit Logs:** บันทึกทุกกิจกรรมสำคัญ (Create, Update, Delete) ลงในฐานข้อมูลแบบถาวร ระบุตัวตนผู้กระทำ วันเวลา และข้อมูลก่อน-หลังการแก้ไข (Revisions)
-- **Server Actions:** การประมวลผลข้อมูลทำในฝั่ง Server ทั้งหมด (Server-side execution) ลดความเสี่ยงจากการยิง API โดยตรงจาก Client
-- **Zod Validation:** ตรวจสอบความถูกต้องของข้อมูลขาเข้า (Input Validation) อย่างเคร่งครัด เพื่อป้องกัน SQL Injection และ XSS
+```bash
+cd backend
+npx prisma generate
+npx prisma db push
+```
 
-### 3. Network & Infrastructure
-- **Cloudflare Tunnel:** ซ่อน IP Address จริงของ Server ป้องกันการโจมตีแบบ DDoS และไม่ต้องเปิด Port สาธารณะ
-- **Secure Headers:** รองรับมาตรฐานความปลอดภัย HTTP Headers
+## Tests
 
----
+```bash
+# Frontend
+npm run test
+npm run lint
 
-## 🚀 ฟีเจอร์หลัก (Key Features)
+# Backend
+npm run test:backend
+cd backend && npm test -- --testPathPattern=security
+cd backend && npm test -- --testPathPattern=integration
+```
 
-| หมวดหมู่ | รายละเอียดฟังก์ชัน |
-| :--- | :--- |
-| **📦 Inventory** | จัดการพัสดุแบบ Real-time, แยกประเภท Durable/Consumable, ระบบ Low Stock Alert |
-| **🛒 Requisition** | ระบบตะกร้าเบิกของ (Shopping Cart Experience), ระบบ Workflow อนุมัติหลายขั้นตอน |
-| **👥 User Mgmt** | จัดการผู้ใช้งานละเอียด, กำหนดแผนก (Department), สถานะพนักงาน (Active/Inactive) |
-| **🛠️ Maintenance** | ระบบแจ้งซ่อม, บันทึกประวัติการซ่อมบำรุง, สถานะความพร้อมใช้งานของครุภัณฑ์ |
-| **📱 Scanner** | รองรับการสแกน QR Code/Barcode ผ่านกล้องมือถือและ Web Cam เพื่อค้นหาพัสดุ |
-| **📊 Analytics** | Dashboard สรุปภาพรวม, กราฟแสดงแนวโน้มการเบิกจ่าย, รายงาน Export เป็น CSV/PDF |
+## Notes
 
----
-
-## 🛠️ เทคโนโลยี (Tech Stack)
-
-ระบบพัฒนาด้วยเทคโนโลยีระดับ Enterprise Grade:
-
-- **Frontend Core:** [Next.js 16.1 (Turbopack)](https://nextjs.org/) - Framework ผู้นำระดับโลก เร็วแรงด้วย Turbopack Engine
-- **Language:** [TypeScript](https://www.typescriptlang.org/) - เพิ่มความเสถียรและลดบั๊กของโค้ด
-- **UI Framework:** [Tailwind CSS v4](https://tailwindcss.com/) + [Shadcn UI](https://ui.shadcn.com/) - ดีไซน์ Modern & Clean Theme พร้อม Oxide Engine ใหม่ล่าสุด
-- **Database ORM:** [Prisma](https://www.prisma.io/) - จัดการฐานข้อมูลอย่างมีประสิทธิภาพ
-- **Database:** SQLite (Development) / PostgreSQL (Production Support)
-- **Container:** Docker & Docker Compose
-
----
-
-## 📚 เอกสารคู่มือ (Documentation)
-
-เพื่อให้การใช้งานเป็นไปอย่างราบรื่น เรามีคู่มือแยกตามบทบาทหน้าที่:
-
-- 📖 **[User Guide (คู่มือผู้ใช้ทั่วไป)](docs/USER_GUIDE_TH.md)**: การเบิก-ยืม, เช็คของ
-- 👮 **[Admin Guide (คู่มือผู้ดูแลระบบ)](docs/ADMIN_GUIDE_TH.md)**: การตั้งค่า, อนุมัติ, จัดการ User
-- 💻 **[Technical Guide (คู่มือทางเทคนิค)](docs/TECHNICAL_GUIDE_TH.md)**: Architecture, Database Schema, Deploy
-- 📄 **[Documentation Index (สารบัญเอกสาร)](docs/README_DOCS.md)**
-
----
-
-## ⚙️ การติดตั้งและใช้งาน (Installation)
-
-### ความต้องการระบบ (Prerequisites)
-- Node.js v18+
-- Git
-
-### ขั้นตอนการติดตั้ง (Development)
-
-1. **Clone Repository**
-   ```bash
-   git clone https://github.com/your-org/hr-ims.git
-   cd hr-ims
-   ```
-
-2. **ติดตั้ง Dependencies**
-   ```bash
-   cd frontend/next-app
-   npm install
-   ```
-
-3. **ตั้งค่า Environment Variables**
-   สร้างไฟล์ `.env` โดยดูตัวอย่างจาก `.env.example`
-   ```env
-   DATABASE_URL="file:./dev.db"
-   AUTH_SECRET="your-secure-secret"
-   ```
-
-4. **เตรียมฐานข้อมูล**
-   ```bash
-   npx prisma generate
-   npx prisma db push
-   ```
-
-5. **รันระบบ (Start System)**
-   - **Backend:** รันไฟล์ `start_backend.bat`
-   - **Frontend:** รันไฟล์ `start_frontend.bat`
-   - เข้าใช้งานที่ `http://localhost:3000`
-
----
-**HR-IMS Project** • *Excellence in Resource Management*
+- Root `npm run dev` starts the Next.js frontend.
+- Root `npm run dev:backend` starts the Express backend.
+- Windows shortcuts are still available via `start_frontend.bat` and `start_backend.bat`.
+- Use `backend/prisma/schema.prisma` only; do not maintain a separate frontend Prisma schema.

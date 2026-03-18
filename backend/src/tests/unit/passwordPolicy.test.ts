@@ -1,150 +1,241 @@
-import { validatePassword, checkPasswordHistory } from '../../utils/passwordPolicy';
+import bcrypt from 'bcrypt';
 
-/**
- * Unit Tests for Password Policy Module
- */
+import {
+    calculatePasswordStrength,
+    createPasswordSchema,
+    getPasswordRequirements,
+    isPasswordExpired,
+    isPasswordReused,
+    savePasswordToHistory,
+    validatePassword,
+} from '../../utils/passwordPolicy';
+import { getPasswordPolicySettings } from '../../utils/settings';
+import prisma from '../../utils/prisma';
 
-describe('Password Policy Validation', () => {
-    const defaultPolicy = {
+jest.mock('bcrypt', () => ({
+    __esModule: true,
+    default: {
+        compare: jest.fn(),
+    },
+}));
+
+jest.mock('../../utils/settings', () => ({
+    __esModule: true,
+    getPasswordPolicySettings: jest.fn(),
+}));
+
+jest.mock('../../utils/prisma', () => ({
+    __esModule: true,
+    default: {
+        passwordHistory: {
+            findMany: jest.fn(),
+            create: jest.fn(),
+            delete: jest.fn(),
+        },
+    },
+}));
+
+const mockedGetPasswordPolicySettings = getPasswordPolicySettings as jest.MockedFunction<
+    typeof getPasswordPolicySettings
+>;
+const mockedBcryptCompare = bcrypt.compare as unknown as jest.Mock;
+const mockedPrisma = prisma as unknown as {
+    passwordHistory: {
+        findMany: jest.Mock;
+        create: jest.Mock;
+        delete: jest.Mock;
+    };
+};
+
+describe('Password Policy Service', () => {
+    const baseSettings = {
         enabled: true,
         minLength: 8,
         requireUppercase: true,
         requireLowercase: true,
         requireNumbers: true,
         requireSymbols: true,
+        expiryDays: 30,
+        historyCount: 3,
     };
 
+    beforeEach(() => {
+        jest.clearAllMocks();
+        mockedGetPasswordPolicySettings.mockResolvedValue({ ...baseSettings });
+    });
+
     describe('validatePassword', () => {
-        it('should accept valid password', () => {
-            const result = validatePassword('Test123!@#', defaultPolicy);
-            expect(result.valid).toBe(true);
-            expect(result.errors).toHaveLength(0);
+        it('accepts a strong password when policy is enabled', async () => {
+            const result = await validatePassword('TestPassword123!@#');
+
+            expect(result).toEqual({
+                valid: true,
+                errors: [],
+                strength: 'strong',
+            });
         });
 
-        it('should reject password too short', () => {
-            const result = validatePassword('Test1!', defaultPolicy);
+        it('returns the real validation errors from the service', async () => {
+            const result = await validatePassword('weak');
+
             expect(result.valid).toBe(false);
-            expect(result.errors).toContain('Password must be at least 8 characters');
+            expect(result.errors).toEqual([
+                'รหัสผ่านต้องมีความยาวอย่างน้อย 8 ตัวอักษร',
+                'รหัสผ่านต้องมีตัวพิมพ์ใหญ่ (A-Z)',
+                'รหัสผ่านต้องมีตัวเลข (0-9)',
+                'รหัสผ่านต้องมีอักขระพิเศษ (!@#$%^&*)',
+            ]);
+            expect(result.strength).toBe('weak');
         });
 
-        it('should reject password without uppercase', () => {
-            const result = validatePassword('test123!@#', defaultPolicy);
-            expect(result.valid).toBe(false);
-            expect(result.errors).toContain('Password must contain at least one uppercase letter');
-        });
+        it('short-circuits when the policy is disabled', async () => {
+            mockedGetPasswordPolicySettings.mockResolvedValue({
+                ...baseSettings,
+                enabled: false,
+            });
 
-        it('should reject password without lowercase', () => {
-            const result = validatePassword('TEST123!@#', defaultPolicy);
-            expect(result.valid).toBe(false);
-            expect(result.errors).toContain('Password must contain at least one lowercase letter');
-        });
+            const result = await validatePassword('weak');
 
-        it('should reject password without numbers', () => {
-            const result = validatePassword('TestPass!@#', defaultPolicy);
-            expect(result.valid).toBe(false);
-            expect(result.errors).toContain('Password must contain at least one number');
-        });
-
-        it('should reject password without symbols', () => {
-            const result = validatePassword('TestPass123', defaultPolicy);
-            expect(result.valid).toBe(false);
-            expect(result.errors).toContain('Password must contain at least one special character');
-        });
-
-        it('should accept password when policy is disabled', () => {
-            const disabledPolicy = { ...defaultPolicy, enabled: false };
-            const result = validatePassword('weak', disabledPolicy);
-            expect(result.valid).toBe(true);
-        });
-
-        it('should accept password with relaxed policy', () => {
-            const relaxedPolicy = {
-                enabled: true,
-                minLength: 6,
-                requireUppercase: false,
-                requireLowercase: true,
-                requireNumbers: false,
-                requireSymbols: false,
-            };
-            const result = validatePassword('password', relaxedPolicy);
-            expect(result.valid).toBe(true);
+            expect(result).toEqual({
+                valid: true,
+                errors: [],
+                strength: 'good',
+            });
         });
     });
 
-    describe('checkPasswordHistory', () => {
-        it('should allow new unique password', () => {
-            const history = ['hash1', 'hash2', 'hash3'];
-            const result = checkPasswordHistory('newpassword', history, 5);
-            expect(result.allowed).toBe(true);
+    describe('calculatePasswordStrength', () => {
+        it('classifies password strength using the implementation score', () => {
+            expect(calculatePasswordStrength('weak')).toBe('weak');
+            expect(calculatePasswordStrength('Password1')).toBe('good');
+            expect(calculatePasswordStrength('Password123!@#LongEnough')).toBe('strong');
+        });
+    });
+
+    describe('isPasswordReused', () => {
+        it('returns false when password history is disabled', async () => {
+            mockedGetPasswordPolicySettings.mockResolvedValue({
+                ...baseSettings,
+                historyCount: 0,
+            });
+
+            await expect(isPasswordReused(1, 'NewPassword123!')).resolves.toBe(false);
+            expect(mockedPrisma.passwordHistory.findMany).not.toHaveBeenCalled();
         });
 
-        it('should reject recently used password', () => {
-            const history = ['hash1', 'hash2', 'hash3'];
-            // Simulate matching hash
-            const result = checkPasswordHistory('password', ['hash1', 'hash2', 'hash3', 'matchinghash'], 5, () => true);
-            expect(result.allowed).toBe(false);
-            expect(result.message).toContain('recently used');
+        it('returns true when the password matches one of the recent hashes', async () => {
+            mockedPrisma.passwordHistory.findMany.mockResolvedValue([
+                { id: 1, password: 'hash-1' },
+                { id: 2, password: 'hash-2' },
+            ]);
+            mockedBcryptCompare.mockResolvedValueOnce(false).mockResolvedValueOnce(true);
+
+            await expect(isPasswordReused(42, 'NewPassword123!')).resolves.toBe(true);
+            expect(mockedPrisma.passwordHistory.findMany).toHaveBeenCalledWith({
+                where: { userId: 42 },
+                orderBy: { createdAt: 'desc' },
+                take: 3,
+            });
+            expect(mockedBcryptCompare).toHaveBeenNthCalledWith(1, 'NewPassword123!', 'hash-1');
+            expect(mockedBcryptCompare).toHaveBeenNthCalledWith(2, 'NewPassword123!', 'hash-2');
         });
 
-        it('should check only last N passwords', () => {
-            const history = ['old1', 'old2', 'old3', 'old4', 'old5', 'recent'];
-            const result = checkPasswordHistory('password', history, 3, (pwd, hash) => hash === 'old1');
-            expect(result.allowed).toBe(true); // old1 is beyond the last 3
+        it('returns false when no history entry matches', async () => {
+            mockedPrisma.passwordHistory.findMany.mockResolvedValue([
+                { id: 1, password: 'hash-1' },
+            ]);
+            mockedBcryptCompare.mockResolvedValue(false);
+
+            await expect(isPasswordReused(42, 'NewPassword123!')).resolves.toBe(false);
+        });
+    });
+
+    describe('savePasswordToHistory', () => {
+        it('stores the new hash and trims history beyond the configured limit', async () => {
+            mockedPrisma.passwordHistory.findMany.mockResolvedValue([
+                { id: 11, password: 'old-hash-1' },
+                { id: 12, password: 'old-hash-2' },
+            ]);
+
+            await savePasswordToHistory(7, 'new-hash');
+
+            expect(mockedPrisma.passwordHistory.create).toHaveBeenCalledWith({
+                data: {
+                    userId: 7,
+                    password: 'new-hash',
+                },
+            });
+            expect(mockedPrisma.passwordHistory.findMany).toHaveBeenCalledWith({
+                where: { userId: 7 },
+                orderBy: { createdAt: 'desc' },
+                skip: 3,
+            });
+            expect(mockedPrisma.passwordHistory.delete).toHaveBeenNthCalledWith(1, {
+                where: { id: 11 },
+            });
+            expect(mockedPrisma.passwordHistory.delete).toHaveBeenNthCalledWith(2, {
+                where: { id: 12 },
+            });
+        });
+
+        it('does nothing when history retention is disabled', async () => {
+            mockedGetPasswordPolicySettings.mockResolvedValue({
+                ...baseSettings,
+                historyCount: 0,
+            });
+
+            await savePasswordToHistory(7, 'new-hash');
+
+            expect(mockedPrisma.passwordHistory.create).not.toHaveBeenCalled();
+            expect(mockedPrisma.passwordHistory.findMany).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('isPasswordExpired', () => {
+        it('uses the configured expiry window', async () => {
+            const oldDate = new Date('2026-01-01T00:00:00.000Z');
+            const recentDate = new Date('2026-03-01T00:00:00.000Z');
+
+            await expect(isPasswordExpired(1, oldDate)).resolves.toBe(true);
+            await expect(isPasswordExpired(1, recentDate)).resolves.toBe(false);
+        });
+
+        it('returns false when expiry is disabled or the timestamp is missing', async () => {
+            mockedGetPasswordPolicySettings.mockResolvedValue({
+                ...baseSettings,
+                expiryDays: 0,
+            });
+
+            await expect(isPasswordExpired(1, new Date('2026-01-01T00:00:00.000Z'))).resolves.toBe(false);
+            await expect(isPasswordExpired(1, null)).resolves.toBe(false);
+        });
+    });
+
+    describe('createPasswordSchema', () => {
+        it('builds a schema that enforces the current settings', async () => {
+            const schema = await createPasswordSchema();
+
+            expect(schema.safeParse('Password123!')).toEqual({ success: true, data: 'Password123!' });
+            expect(schema.safeParse('password')).toEqual({
+                success: false,
+                error: expect.any(Object),
+            });
+        });
+    });
+
+    describe('getPasswordRequirements', () => {
+        it('returns user-facing requirements derived from settings', async () => {
+            const requirements = await getPasswordRequirements();
+
+            expect(requirements).toEqual([
+                'ความยาวอย่างน้อย 8 ตัวอักษร',
+                'ต้องมีตัวพิมพ์ใหญ่ (A-Z)',
+                'ต้องมีตัวพิมพ์เล็ก (a-z)',
+                'ต้องมีตัวเลข (0-9)',
+                'ต้องมีอักขระพิเศษ (!@#$%^&*)',
+                'หมดอายุทุก 30 วัน',
+                'ห้ามใช้รหัสผ่านเดิม 3 รุ่นล่าสุด',
+            ]);
         });
     });
 });
-
-// Mock implementations for testing
-function validatePassword(password: string, policy: any): { valid: boolean; errors: string[] } {
-    const errors: string[] = [];
-
-    if (!policy.enabled) {
-        return { valid: true, errors: [] };
-    }
-
-    if (password.length < policy.minLength) {
-        errors.push(`Password must be at least ${policy.minLength} characters`);
-    }
-
-    if (policy.requireUppercase && !/[A-Z]/.test(password)) {
-        errors.push('Password must contain at least one uppercase letter');
-    }
-
-    if (policy.requireLowercase && !/[a-z]/.test(password)) {
-        errors.push('Password must contain at least one lowercase letter');
-    }
-
-    if (policy.requireNumbers && !/[0-9]/.test(password)) {
-        errors.push('Password must contain at least one number');
-    }
-
-    if (policy.requireSymbols && !/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) {
-        errors.push('Password must contain at least one special character');
-    }
-
-    return {
-        valid: errors.length === 0,
-        errors,
-    };
-}
-
-function checkPasswordHistory(
-    password: string,
-    history: string[],
-    historyCount: number,
-    compareFn?: (pwd: string, hash: string) => boolean
-): { allowed: boolean; message?: string } {
-    const recentHistory = history.slice(-historyCount);
-
-    for (const hash of recentHistory) {
-        const matches = compareFn ? compareFn(password, hash) : false;
-        if (matches) {
-            return {
-                allowed: false,
-                message: 'Password was recently used. Please choose a different password.',
-            };
-        }
-    }
-
-    return { allowed: true };
-}

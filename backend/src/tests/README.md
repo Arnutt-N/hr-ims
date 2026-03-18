@@ -11,7 +11,7 @@ npm test
 ### Integration Tests
 ```bash
 cd backend
-npm run test:integration
+npm test -- --testPathPattern=integration
 ```
 
 ### Coverage Report

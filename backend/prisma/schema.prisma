@@ -3,6 +3,8 @@ generator client {
   provider = "prisma-client-js"
 }
 
+// The backend schema is the single source of truth.
+// Generate the frontend client from here instead of maintaining a second schema.
 generator client_frontend {
   provider = "prisma-client-js"
   output   = "../../frontend/next-app/node_modules/.prisma/client"

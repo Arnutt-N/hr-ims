@@ -11,20 +11,15 @@ export function TestEmailButton() {
 
     const handleTestEmail = async () => {
         setLoading(true);
-        // Toast loading state
         const toastId = toast.loading('Sending test email...');
 
         try {
             const res = await sendTestEmail();
 
             if (res.success) {
-                if ('mock' in res && res.mock) {
-                    toast.success('Mock email logged to console (No SMTP config)', { id: toastId });
-                } else {
-                    toast.success('Test email sent successfully! Check your inbox.', { id: toastId });
-                }
+                toast.success(res.message || 'Test email sent successfully! Check your inbox.', { id: toastId });
             } else {
-                toast.error('error' in res ? res.error : 'Failed to send email', { id: toastId });
+                toast.error(res.error || 'Failed to send email', { id: toastId });
             }
         } catch (error) {
             toast.error('An unexpected error occurred', { id: toastId });

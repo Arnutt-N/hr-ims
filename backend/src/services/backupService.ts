@@ -1,15 +1,12 @@
-import fs from 'fs/promises';
+﻿import fs from 'fs/promises';
 import path from 'path';
 import archiver from 'archiver';
+import { execFile } from 'child_process';
 import { createWriteStream } from 'fs';
+import { promisify } from 'util';
 import prisma from '../utils/prisma';
-import { getBackupSettings, isFeatureEnabled } from '../utils/settings';
+import { getBackupSettings } from '../utils/settings';
 import { logInfo, logError } from '../utils/logger';
-
-/**
- * Backup Service
- * จัดการการสำรองและกู้คืนข้อมูล
- */
 
 export interface BackupResult {
     success: boolean;
@@ -20,9 +17,36 @@ export interface BackupResult {
     error?: string;
 }
 
-/**
- * สร้าง Backup ทันที
- */
+export interface RestoreResult {
+    success: boolean;
+    status: 'success' | 'invalid_path' | 'not_found' | 'failed';
+    restoredPath?: string;
+    databasePath?: string;
+    uploadsRestored?: boolean;
+    error?: string;
+}
+
+const execFileAsync = promisify(execFile);
+const BACKEND_ROOT = path.resolve(__dirname, '../..');
+const DATABASE_PATH = path.join(BACKEND_ROOT, 'prisma', 'dev.db');
+
+function resolveStoragePath(storagePath: string): string {
+    return path.isAbsolute(storagePath) ? storagePath : path.resolve(BACKEND_ROOT, storagePath);
+}
+
+function toPowerShellLiteral(value: string): string {
+    return `'${value.replace(/'/g, "''")}'`;
+}
+
+async function pathExists(filePath: string): Promise<boolean> {
+    try {
+        await fs.access(filePath);
+        return true;
+    } catch {
+        return false;
+    }
+}
+
 export async function createBackup(): Promise<BackupResult> {
     const settings = await getBackupSettings();
 
@@ -40,54 +64,47 @@ export async function createBackup(): Promise<BackupResult> {
     try {
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
         const filename = `backup-${timestamp}.zip`;
-        const backupPath = path.join(settings.storagePath, filename);
+        const storagePath = resolveStoragePath(settings.storagePath);
+        const backupPath = path.join(storagePath, filename);
 
-        // สร้างโฟลเดอร์ถ้ายังไม่มี
-        await fs.mkdir(settings.storagePath, { recursive: true });
+        await fs.mkdir(storagePath, { recursive: true });
 
-        // สร้าง ZIP file
         const output = createWriteStream(backupPath);
         const archive = archiver('zip', { zlib: { level: 9 } });
 
-        // Check uploads directory before starting archive
         let hasUploads = false;
         if (settings.includeUploads) {
             try {
-                await fs.access('uploads');
+                await fs.access(path.join(BACKEND_ROOT, 'uploads'));
                 hasUploads = true;
             } catch {
-                // uploads directory doesn't exist
+                hasUploads = false;
             }
         }
 
         await new Promise<void>((resolve, reject) => {
             output.on('close', () => resolve());
-            archive.on('error', (err) => reject(err));
+            output.on('error', reject);
+            archive.on('error', reject);
 
             archive.pipe(output);
+            archive.file(DATABASE_PATH, { name: 'database.db' });
 
-            // เพิ่มฐานข้อมูล
-            archive.file('prisma/dev.db', { name: 'database.db' });
-
-            // เพิ่มไฟล์แนบถ้าตั้งค่าไว้
             if (hasUploads) {
-                archive.directory('uploads', 'uploads');
+                archive.directory(path.join(BACKEND_ROOT, 'uploads'), 'uploads');
             }
 
             archive.finalize();
         });
 
-        // ดึงขนาดไฟล์
         const stats = await fs.stat(backupPath);
 
-        // บันทึก Log
         await logInfo('Backup created successfully', {
             filename,
             size: stats.size,
             path: backupPath
         });
 
-        // อัปเดต Settings
         await prisma.settings.updateMany({
             data: {
                 lastBackupAt: new Date(),
@@ -96,7 +113,6 @@ export async function createBackup(): Promise<BackupResult> {
             }
         });
 
-        // ลบ Backup เก่า
         await cleanupOldBackups();
 
         return {
@@ -106,13 +122,10 @@ export async function createBackup(): Promise<BackupResult> {
             size: stats.size,
             timestamp: new Date()
         };
-
     } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
 
         await logError('Backup failed', error);
-
-        // อัปเดต Settings
         await prisma.settings.updateMany({
             data: {
                 lastBackupAt: new Date(),
@@ -131,45 +144,38 @@ export async function createBackup(): Promise<BackupResult> {
     }
 }
 
-/**
- * ลบ Backup เก่าที่เกินจำนวนที่กำหนด
- */
 export async function cleanupOldBackups(): Promise<void> {
     const settings = await getBackupSettings();
+    const storagePath = resolveStoragePath(settings.storagePath);
 
     try {
-        const files = await fs.readdir(settings.storagePath);
+        const files = await fs.readdir(storagePath);
         const backups = files
-            .filter(f => f.startsWith('backup-') && f.endsWith('.zip'))
-            .map(f => ({
-                name: f,
-                path: path.join(settings.storagePath, f)
+            .filter((file) => file.startsWith('backup-') && file.endsWith('.zip'))
+            .map((file) => ({
+                name: file,
+                path: path.join(storagePath, file)
             }));
 
-        // เรียงตามเวลา (ใหม่สุดก่อน)
         const sortedBackups = await Promise.all(
-            backups.map(async (b) => ({
-                ...b,
-                time: (await fs.stat(b.path)).mtime
+            backups.map(async (backup) => ({
+                ...backup,
+                time: (await fs.stat(backup.path)).mtime
             }))
         );
+
         sortedBackups.sort((a, b) => b.time.getTime() - a.time.getTime());
 
-        // ลบที่เกินจำนวน
         const toDelete = sortedBackups.slice(settings.retentionCount);
         for (const backup of toDelete) {
             await fs.unlink(backup.path);
             await logInfo('Old backup deleted', { filename: backup.name });
         }
-
     } catch (error) {
         await logError('Failed to cleanup old backups', error);
     }
 }
 
-/**
- * ดึงรายการ Backup ทั้งหมด
- */
 export async function listBackups(): Promise<Array<{
     filename: string;
     path: string;
@@ -177,16 +183,18 @@ export async function listBackups(): Promise<Array<{
     createdAt: Date;
 }>> {
     const settings = await getBackupSettings();
+    const storagePath = resolveStoragePath(settings.storagePath);
 
     try {
-        const files = await fs.readdir(settings.storagePath);
+        const files = await fs.readdir(storagePath);
         const backups = files
-            .filter(f => f.startsWith('backup-') && f.endsWith('.zip'))
-            .map(async (f) => {
-                const filePath = path.join(settings.storagePath, f);
+            .filter((file) => file.startsWith('backup-') && file.endsWith('.zip'))
+            .map(async (file) => {
+                const filePath = path.join(storagePath, file);
                 const stats = await fs.stat(filePath);
+
                 return {
-                    filename: f,
+                    filename: file,
                     path: filePath,
                     size: stats.size,
                     createdAt: stats.mtime
@@ -194,38 +202,110 @@ export async function listBackups(): Promise<Array<{
             });
 
         return await Promise.all(backups);
-
     } catch (error) {
         await logError('Failed to list backups', error);
         return [];
     }
 }
 
-/**
- * Restore จาก Backup
- */
-export async function restoreBackup(backupPath: string): Promise<boolean> {
+export async function restoreBackup(backupPath: string): Promise<RestoreResult> {
     try {
-        // ตรวจสอบว่าไฟล์มีอยู่
         await fs.access(backupPath);
+    } catch {
+        return {
+            success: false,
+            status: 'not_found',
+            restoredPath: backupPath,
+            error: 'Backup file not found'
+        };
+    }
 
-        // TODO: Implement restore logic
-        // 1. แตกไฟล์ ZIP
-        // 2. แทนที่ฐานข้อมูล
-        // 3. กู้คืนไฟล์แนบ
+    const tempDir = path.join(path.dirname(backupPath), `.restore-${Date.now()}`);
+    const backupDatabasePath = `${DATABASE_PATH}.restore-backup`;
 
-        await logInfo('Backup restored successfully', { path: backupPath });
-        return true;
+    try {
+        await fs.mkdir(tempDir, { recursive: true });
+        await execFileAsync(
+            'powershell.exe',
+            [
+                '-NoProfile',
+                '-Command',
+                `Expand-Archive -LiteralPath ${toPowerShellLiteral(backupPath)} -DestinationPath ${toPowerShellLiteral(tempDir)} -Force`
+            ],
+            { windowsHide: true }
+        );
 
+        const extractedDatabase = path.join(tempDir, 'database.db');
+        try {
+            await fs.access(extractedDatabase);
+        } catch {
+            return {
+                success: false,
+                status: 'failed',
+                restoredPath: backupPath,
+                error: 'Backup archive is missing database.db'
+            };
+        }
+
+        const extractedUploads = path.join(tempDir, 'uploads');
+        const uploadsRestored = await pathExists(extractedUploads);
+        const uploadsTarget = path.join(BACKEND_ROOT, 'uploads');
+
+        await prisma.$disconnect();
+
+        try {
+            if (await pathExists(DATABASE_PATH)) {
+                await fs.copyFile(DATABASE_PATH, backupDatabasePath);
+            }
+
+            await fs.copyFile(extractedDatabase, DATABASE_PATH);
+
+            if (uploadsRestored) {
+                await fs.rm(uploadsTarget, { recursive: true, force: true });
+                await fs.cp(extractedUploads, uploadsTarget, { recursive: true });
+            }
+
+            await prisma.$connect();
+        } catch (restoreError) {
+            if (await pathExists(backupDatabasePath)) {
+                try {
+                    await fs.copyFile(backupDatabasePath, DATABASE_PATH);
+                } catch {
+                    // Ignore rollback failure.
+                }
+            }
+
+            await prisma.$connect().catch(() => undefined);
+            throw restoreError;
+        } finally {
+            await fs.unlink(backupDatabasePath).catch(() => undefined);
+        }
+
+        await logInfo('Backup restored successfully', {
+            path: backupPath,
+            uploadsRestored
+        });
+
+        return {
+            success: true,
+            status: 'success',
+            restoredPath: backupPath,
+            databasePath: DATABASE_PATH,
+            uploadsRestored
+        };
     } catch (error) {
         await logError('Restore failed', error);
-        return false;
+        return {
+            success: false,
+            status: 'failed',
+            restoredPath: backupPath,
+            error: error instanceof Error ? error.message : 'Unknown error'
+        };
+    } finally {
+        await fs.rm(tempDir, { recursive: true, force: true }).catch(() => undefined);
     }
 }
 
-/**
- * ตรวจสอบว่าควร Backup ตอนนี้หรือไม่ (สำหรับ Cron Job)
- */
 export async function shouldBackup(): Promise<boolean> {
     const settings = await getBackupSettings();
 
@@ -233,7 +313,6 @@ export async function shouldBackup(): Promise<boolean> {
         return false;
     }
 
-    // ตรวจสอบเวลาล่าสุด
     const lastBackup = await prisma.settings.findFirst({
         select: { lastBackupAt: true }
     });
@@ -242,8 +321,6 @@ export async function shouldBackup(): Promise<boolean> {
         return true;
     }
 
-    // ตรวจสอบตาม Schedule (ง่ายสุดคือเช็คว่าเกิน 24 ชั่วโมงหรือไม่)
     const hoursSinceLastBackup = (Date.now() - lastBackup.lastBackupAt.getTime()) / (1000 * 60 * 60);
-
     return hoursSinceLastBackup >= 24;
 }

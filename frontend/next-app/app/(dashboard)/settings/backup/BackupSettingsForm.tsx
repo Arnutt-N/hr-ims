@@ -26,6 +26,8 @@ export function BackupSettingsForm() {
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
     const [isBackingUp, setIsBackingUp] = useState(false);
+    const [downloadingBackup, setDownloadingBackup] = useState<string | null>(null);
+    const [restoringBackup, setRestoringBackup] = useState<string | null>(null);
     const [backups, setBackups] = useState<Array<{
         filename: string;
         size: number;
@@ -49,28 +51,36 @@ export function BackupSettingsForm() {
         },
     });
 
+    async function loadData() {
+        const settingsRes = await fetch("/api/settings");
+
+        if (settingsRes.ok) {
+            const data = await settingsRes.json();
+            setValue("backupEnabled", data.backupEnabled);
+            setValue("backupSchedule", data.backupSchedule);
+            setValue("backupRetentionCount", data.backupRetentionCount);
+            setValue("backupStoragePath", data.backupStoragePath);
+            setValue("backupIncludeUploads", data.backupIncludeUploads);
+        }
+
+        await loadBackups();
+    }
+
+    async function loadBackups() {
+        const response = await fetch("/api/settings/backups");
+        if (!response.ok) {
+            throw new Error("Failed to load backups");
+        }
+
+        const data = await response.json();
+        setBackups(data.backups || []);
+    }
+
     // Load settings and backups on mount
     useEffect(() => {
-        async function loadData() {
+        async function initialize() {
             try {
-                const [settingsRes, backupsRes] = await Promise.all([
-                    fetch("/api/settings"),
-                    fetch("/api/settings/backups")
-                ]);
-
-                if (settingsRes.ok) {
-                    const data = await settingsRes.json();
-                    setValue("backupEnabled", data.backupEnabled);
-                    setValue("backupSchedule", data.backupSchedule);
-                    setValue("backupRetentionCount", data.backupRetentionCount);
-                    setValue("backupStoragePath", data.backupStoragePath);
-                    setValue("backupIncludeUploads", data.backupIncludeUploads);
-                }
-
-                if (backupsRes.ok) {
-                    const data = await backupsRes.json();
-                    setBackups(data.backups || []);
-                }
+                await loadData();
             } catch (error) {
                 console.error("Failed to load data:", error);
                 toast.error("Failed to load data");
@@ -78,7 +88,8 @@ export function BackupSettingsForm() {
                 setIsLoading(false);
             }
         }
-        loadData();
+
+        initialize();
     }, [setValue]);
 
     const onSubmit = async (data: BackupSettingsFormData) => {
@@ -89,12 +100,12 @@ export function BackupSettingsForm() {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(data),
             });
+            const payload = await response.json().catch(() => ({}));
 
             if (response.ok) {
-                toast.success("Backup settings saved successfully");
+                toast.success(payload.message || "Backup settings saved successfully");
             } else {
-                const error = await response.json();
-                toast.error(error.message || "Failed to save settings");
+                toast.error(payload.error || payload.message || "Failed to save settings");
             }
         } catch (error) {
             console.error("Failed to save settings:", error);
@@ -110,18 +121,78 @@ export function BackupSettingsForm() {
             const response = await fetch("/api/settings/backup-now", {
                 method: "POST"
             });
+            const payload = await response.json().catch(() => ({}));
 
             if (response.ok) {
-                toast.success("Backup started successfully");
+                toast.success(payload.message || "Backup completed successfully");
+                await loadBackups();
             } else {
-                const error = await response.json();
-                toast.error(error.message || "Failed to start backup");
+                toast.error(payload.error || payload.message || "Failed to run backup");
             }
         } catch (error) {
             console.error("Failed to start backup:", error);
-            toast.error("Failed to start backup");
+            toast.error("Failed to run backup");
         } finally {
             setIsBackingUp(false);
+        }
+    };
+
+    const handleDownloadBackup = async (filename: string) => {
+        setDownloadingBackup(filename);
+        try {
+            const response = await fetch(`/api/settings/backups/${encodeURIComponent(filename)}/download`);
+
+            if (!response.ok) {
+                const payload = await response.json().catch(() => ({}));
+                toast.error(payload.error || payload.message || "Failed to download backup");
+                return;
+            }
+
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const anchor = document.createElement("a");
+            anchor.href = url;
+            anchor.download = filename;
+            document.body.appendChild(anchor);
+            anchor.click();
+            anchor.remove();
+            window.URL.revokeObjectURL(url);
+
+            toast.success("Backup download started");
+        } catch (error) {
+            console.error("Failed to download backup:", error);
+            toast.error("Failed to download backup");
+        } finally {
+            setDownloadingBackup(null);
+        }
+    };
+
+    const handleRestoreBackup = async (filename: string) => {
+        if (!window.confirm(`Restore backup "${filename}"? This will replace the current database.`)) {
+            return;
+        }
+
+        setRestoringBackup(filename);
+        try {
+            const response = await fetch("/api/settings/restore", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ backupPath: filename }),
+            });
+            const payload = await response.json().catch(() => ({}));
+
+            if (response.ok) {
+                toast.success(payload.message || "Backup restored successfully");
+                await loadData();
+                return;
+            }
+
+            toast.error(payload.error || payload.message || "Failed to restore backup");
+        } catch (error) {
+            console.error("Failed to restore backup:", error);
+            toast.error("Failed to restore backup");
+        } finally {
+            setRestoringBackup(null);
         }
     };
 
@@ -274,11 +345,29 @@ export function BackupSettingsForm() {
                                         </p>
                                     </div>
                                     <div className="flex gap-2">
-                                        <Button variant="ghost" size="sm">
-                                            <Download className="h-4 w-4" />
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={() => handleDownloadBackup(backup.filename)}
+                                            disabled={downloadingBackup === backup.filename || restoringBackup === backup.filename}
+                                        >
+                                            {downloadingBackup === backup.filename ? (
+                                                <Loader2 className="h-4 w-4 animate-spin" />
+                                            ) : (
+                                                <Download className="h-4 w-4" />
+                                            )}
                                         </Button>
-                                        <Button variant="ghost" size="sm">
-                                            <RotateCcw className="h-4 w-4" />
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={() => handleRestoreBackup(backup.filename)}
+                                            disabled={downloadingBackup === backup.filename || restoringBackup === backup.filename}
+                                        >
+                                            {restoringBackup === backup.filename ? (
+                                                <Loader2 className="h-4 w-4 animate-spin" />
+                                            ) : (
+                                                <RotateCcw className="h-4 w-4" />
+                                            )}
                                         </Button>
                                     </div>
                                 </div>
