@@ -1,5 +1,6 @@
-/** @type {import('next').NextConfig} */
-const nextConfig = {
+import { PHASE_DEVELOPMENT_SERVER } from 'next/constants.js';
+
+const baseConfig = {
     turbopack: {
         root: process.cwd(), // Fix Turbopack workspace root detection
     },
@@ -15,4 +16,9 @@ const nextConfig = {
     },
 };
 
-export default nextConfig;
+export default function nextConfig(phase) {
+    return {
+        distDir: phase === PHASE_DEVELOPMENT_SERVER ? '.next-dev' : '.next-build',
+        ...baseConfig,
+    };
+}

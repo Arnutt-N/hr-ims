@@ -2,6 +2,18 @@ import NextAuth from 'next-auth';
 import { authConfig } from './auth.config';
 import { NextResponse } from 'next/server';
 
+const legacyRoleRules = [
+    { prefix: '/requests', roles: ['superadmin', 'admin', 'approver'] },
+    { prefix: '/maintenance', roles: ['superadmin', 'admin', 'technician'] },
+    { prefix: '/history', roles: ['superadmin', 'admin', 'auditor'] },
+    { prefix: '/reports', roles: ['superadmin', 'admin', 'auditor'] },
+    { prefix: '/scanner', roles: ['superadmin', 'admin', 'technician'] },
+    { prefix: '/tags', roles: ['superadmin', 'admin'] },
+    { prefix: '/settings', roles: ['superadmin', 'admin'] },
+    { prefix: '/users', roles: ['superadmin', 'admin'] },
+    { prefix: '/logs', roles: ['superadmin', 'admin', 'auditor'] },
+] as const;
+
 export default NextAuth(authConfig).auth((req) => {
     const { nextUrl } = req;
     const user = req.auth?.user as any;
@@ -60,11 +72,14 @@ export default NextAuth(authConfig).auth((req) => {
         if (!hasAccess) {
             console.log(`[Proxy Middleware] Access Denied for roles [${userRoles.join(',')}] to ${nextUrl.pathname}`);
             if (!userPermissions.length) {
-                // Fallback for legacy configuration
-                return NextResponse.next();
-            } else {
-                return NextResponse.redirect(new URL('/dashboard?error=access_denied', nextUrl.origin));
+                const matchingLegacyRule = legacyRoleRules.find((rule) => nextUrl.pathname.startsWith(rule.prefix));
+
+                if (!matchingLegacyRule || matchingLegacyRule.roles.some((role) => userRoles.includes(role))) {
+                    return NextResponse.next();
+                }
             }
+
+            return NextResponse.redirect(new URL('/dashboard?error=access_denied', nextUrl.origin));
         }
     }
 

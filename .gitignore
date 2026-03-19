@@ -33,6 +33,10 @@ build/
 out/
 _next/
 .next/
+.next-dev/
+.next-build/
+.next-build-verify*/
+.nv*/
 .vercel
 server/
 

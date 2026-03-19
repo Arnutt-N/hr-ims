@@ -12,13 +12,14 @@ export const authConfig = {
             const isOnForgotPassword = nextUrl.pathname === '/forgot-password';
             const isOnResetPassword = nextUrl.pathname.startsWith('/reset-password');
             const isApiRoute = nextUrl.pathname.startsWith('/api/');
+            const isAuthPage = isOnLogin || isOnRegister || isOnForgotPassword || isOnResetPassword;
 
-            const isPublic = isOnLogin || isOnRegister || isOnForgotPassword || isOnResetPassword || isApiRoute;
+            const isPublic = isAuthPage || isApiRoute;
 
             if (!isPublic && !isLoggedIn) {
                 return false; // Redirect unauthenticated users to login
             }
-            if (isLoggedIn && isOnLogin) {
+            if (isLoggedIn && isAuthPage) {
                 return Response.redirect(new URL('/dashboard', nextUrl));
             }
             return true;

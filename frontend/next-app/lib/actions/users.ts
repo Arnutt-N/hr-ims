@@ -7,6 +7,7 @@ import { z } from 'zod';
 import bcrypt from 'bcrypt';
 import { Role } from '@/lib/types/user-types';
 import { logActivity } from '@/lib/actions/audit';
+import { ensureUserHasPrimaryRole, syncUserPrimaryRole } from '@/lib/role-sync';
 
 
 // Validation Schemas
@@ -93,22 +94,27 @@ export async function createUser(data: any) {
         const hashedPassword = await bcrypt.hash(validated.password, 10);
 
         // Create user
-        await prisma.user.create({
-            data: {
-                email: validated.email,
-                password: hashedPassword,
-                name: validated.name,
-                role: validated.role as any,
-                department: validated.department,
-                status: validated.status || 'active'
-            }
+        const createdUser = await prisma.$transaction(async (tx) => {
+            const user = await tx.user.create({
+                data: {
+                    email: validated.email,
+                    password: hashedPassword,
+                    name: validated.name,
+                    role: validated.role as any,
+                    department: validated.department,
+                    status: validated.status || 'active'
+                }
+            });
+
+            await ensureUserHasPrimaryRole(tx, user.id, validated.role);
+            return user;
         });
 
         // Log activity
         await logActivity(
             'USER_CREATE',
             'User',
-            validated.email, // Use email as identifier since we don't return the new ID from create
+            createdUser.id.toString(),
             { name: validated.name, role: validated.role, department: validated.department }
         );
 
@@ -163,9 +169,15 @@ export async function updateUser(id: number, data: any) {
         }
 
         // Update user
-        await prisma.user.update({
-            where: { id },
-            data: updateData
+        await prisma.$transaction(async (tx) => {
+            await tx.user.update({
+                where: { id },
+                data: updateData
+            });
+
+            if (validated.role) {
+                await syncUserPrimaryRole(tx, id, targetUser.role as Role, validated.role);
+            }
         });
 
         // If password changed, revoke all sessions

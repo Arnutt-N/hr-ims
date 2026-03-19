@@ -5,6 +5,8 @@ import { z } from 'zod';
 import prisma from './lib/prisma';
 import bcrypt from 'bcrypt';
 import { User as PrismaUser } from '@prisma/client';
+import { ensureUserHasPrimaryRole } from './lib/role-sync';
+import { Role } from '@/lib/types/user-types';
 
 async function getUser(email: string): Promise<PrismaUser | undefined> {
     try {
@@ -31,6 +33,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                     try {
                         const user = await getUser(email);
                         if (!user) return null;
+                        if (user.status !== 'active') return null;
 
                         const passwordsMatch = await bcrypt.compare(password, user.password);
 
@@ -57,62 +60,77 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                 token.id = user.id?.toString() || "";
                 token.role = (user as any).role || "user";
                 token.tokenVersion = (user as any).tokenVersion || 1;
+            }
 
-                try {
-                    const tokenId = typeof token.id === 'string' ? token.id : '';
-                    const fallbackRole = typeof token.role === 'string' ? token.role : 'user';
+            const tokenId = typeof token.id === 'string' ? token.id : '';
+            const fallbackRole = typeof token.role === 'string' ? token.role : 'user';
 
-                    // 1. Fetch User Roles & current Token Version
-                    const userDb = tokenId ? await prisma.user.findUnique({
-                        where: { id: Number.parseInt(tokenId, 10) },
-                        include: {
-                            userRoles: {
-                                include: { role: true }
-                            }
+            if (!tokenId) {
+                return token;
+            }
+
+            try {
+                // 1. Fetch User Roles & current Token Version
+                const userDb = await prisma.user.findUnique({
+                    where: { id: Number.parseInt(tokenId, 10) },
+                    include: {
+                        userRoles: {
+                            include: { role: true }
                         }
-                    }) : null;
-
-                    // Check tokenVersion for revocation
-                    if (userDb && token.tokenVersion !== userDb.tokenVersion) {
-                        console.log('Session revoked via tokenVersion mismatch');
-                        return null; // This will effectively log the user out
                     }
+                });
 
-                    // Extract role slugs e.g. ["admin", "approver"]
-                    const roles = userDb?.userRoles.map(ur => ur.role.slug) || [];
-
-                    // Fallback to the legacy role string if no multi-roles assigned
-                    if (roles.length === 0 && fallbackRole) {
-                        roles.push(fallbackRole);
-                    }
-                    token.roles = roles;
-
-                    // PROMOTE ROLE: If superadmin is in the list, ensure token.role is also superadmin
-                    // This handles legacy pages that only check token.role
-                    if (roles.includes('superadmin')) {
-                        token.role = 'superadmin';
-                    } else if (roles.includes('admin') && token.role !== 'superadmin') {
-                        token.role = 'admin';
-                    }
-
-                    // 2. Fetch Permissions for ALL assigned roles
-                    const permissions = await prisma.rolePermission.findMany({
-                        where: {
-                            OR: [
-                                { role: { in: roles } }, // Legacy string-based match
-                                { roleRef: { slug: { in: roles } } } // Relation-based match
-                            ],
-                            canView: true
-                        }
-                    });
-
-                    token.permissions = Array.from(new Set(permissions.map(p => p.path)));
-
-                } catch (e) {
-                    console.error('Failed to fetch roles/permissions:', e);
-                    token.roles = [typeof token.role === 'string' ? token.role : 'user'];
-                    token.permissions = [];
+                if (!userDb || userDb.status !== 'active') {
+                    return null;
                 }
+
+                // Check tokenVersion for revocation
+                if (typeof token.tokenVersion === 'number' && token.tokenVersion !== userDb.tokenVersion) {
+                    console.log('Session revoked via tokenVersion mismatch');
+                    return null; // This will effectively log the user out
+                }
+
+                token.tokenVersion = userDb.tokenVersion;
+
+                // Extract role slugs e.g. ["admin", "approver"]
+                const roles = userDb.userRoles.map((ur) => ur.role.slug);
+
+                // Backfill the primary relation for legacy users that only have the string role.
+                if (roles.length === 0 && userDb.role) {
+                    await ensureUserHasPrimaryRole(prisma, userDb.id, userDb.role as Role);
+                    roles.push(userDb.role);
+                } else if (roles.length === 0 && fallbackRole) {
+                    roles.push(fallbackRole);
+                }
+
+                token.roles = roles;
+
+                // PROMOTE ROLE: If superadmin is in the list, ensure token.role is also superadmin
+                // This handles legacy pages that only check token.role
+                if (roles.includes('superadmin')) {
+                    token.role = 'superadmin';
+                } else if (roles.includes('admin') && token.role !== 'superadmin') {
+                    token.role = 'admin';
+                } else {
+                    token.role = roles[0] || userDb.role || fallbackRole;
+                }
+
+                // 2. Fetch Permissions for ALL assigned roles
+                const permissions = await prisma.rolePermission.findMany({
+                    where: {
+                        OR: [
+                            { role: { in: roles } }, // Legacy string-based match
+                            { roleRef: { slug: { in: roles } } } // Relation-based match
+                        ],
+                        canView: true
+                    }
+                });
+
+                token.permissions = Array.from(new Set(permissions.map(p => p.path)));
+            } catch (e) {
+                console.error('Failed to fetch roles/permissions:', e);
+                token.roles = [typeof token.role === 'string' ? token.role : 'user'];
+                token.permissions = [];
             }
 
             return token;

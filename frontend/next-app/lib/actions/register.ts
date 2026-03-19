@@ -1,6 +1,8 @@
 'use server';
 
 import prisma from '@/lib/prisma';
+import { Role } from '@/lib/types/user-types';
+import { ensureUserHasPrimaryRole } from '@/lib/role-sync';
 import { hash } from 'bcrypt';
 
 export async function registerUser(prevState: any, formData: FormData) {
@@ -42,14 +44,18 @@ export async function registerUser(prevState: any, formData: FormData) {
         // Create user
         const hashedPassword = await hash(password, 10);
 
-        await prisma.user.create({
-            data: {
-                email,
-                password: hashedPassword,
-                name,
-                role: 'user', // Default role
-                status: 'active'
-            }
+        await prisma.$transaction(async (tx) => {
+            const user = await tx.user.create({
+                data: {
+                    email,
+                    password: hashedPassword,
+                    name,
+                    role: Role.user,
+                    status: 'active'
+                }
+            });
+
+            await ensureUserHasPrimaryRole(tx, user.id, Role.user);
         });
 
         return { success: true };

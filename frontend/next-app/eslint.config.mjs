@@ -21,6 +21,10 @@ export default defineConfig([
     },
     globalIgnores([
         '.next/**',
+        '.next-build/**',
+        '.next-build-verify*/**',
+        '.next-dev/**',
+        '.nv*/**',
         'coverage/**',
         'node_modules/**',
         'playwright-report/**',
