@@ -59,15 +59,18 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                 token.tokenVersion = (user as any).tokenVersion || 1;
 
                 try {
+                    const tokenId = typeof token.id === 'string' ? token.id : '';
+                    const fallbackRole = typeof token.role === 'string' ? token.role : 'user';
+
                     // 1. Fetch User Roles & current Token Version
-                    const userDb = await prisma.user.findUnique({
-                        where: { id: parseInt(token.id) },
+                    const userDb = tokenId ? await prisma.user.findUnique({
+                        where: { id: Number.parseInt(tokenId, 10) },
                         include: {
                             userRoles: {
                                 include: { role: true }
                             }
                         }
-                    });
+                    }) : null;
 
                     // Check tokenVersion for revocation
                     if (userDb && token.tokenVersion !== userDb.tokenVersion) {
@@ -79,8 +82,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                     const roles = userDb?.userRoles.map(ur => ur.role.slug) || [];
 
                     // Fallback to the legacy role string if no multi-roles assigned
-                    if (roles.length === 0 && token.role) {
-                        roles.push(token.role);
+                    if (roles.length === 0 && fallbackRole) {
+                        roles.push(fallbackRole);
                     }
                     token.roles = roles;
 
@@ -107,7 +110,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
                 } catch (e) {
                     console.error('Failed to fetch roles/permissions:', e);
-                    token.roles = [token.role];
+                    token.roles = [typeof token.role === 'string' ? token.role : 'user'];
                     token.permissions = [];
                 }
             }
@@ -116,11 +119,16 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         },
         async session({ session, token }) {
             if (token && session.user) {
-                session.user.id = token.id;
-                (session.user as any).role = token.role;
-                (session.user as any).roles = token.roles || [token.role];
-                (session.user as any).permissions = token.permissions || [];
-                (session.user as any).tokenVersion = token.tokenVersion;
+                const sessionRole = typeof token.role === 'string' ? token.role : 'user';
+                session.user.id = typeof token.id === 'string' ? token.id : '';
+                (session.user as any).role = sessionRole;
+                (session.user as any).roles = Array.isArray(token.roles)
+                    ? token.roles.filter((role): role is string => typeof role === 'string')
+                    : [sessionRole];
+                (session.user as any).permissions = Array.isArray(token.permissions)
+                    ? token.permissions.filter((permission): permission is string => typeof permission === 'string')
+                    : [];
+                (session.user as any).tokenVersion = typeof token.tokenVersion === 'number' ? token.tokenVersion : 1;
             }
             return session;
         },

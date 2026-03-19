@@ -1,6 +1,7 @@
 'use server';
 
 export async function requestPasswordReset(email: string) {
+    void email;
     // Mockup: In production, this would:
     // 1. Check if email exists
     // 2. Generate reset token
@@ -16,6 +17,8 @@ export async function requestPasswordReset(email: string) {
 }
 
 export async function resetPassword(token: string, newPassword: string) {
+    void token;
+    void newPassword;
     // Mockup: In production, this would:
     // 1. Validate token
     // 2. Check token expiration

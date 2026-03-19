@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { checkOverdueItems } from '@/lib/actions/requests';
 import { toast } from 'sonner';
-import { TimerReset, RefreshCw } from 'lucide-react';
+import { TimerReset } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export function CheckOverdueButton() {
@@ -14,16 +14,16 @@ export function CheckOverdueButton() {
         setLoading(true);
         try {
             const res = await checkOverdueItems();
-            if (res.error) {
+            if ('error' in res) {
                 toast.error(res.error);
             } else {
-                if (res.count && res.count > 0) {
+                if (res.count > 0) {
                     toast.success(`Found and flagged ${res.count} overdue items.`);
                 } else {
                     toast.info('No new overdue items found.');
                 }
             }
-        } catch (error) {
+        } catch {
             toast.error('Failed to check overdue items');
         } finally {
             setLoading(false);

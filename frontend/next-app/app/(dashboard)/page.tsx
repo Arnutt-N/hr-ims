@@ -1,7 +1,6 @@
-﻿import { getDashboardStats } from "@/lib/actions/dashboard";
+import { getDashboardStats } from "@/lib/actions/dashboard";
 import { Package, AlertTriangle, FileText, Activity } from "lucide-react";
 import { auth } from "@/auth";
-import { redirect } from "next/navigation";
 import { formatThaiDateTime, formatRelativeTime } from "@/lib/date-utils";
 
 // [2026-02-11] Modified by CodeX: add cursor-pointer to native buttons
@@ -103,7 +102,7 @@ export default async function DashboardPage() {
                                     <div key={i} className="p-4 hover:bg-slate-50 transition-colors flex items-center justify-between group">
                                         <div className="flex items-center gap-3">
                                             <div className="w-10 h-10 bg-slate-100 rounded-lg flex items-center justify-center text-lg">
-                                                {level.item.image || '๐“ฆ'}
+                                                {level.item.image || '📦'}
                                             </div>
                                             <div>
                                                 <p className="font-bold text-slate-700">{level.item.name}</p>

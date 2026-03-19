@@ -92,7 +92,7 @@ export async function getItemDetail(itemId: number) {
             }
         });
         return item;
-    } catch (error) {
+    } catch {
         return null;
     }
 }
@@ -124,7 +124,7 @@ export async function getStockHistory(itemId: number, page: number = 1, perPage:
                 totalPages: Math.ceil(total / perPage)
             }
         };
-    } catch (error) {
+    } catch {
         return {
             transactions: [],
             pagination: { page: 1, perPage, total: 0, totalPages: 0 }

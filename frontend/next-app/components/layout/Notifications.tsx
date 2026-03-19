@@ -1,10 +1,9 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Bell, Check, X } from 'lucide-react';
+import { Bell, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { getNotifications, markAsRead, markAllAsRead } from '@/lib/actions/notifications';
-import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
 export default function Notifications() {

@@ -40,7 +40,7 @@ export default function DeleteMappingButton({ id }: { id: number }) {
                     variant: 'destructive'
                 });
             }
-        } catch (error) {
+        } catch {
             toast({
                 title: "Error",
                 description: "Failed to delete mapping",

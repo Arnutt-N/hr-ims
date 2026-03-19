@@ -7,7 +7,6 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { AlertTriangle, Package } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { checkLowStock } from '@/lib/actions/notifications'; // We can reuse this or create a specific fetcher
 // fast fetcher for widget
 import { getLowStockItems } from '@/lib/actions/dashboard'; // Assuming we create this
 

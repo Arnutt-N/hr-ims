@@ -1,7 +1,7 @@
 import { UploadDropzone } from "@/lib/uploadthing";
 import { useState } from "react";
 import { toast } from "sonner";
-import { Loader2, X, Image as ImageIcon } from "lucide-react";
+import { Loader2, X } from "lucide-react";
 
 interface FileUploadProps {
     endpoint: "imageUploader";
@@ -25,7 +25,7 @@ export const FileUpload = ({
                 onRemove();
             }
             onChange(undefined);
-        } catch (error) {
+        } catch {
             toast.error("Failed to remove image");
         } finally {
             setIsDeleting(false);

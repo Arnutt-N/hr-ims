@@ -11,8 +11,7 @@ import { createWarehouse, updateWarehouse, getDivisions, getProvinces } from '@/
 import { getUsersForAssignment } from '@/lib/actions/users'; // Use new assignment function
 import { Warehouse, User, Division, Province } from '@/types/schema';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
-import { Check, X, Search, Loader2 } from 'lucide-react';
+import { Check, Search, Loader2 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface WarehouseDialogProps {
@@ -298,10 +297,5 @@ export function WarehouseDialog({ open, onOpenChange, warehouse }: WarehouseDial
                 </DialogFooter>
             </DialogContent>
         </Dialog>
-    );
-    return (
-        <div className="bg-blue-600 text-white rounded-full p-1">
-            <Check className="h-3 w-3" />
-        </div>
     );
 }

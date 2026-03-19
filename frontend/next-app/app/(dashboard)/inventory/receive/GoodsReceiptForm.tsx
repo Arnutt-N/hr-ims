@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Plus, Trash, Package, ArrowRight, Check } from 'lucide-react';
+import { Plus, Trash, Package, Check } from 'lucide-react';
 import { receiveGoods } from '@/lib/actions/stock-transaction';
 import { useToast } from '@/components/ui/use-toast';
 import { Loader2 } from 'lucide-react';
@@ -78,7 +78,7 @@ export default function GoodsReceiptForm({
                     variant: 'destructive'
                 });
             }
-        } catch (error) {
+        } catch {
             toast({
                 title: 'Error',
                 description: 'Something went wrong',

@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { History, ArrowUp, ArrowDown, RefreshCw, Package } from 'lucide-react';
+import { History, ArrowUp, ArrowDown, RefreshCw } from 'lucide-react';
 import Link from 'next/link';
 
 const typeIcons = {

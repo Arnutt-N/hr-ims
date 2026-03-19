@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { fetchInventoryItems } from '@/lib/actions/inventory';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -212,7 +212,7 @@ export default function TagGeneratorPage() {
                     fontSize: 12,
                     margin: 5,
                 });
-            } catch (e) {
+            } catch {
                 // Fallback for invalid barcode data
             }
             barcodeCanvas.style.margin = '0 auto 16px';

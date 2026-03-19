@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface Warehouse {
@@ -32,11 +32,7 @@ export default function WarehouseSelector({
     const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
     const [loading, setLoading] = useState(true);
 
-    useEffect(() => {
-        fetchWarehouses();
-    }, []);
-
-    const fetchWarehouses = async () => {
+    const fetchWarehouses = useCallback(async () => {
         try {
             const res = await fetch('/api/warehouses');
             const data = await res.json();
@@ -52,7 +48,11 @@ export default function WarehouseSelector({
         } finally {
             setLoading(false);
         }
-    };
+    }, [type]);
+
+    useEffect(() => {
+        fetchWarehouses();
+    }, [fetchWarehouses]);
 
     if (loading) {
         return (

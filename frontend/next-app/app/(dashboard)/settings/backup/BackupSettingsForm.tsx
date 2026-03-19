@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -51,7 +51,17 @@ export function BackupSettingsForm() {
         },
     });
 
-    async function loadData() {
+    const loadBackups = useCallback(async () => {
+        const response = await fetch("/api/settings/backups");
+        if (!response.ok) {
+            throw new Error("Failed to load backups");
+        }
+
+        const data = await response.json();
+        setBackups(data.backups || []);
+    }, []);
+
+    const loadData = useCallback(async () => {
         const settingsRes = await fetch("/api/settings");
 
         if (settingsRes.ok) {
@@ -64,17 +74,7 @@ export function BackupSettingsForm() {
         }
 
         await loadBackups();
-    }
-
-    async function loadBackups() {
-        const response = await fetch("/api/settings/backups");
-        if (!response.ok) {
-            throw new Error("Failed to load backups");
-        }
-
-        const data = await response.json();
-        setBackups(data.backups || []);
-    }
+    }, [loadBackups, setValue]);
 
     // Load settings and backups on mount
     useEffect(() => {
@@ -90,7 +90,7 @@ export function BackupSettingsForm() {
         }
 
         initialize();
-    }, [setValue]);
+    }, [loadData]);
 
     const onSubmit = async (data: BackupSettingsFormData) => {
         setIsSaving(true);

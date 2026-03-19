@@ -8,7 +8,7 @@ export const ourFileRouter = {
     imageUploader: f({ image: { maxFileSize: "4MB" } })
         // Set permissions and file types for this FileRoute
         // In an enterprise app, you would add authentication checks here
-        .onUploadComplete(async ({ metadata, file }) => {
+        .onUploadComplete(async ({ file }) => {
             // This code RUNS ON YOUR SERVER after upload
             console.log("Upload complete for url:", file.url);
 

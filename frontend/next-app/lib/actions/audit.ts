@@ -2,7 +2,6 @@
 
 import prisma from '@/lib/prisma';
 import { auth } from '@/auth';
-import { revalidatePath } from 'next/cache';
 
 export async function logActivity(
     action: string,

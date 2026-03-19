@@ -83,7 +83,7 @@ export async function checkInAsset(itemId: number) {
 
         revalidatePath('/my-assets');
         return { success: true };
-    } catch (error) {
+    } catch {
         return { error: 'Check-in failed' };
     }
 }
@@ -114,7 +114,7 @@ export async function requestReturn(itemId: number) {
 
         revalidatePath('/my-assets');
         return { success: true };
-    } catch (error) {
+    } catch {
         return { error: 'Return request failed' };
     }
 }
@@ -147,7 +147,7 @@ export async function reportIssue(itemId: number, issue: string) {
 
         revalidatePath('/my-assets');
         return { success: true };
-    } catch (error) {
+    } catch {
         return { error: 'Report failed' };
     }
 }

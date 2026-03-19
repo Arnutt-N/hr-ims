@@ -125,7 +125,6 @@ async function main() {
 
         // 6. Call Trigger API (or run locally if server not running)
         console.log(`🚀 Triggering Check via API: ${API_URL}/api/debug/trigger-notification`);
-        let apiSuccess = false;
         try {
             const response = await fetch(`${API_URL}/api/debug/trigger-notification`);
             if (!response.ok) {
@@ -133,7 +132,6 @@ async function main() {
             }
             const json = await response.json();
             console.log('   API Response:', json);
-            apiSuccess = true;
         } catch (e) {
             console.error('   ❌ Failed to call API (Is server running?):', e.message);
             console.log('   ⚠️ Running local checkLowStock logic...');

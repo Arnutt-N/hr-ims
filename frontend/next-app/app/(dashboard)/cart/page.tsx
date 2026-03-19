@@ -6,7 +6,6 @@ import { getMyMapping } from '@/lib/actions/departments';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { Trash2, ClipboardList, History, ArrowRight, MapPin } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
 
 // Mock types for now, ideally imported from Prisma client
 type CartItem = {

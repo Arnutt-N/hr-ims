@@ -56,7 +56,7 @@ export async function getRecentScans() {
         });
 
         return { success: true, scans: recentScans };
-    } catch (error) {
+    } catch {
         return { error: 'Failed to fetch recent scans' };
     }
 }

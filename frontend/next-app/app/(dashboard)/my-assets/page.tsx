@@ -89,7 +89,7 @@ export default function MyAssetsPage() {
                             <div key={asset.id} className={`bg-white p-6 rounded-2xl shadow-sm border ${isWarning ? 'border-red-200 bg-red-50/10' : 'border-slate-100'} flex flex-col md:flex-row items-center justify-between transition-all hover:shadow-md`}>
                                 <div className="flex items-center gap-6 mb-4 md:mb-0 w-full md:w-auto">
                                     <div className={`w-16 h-16 rounded-xl flex items-center justify-center text-3xl shrink-0 ${isWarning ? 'bg-red-100 text-red-500' : 'bg-slate-100 text-slate-500'}`}>
-                                        {asset.image ? <img src={asset.image} className="w-full h-full object-cover rounded-xl" /> : '📦'}
+                                        {asset.image ? <img src={asset.image} alt={asset.name} className="w-full h-full object-cover rounded-xl" /> : '📦'}
                                     </div>
                                     <div>
                                         <div className="flex items-center gap-2 mb-1">

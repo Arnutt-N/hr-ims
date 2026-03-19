@@ -2,7 +2,6 @@ import { Suspense } from 'react';
 import RequestsTable from '@/components/dashboard/requests-table';
 import { getRequests } from '@/lib/actions/requests';
 import { CheckOverdueButton } from '@/components/dashboard/check-overdue-button';
-import { ArrowRightLeft } from 'lucide-react';
 import { auth } from '@/auth';
 import { APPROVER_ROLES, sessionHasAnyRole } from '@/lib/auth-guards';
 

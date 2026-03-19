@@ -1,6 +1,4 @@
-import { render } from '@testing-library/react';
 import { describe, it, expect } from 'vitest';
-import { Button } from '@/components/ui/button';
 
 describe('Button Component', () => {
     it('renders button text', () => {

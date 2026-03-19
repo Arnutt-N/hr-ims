@@ -60,6 +60,63 @@ export default function ScannerPage() {
         }
     }, []);
 
+    const loadRecentScans = useCallback(async () => {
+        const res = await getRecentScans();
+        if (res.success && isMountedRef.current) {
+            setRecentScans(res.scans || []);
+        }
+    }, []);
+
+    const playSound = useCallback((success: boolean) => {
+        try {
+            const audio = new Audio(success ? '/sounds/success.mp3' : '/sounds/error.mp3');
+            audio.volume = 0.3;
+            audio.play().catch(() => {
+                // Silent fail - audio not critical
+            });
+        } catch {
+            // Silent fail
+        }
+    }, []);
+
+    const processScan = useCallback(async (scanCode: string) => {
+        if (!scanCode.trim()) return;
+
+        setScanning(true);
+        const res = await getItemBySN(scanCode.trim());
+
+        if (!isMountedRef.current) return;
+
+        setScanning(false);
+
+        if (res.success && res.item) {
+            setScannedItem(res.item);
+            playSound(true);
+            toast.success('Item scanned successfully!');
+            loadRecentScans();
+        } else {
+            playSound(false);
+            toast.error(res.error || 'Item not found');
+            setScannedItem(null);
+        }
+    }, [loadRecentScans, playSound]);
+
+    const onScanSuccess = useCallback((decodedText: string) => {
+        if (!isMountedRef.current) return;
+
+        setCode(decodedText);
+        setUseCamera(false); // Close camera on success
+        processScan(decodedText);
+    }, [processScan]);
+
+    const onScanFailure = useCallback(() => {
+        // Don't show errors for continuous scanning - this is normal
+        // Only log in development
+        if (process.env.NODE_ENV === 'development') {
+            // console.warn('Scan attempt failed');
+        }
+    }, []);
+
     // Initialize scanner with proper DOM ready check
     const initScanner = useCallback(() => {
         const readerElement = document.getElementById('reader');
@@ -86,7 +143,7 @@ export default function ScannerPage() {
             console.error('Scanner initialization failed:', error);
             return false;
         }
-    }, []);
+    }, [onScanFailure, onScanSuccess]);
 
     // Camera mode effect with proper initialization
     useEffect(() => {
@@ -169,64 +226,7 @@ export default function ScannerPage() {
                 scannerRef.current.clear().catch(err => console.error("Failed to clear scanner", err));
             }
         };
-    }, []);
-
-    const onScanSuccess = (decodedText: string, decodedResult: any) => {
-        if (!isMountedRef.current) return;
-
-        setCode(decodedText);
-        setUseCamera(false); // Close camera on success
-        processScan(decodedText);
-    };
-
-    const onScanFailure = (error: any) => {
-        // Don't show errors for continuous scanning - this is normal
-        // Only log in development
-        if (process.env.NODE_ENV === 'development') {
-            // console.warn(`Scan attempt: ${error}`);
-        }
-    };
-
-    const loadRecentScans = async () => {
-        const res = await getRecentScans();
-        if (res.success && isMountedRef.current) {
-            setRecentScans(res.scans || []);
-        }
-    };
-
-    const playSound = (success: boolean) => {
-        try {
-            const audio = new Audio(success ? '/sounds/success.mp3' : '/sounds/error.mp3');
-            audio.volume = 0.3;
-            audio.play().catch(() => {
-                // Silent fail - audio not critical
-            });
-        } catch {
-            // Silent fail
-        }
-    };
-
-    const processScan = async (scanCode: string) => {
-        if (!scanCode.trim()) return;
-
-        setScanning(true);
-        const res = await getItemBySN(scanCode.trim());
-
-        if (!isMountedRef.current) return;
-
-        setScanning(false);
-
-        if (res.success && res.item) {
-            setScannedItem(res.item);
-            playSound(true);
-            toast.success('Item scanned successfully!');
-            loadRecentScans();
-        } else {
-            playSound(false);
-            toast.error(res.error || 'Item not found');
-            setScannedItem(null);
-        }
-    };
+    }, [loadRecentScans]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();

@@ -83,7 +83,7 @@ export async function removeFromCart(cartItemId: number) {
         await prisma.cartItem.delete({ where: { id: cartItemId } });
         revalidatePath('/cart');
         return { success: true };
-    } catch (error) {
+    } catch {
         return { error: 'Failed to delete item' };
     }
 }

@@ -2,7 +2,6 @@
 
 import prisma from '@/lib/prisma';
 import { hash } from 'bcrypt';
-import { redirect } from 'next/navigation';
 
 export async function registerUser(prevState: any, formData: FormData) {
     try {

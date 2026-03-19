@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 
-import { Package, AlertCircle, CheckCircle2, Clock } from 'lucide-react';
+import { Package, CheckCircle2, Clock, ShoppingCart } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 interface InventoryItem {
@@ -19,17 +19,15 @@ interface InventoryItem {
 import { addToCart } from '@/lib/actions/cart';
 import { toast } from 'sonner';
 import { useState } from 'react';
-import { Check, ShoppingCart } from 'lucide-react';
 
 // ... interface InventoryItem ...
 
 interface InventoryCardProps {
     item: InventoryItem;
     onAction?: (item: InventoryItem) => void;
-    isAdmin?: boolean;
 }
 
-export function InventoryCard({ item, onAction, isAdmin }: InventoryCardProps) {
+export function InventoryCard({ item, onAction }: InventoryCardProps) {
     const [loading, setLoading] = useState(false);
     const isAvailable = item.status === 'available' || item.stock > 0;
     const isConsumable = item.type === 'consumable';

@@ -46,7 +46,7 @@ export default function AddMappingDialog({ uniqueDepartments, warehouses }: AddM
                     variant: "destructive"
                 });
             }
-        } catch (error) {
+        } catch {
             toast({
                 title: "Error",
                 description: "Something went wrong",

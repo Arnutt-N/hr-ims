@@ -40,6 +40,7 @@ async function invalidateTokenVersion() {
 
 // Both operations are identical for JWT: increment tokenVersion to invalidate all tokens
 export async function revokeSession(_id: string) {
+    void _id;
     return invalidateTokenVersion();
 }
 

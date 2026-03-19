@@ -60,7 +60,7 @@ export default function SetLimitsDialog({
                     variant: 'destructive'
                 });
             }
-        } catch (error) {
+        } catch {
             toast({
                 title: 'Error',
                 description: 'Something went wrong',

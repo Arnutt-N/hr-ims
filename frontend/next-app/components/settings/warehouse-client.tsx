@@ -57,7 +57,7 @@ export function WarehouseClient({ initialWarehouses }: WarehouseClientProps) {
             } else {
                 toast.error(res.error || 'Failed to delete');
             }
-        } catch (error) {
+        } catch {
             toast.error('An error occurred');
         } finally {
             setIsDeleting(false);

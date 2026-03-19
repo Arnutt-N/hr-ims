@@ -5,7 +5,7 @@ HR-IMS is split into two active codebases:
 - `frontend/next-app` for the Next.js app
 - `backend` for the Express API and Prisma schema
 
-The repo root is now a launcher and documentation entry point. The old root Vite app should not be used for active development.
+The repo root is now only a launcher and documentation entry point for the active Next.js frontend and Express backend.
 
 ## Quick Start
 

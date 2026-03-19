@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { AlertCircle, Package, ArrowRight } from 'lucide-react';
+import { AlertCircle } from 'lucide-react';
 import WarehouseSelector from './WarehouseSelector';
 
 interface InventoryItem {
@@ -67,8 +67,8 @@ export default function StockTransferForm({ userId, onSuccess, onCancel }: Stock
             const res = await fetch(`/api/stock-levels?warehouseId=${warehouseId}`);
             const data = await res.json();
             setAvailableItems(data.filter((s: StockLevel) => s.quantity > 0));
-        } catch (err) {
-            console.error('Failed to fetch items:', err);
+        } catch (error) {
+            console.error('Failed to fetch items:', error);
         }
     };
 
@@ -119,8 +119,9 @@ export default function StockTransferForm({ userId, onSuccess, onCancel }: Stock
             setNote('');
 
             onSuccess?.();
-        } catch (err: any) {
-            setError(err.message || 'เกิดข้อผิดพลาดในการส่งคำขอ');
+        } catch (error) {
+            const message = error instanceof Error ? error.message : 'เกิดข้อผิดพลาดในการส่งคำขอ';
+            setError(message);
         } finally {
             setLoading(false);
         }

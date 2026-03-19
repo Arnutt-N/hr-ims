@@ -28,10 +28,6 @@ export default function ReportsPage() {
         setLoading(false);
     };
 
-    const handleExport = () => {
-        window.print();
-    };
-
     const handleExportCSV = () => {
         if (!stats) return;
 

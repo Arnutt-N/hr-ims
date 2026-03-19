@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { CheckCircle, XCircle, Clock, Package, ArrowRight, User } from 'lucide-react';
+import { CheckCircle, XCircle, Clock, Package, ArrowRight } from 'lucide-react';
 
 interface StockTransfer {
     id: number;
@@ -40,7 +40,7 @@ export default function TransferApprovalList({ userId, userRole }: TransferAppro
             const res = await fetch('/api/stock-transfers?status=pending');
             const data = await res.json();
             setTransfers(data);
-        } catch (err) {
+        } catch {
             setError('ไม่สามารถโหลดข้อมูลได้');
         } finally {
             setLoading(false);
@@ -64,7 +64,7 @@ export default function TransferApprovalList({ userId, userRole }: TransferAppro
 
             // Refresh list
             await fetchTransfers();
-        } catch (err) {
+        } catch {
             alert('เกิดข้อผิดพลาด: ไม่สามารถอนุมัติได้');
         }
     };
@@ -85,7 +85,7 @@ export default function TransferApprovalList({ userId, userRole }: TransferAppro
             if (!res.ok) throw new Error('Failed to reject');
 
             await fetchTransfers();
-        } catch (err) {
+        } catch {
             alert('เกิดข้อผิดพลาด: ไม่สามารถปฏิเสธได้');
         }
     };

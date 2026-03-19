@@ -92,7 +92,7 @@ export default function HealthPage() {
             } else {
                 throw new Error('Failed to fetch health status');
             }
-        } catch (error) {
+        } catch {
             toast.error('Failed to fetch health status');
             // Try basic health endpoint
             try {

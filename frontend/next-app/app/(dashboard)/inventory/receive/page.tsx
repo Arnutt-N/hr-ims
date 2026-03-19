@@ -1,7 +1,7 @@
 import { Suspense } from 'react';
 import prisma from '@/lib/prisma';
 import GoodsReceiptForm from './GoodsReceiptForm';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { Card, CardHeader, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 
 export const metadata = {

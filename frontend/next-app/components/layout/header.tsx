@@ -1,7 +1,6 @@
 ﻿import { auth } from '@/auth';
-import { Bell, Search, ChevronDown, User as UserIcon } from 'lucide-react';
+import { Search, ChevronDown, User as UserIcon } from 'lucide-react';
 import { NotificationBell } from './notification-bell';
-import { redirect } from 'next/navigation';
 import { formatThaiDate } from '@/lib/date-utils';
 import { APPROVER_ROLES, sessionHasAnyRole } from '@/lib/auth-guards';
 

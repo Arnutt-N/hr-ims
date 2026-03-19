@@ -90,7 +90,7 @@ export async function getStockHistory(itemId: number) {
             orderBy: { createdAt: 'desc' }
         });
         return history;
-    } catch (error) {
+    } catch {
         return [];
     }
 }

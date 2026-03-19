@@ -1,9 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import { getPermissions, updatePermission } from '@/lib/actions/permissions';
-import { Button } from '@/components/ui/button';
 import {
     Table,
     TableBody,
@@ -14,9 +12,8 @@ import {
 } from '@/components/ui/table';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Loader2, Save, Shield } from 'lucide-react';
+import { Loader2, Shield } from 'lucide-react';
 import { toast } from 'sonner';
-import { Badge } from '@/components/ui/badge';
 
 const ROLES = ['user', 'technician', 'approver', 'auditor', 'admin']; // Superadmin always has full access
 const MENUS = [
@@ -38,10 +35,8 @@ const MENUS = [
 ];
 
 export function PermissionsClient() {
-    const router = useRouter();
     const [permissions, setPermissions] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
-    const [updating, setUpdating] = useState(false);
 
     useEffect(() => {
         loadPermissions();

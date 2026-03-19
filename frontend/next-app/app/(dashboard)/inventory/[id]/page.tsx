@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Package, ArrowLeft, Edit, TrendingUp, Settings } from 'lucide-react';
+import { Package, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import StockLevelsTab from './StockLevelsTab';
 import StockHistoryTab from './StockHistoryTab';

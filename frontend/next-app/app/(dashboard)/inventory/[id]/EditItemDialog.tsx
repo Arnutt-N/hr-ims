@@ -8,10 +8,10 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Loader2 } from 'lucide-react';
-import { useRouter } from 'next/navigation';
 import { updateInventoryItem } from '@/lib/actions/inventory';
 import { getCategories } from '@/lib/actions/categories';
 import { toast } from 'sonner';
+import { useRouter } from 'next/navigation';
 
 interface EditItemDialogProps {
     open: boolean;
@@ -30,9 +30,9 @@ interface EditItemDialogProps {
 }
 
 export default function EditItemDialog({ open, onOpenChange, item }: EditItemDialogProps) {
-    const router = useRouter();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [categories, setCategories] = useState<any[]>([]);
+    const router = useRouter();
 
     const [formData, setFormData] = useState({
         name: item.name,
@@ -89,10 +89,11 @@ export default function EditItemDialog({ open, onOpenChange, item }: EditItemDia
             if (result.success) {
                 toast.success('Item updated successfully');
                 onOpenChange(false);
+                router.refresh();
             } else {
                 toast.error(result.message || 'Failed to update item');
             }
-        } catch (error: any) {
+        } catch {
             toast.error('An error occurred');
         } finally {
             setIsSubmitting(false);

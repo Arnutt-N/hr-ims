@@ -1,11 +1,5 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
-import { Building2, MapPin, Trash2 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { getDepartmentMappings, getUniqueDepartments, deleteDepartmentMapping } from '@/lib/actions/departments';
+import { getDepartmentMappings, getUniqueDepartments } from '@/lib/actions/departments';
 import AddMappingDialog from './AddMappingDialog';
-import DeleteMappingButton from './DeleteMappingButton';
 import MappingClient from './mapping-client';
 
 // Fetch warehouses directly from API for the dropdown
@@ -14,7 +8,7 @@ async function getWarehouses() {
         const res = await fetch('http://localhost:3001/api/warehouses', { cache: 'no-store' });
         if (!res.ok) return [];
         return await res.json();
-    } catch (e) {
+    } catch {
         return [];
     }
 }

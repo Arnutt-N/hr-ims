@@ -114,7 +114,7 @@ export async function markAsRead(id: number) {
         });
         revalidatePath('/dashboard');
         return { success: true };
-    } catch (error) {
+    } catch {
         return { error: "Failed to update" };
     }
 }
@@ -133,7 +133,7 @@ export async function markAllAsRead() {
         });
         revalidatePath('/dashboard');
         return { success: true };
-    } catch (error) {
+    } catch {
         return { error: "Failed to update all" };
     }
 }

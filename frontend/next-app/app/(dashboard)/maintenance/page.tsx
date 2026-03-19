@@ -5,7 +5,7 @@ import { getMaintenanceItems, updateMaintenanceStatus } from '@/lib/actions/main
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { Wrench, CheckCircle, Package } from 'lucide-react';
+import { CheckCircle } from 'lucide-react';
 import {
     Dialog,
     DialogContent,

@@ -26,7 +26,7 @@ export async function getReportStats() {
         });
 
         // 3. Department Stats
-        const departmentStats = await prisma.user.groupBy({
+        await prisma.user.groupBy({
             by: ['department'],
             _count: { id: true },
             where: {

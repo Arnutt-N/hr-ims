@@ -12,7 +12,7 @@ import {
     DialogTrigger,
 } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
-import { Upload, FileDown, AlertCircle, CheckCircle, Loader2 } from 'lucide-react';
+import { Upload, AlertCircle, CheckCircle, Loader2 } from 'lucide-react';
 import { importInventoryItems } from '@/lib/actions/inventory';
 import { toast } from 'sonner';
 
@@ -83,7 +83,7 @@ export default function ImportItemsDialog() {
             } else {
                 toast.error(result.error || 'Import failed.');
             }
-        } catch (error) {
+        } catch {
             toast.error('Failed to parse CSV.');
         } finally {
             setIsLoading(false);

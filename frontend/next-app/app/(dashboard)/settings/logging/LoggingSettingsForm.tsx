@@ -24,7 +24,6 @@ type LoggingSettingsFormData = z.infer<typeof loggingSettingsSchema>;
 export function LoggingSettingsForm() {
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
-    const [logs, setLogs] = useState<string[]>([]);
 
     const {
         register,
@@ -91,7 +90,7 @@ export function LoggingSettingsForm() {
         try {
             // TODO: Implement API endpoint to fetch logs
             toast.info("Log viewer coming soon");
-        } catch (error) {
+        } catch {
             toast.error("Failed to fetch logs");
         }
     };

@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Warehouse, TrendingUp, Settings, Plus, Minus } from 'lucide-react';
+import { Warehouse, TrendingUp, Settings } from 'lucide-react';
 import AdjustStockDialog from './AdjustStockDialog';
 import SetLimitsDialog from './SetLimitsDialog';
 

@@ -35,7 +35,6 @@ export default function EmailSettingsPage() {
         emailFromAddress: 'noreply@hr-ims.local',
     });
 
-    const [loading, setLoading] = useState(false);
     const [saving, setSaving] = useState(false);
     const [testing, setTesting] = useState(false);
     const [sending, setSending] = useState(false);
@@ -60,7 +59,7 @@ export default function EmailSettingsPage() {
                 emailSmtpPass: data.emailSmtpPass ?? '',
                 emailFromAddress: data.emailFromAddress ?? 'noreply@hr-ims.local',
             });
-        } catch (error) {
+        } catch {
             toast.error('Failed to load settings');
         }
     };
@@ -91,7 +90,7 @@ export default function EmailSettingsPage() {
             } else {
                 throw new Error('Failed to save settings');
             }
-        } catch (error) {
+        } catch {
             toast.error('Failed to save settings');
         } finally {
             setSaving(false);
@@ -111,7 +110,7 @@ export default function EmailSettingsPage() {
             } else {
                 toast.error(data.message);
             }
-        } catch (error) {
+        } catch {
             toast.error('Failed to test connection');
         } finally {
             setTesting(false);
@@ -138,7 +137,7 @@ export default function EmailSettingsPage() {
             } else {
                 throw new Error('Failed to send test email');
             }
-        } catch (error) {
+        } catch {
             toast.error('Failed to send test email');
         } finally {
             setTesting(false);
@@ -159,8 +158,9 @@ export default function EmailSettingsPage() {
                 const data = await res.json();
                 throw new Error(data.error || 'Failed to send verification email');
             }
-        } catch (error: any) {
-            toast.error(error.message || 'Failed to send verification email');
+        } catch (error) {
+            const message = error instanceof Error ? error.message : 'Failed to send verification email';
+            toast.error(message);
         } finally {
             setSending(false);
         }

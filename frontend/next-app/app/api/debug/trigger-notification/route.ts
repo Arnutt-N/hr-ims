@@ -9,7 +9,7 @@ export async function GET() {
     try {
         const result = await checkLowStock();
         return NextResponse.json(result);
-    } catch (error) {
+    } catch {
         return NextResponse.json({ error: 'Failed to trigger' }, { status: 500 });
     }
 }

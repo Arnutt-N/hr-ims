@@ -1,23 +1,19 @@
 import Pagination from '@/components/ui/pagination';
-import Search from '@/components/ui/search';
 import {
     Table,
     TableBody,
-    TableCell,
     TableHead,
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
 import { fetchInventoryItems, fetchInventoryPages } from '@/lib/actions/inventory';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { PlusCircle, MoreHorizontal, LayoutGrid, List, Layers, Package, ClipboardList } from 'lucide-react';
+import { PlusCircle, LayoutGrid, List, Layers, Package, ClipboardList } from 'lucide-react';
 import Link from 'next/link';
 import { InventoryCard } from '@/components/ui/inventory-card';
-import { cn } from '@/lib/utils'; // You might need to make sure this exists or use standard class string
+import { cn } from '@/lib/utils';
 
 import InventoryRemoteControls from '@/components/inventory/InventoryRemoteControls';
-import InventoryItemActions from './InventoryItemActions';
 import InventoryTableRow from './InventoryTableRow';
 
 import ImportItemsDialog from './ImportDialog';

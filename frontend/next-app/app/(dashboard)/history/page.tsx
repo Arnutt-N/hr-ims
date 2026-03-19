@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { getHistory } from '@/lib/actions/history';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -26,26 +26,27 @@ export default function HistoryPage() {
         endDate: ''
     });
 
-    useEffect(() => {
-        loadHistory();
-    }, []);
-
-    const loadHistory = async () => {
+    const loadHistory = useCallback(async (queryFilters = filters) => {
         setLoading(true);
-        const res = await getHistory(filters);
+        const res = await getHistory(queryFilters);
         if (res.success) {
             setHistory(res.history || []);
         }
         setLoading(false);
-    };
+    }, [filters]);
+
+    useEffect(() => {
+        loadHistory();
+    }, [loadHistory]);
 
     const handleSearch = () => {
         loadHistory();
     };
 
     const handleReset = () => {
-        setFilters({ query: '', action: 'all', startDate: '', endDate: '' });
-        setTimeout(() => loadHistory(), 100);
+        const nextFilters = { query: '', action: 'all', startDate: '', endDate: '' };
+        setFilters(nextFilters);
+        loadHistory(nextFilters);
     };
 
     const actionColors: Record<string, string> = {

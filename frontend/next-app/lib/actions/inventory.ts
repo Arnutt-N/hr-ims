@@ -121,7 +121,7 @@ export async function deleteInventoryItem(id: number) {
         });
         revalidatePath('/inventory');
         return { message: 'Deleted Inventory Item.' };
-    } catch (error) {
+    } catch {
         return { message: 'Database Error: Failed to Delete Inventory Item.' };
     }
 }
@@ -179,8 +179,6 @@ export async function importInventoryItems(items: any[]) {
 
     try {
         let successCount = 0;
-        let errors: string[] = [];
-
         // Determine a default warehouse if not provided (e.g. first one)
         // For now, we assume if warehouseId is passed in item, use it.
         // If not, we might create item without stock levels (global).

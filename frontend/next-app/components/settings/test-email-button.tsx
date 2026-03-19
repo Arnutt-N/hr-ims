@@ -21,7 +21,7 @@ export function TestEmailButton() {
             } else {
                 toast.error(res.error || 'Failed to send email', { id: toastId });
             }
-        } catch (error) {
+        } catch {
             toast.error('An unexpected error occurred', { id: toastId });
         } finally {
             setLoading(false);
