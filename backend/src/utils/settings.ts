@@ -84,6 +84,29 @@ export function clearSettingsCache(): void {
     cacheTimestamp = 0;
 }
 
+export function validateSettings(
+    settings: Partial<Omit<Settings, 'id' | 'createdAt' | 'updatedAt'>>
+): { valid: boolean; errors: string[] } {
+    const errors: string[] = [];
+
+    if (settings.orgName !== undefined && !settings.orgName.trim()) {
+        errors.push('orgName is required');
+    }
+
+    if (settings.borrowLimit !== undefined && settings.borrowLimit < 0) {
+        errors.push('borrowLimit must be positive');
+    }
+
+    if (settings.rateLimitWindowMs !== undefined && settings.rateLimitWindowMs <= 0) {
+        errors.push('rateLimitWindowMs must be greater than 0');
+    }
+
+    return {
+        valid: errors.length === 0,
+        errors,
+    };
+}
+
 // ==================== Helper Functions สำหรับแต่ละโมดูล ====================
 
 /**

@@ -14,6 +14,11 @@ import { SecurityHttpClient, SecurityTestResult } from '../utils/http-client';
 const { targets, endpoints, severity, internalApiKey } = securityConfig;
 const client = new SecurityHttpClient(targets.backend);
 
+const getCookies = (header: string | string[] | undefined): string[] => {
+    if (!header) return [];
+    return Array.isArray(header) ? header : [header];
+};
+
 describe('🔒 Authentication Security - Session Security', () => {
     const loginEndpoint = endpoints.auth.login;
     const logoutEndpoint = endpoints.auth.logout;
@@ -30,7 +35,7 @@ describe('🔒 Authentication Security - Session Security', () => {
                     password: securityConfig.testUsers.admin.password,
                 });
 
-            const cookies = response.headers['set-cookie'] || [];
+            const cookies = getCookies(response.headers['set-cookie']);
             const sessionCookies = cookies.filter((c: string) =>
                 c.toLowerCase().includes('session') ||
                 c.toLowerCase().includes('token') ||
@@ -70,7 +75,7 @@ describe('🔒 Authentication Security - Session Security', () => {
                     password: securityConfig.testUsers.admin.password,
                 });
 
-            const cookies = response.headers['set-cookie'] || [];
+            const cookies = getCookies(response.headers['set-cookie']);
             const sessionCookies = cookies.filter((c: string) =>
                 c.toLowerCase().includes('session') ||
                 c.toLowerCase().includes('token')
@@ -106,7 +111,7 @@ describe('🔒 Authentication Security - Session Security', () => {
                     password: securityConfig.testUsers.admin.password,
                 });
 
-            const cookies = response.headers['set-cookie'] || [];
+            const cookies = getCookies(response.headers['set-cookie']);
             const sessionCookies = cookies.filter((c: string) =>
                 c.toLowerCase().includes('session') ||
                 c.toLowerCase().includes('token')
@@ -151,7 +156,7 @@ describe('🔒 Authentication Security - Session Security', () => {
             const initialResponse = await request(targets.backend)
                 .get('/api/health');
 
-            const initialCookies = initialResponse.headers['set-cookie'] || [];
+            const initialCookies = getCookies(initialResponse.headers['set-cookie']);
             const initialSession = initialCookies.find((c: string) =>
                 c.toLowerCase().includes('session')
             );
@@ -165,7 +170,7 @@ describe('🔒 Authentication Security - Session Security', () => {
                     password: securityConfig.testUsers.admin.password,
                 });
 
-            const postLoginCookies = loginResponse.headers['set-cookie'] || [];
+            const postLoginCookies = getCookies(loginResponse.headers['set-cookie']);
             const postLoginSession = postLoginCookies.find((c: string) =>
                 c.toLowerCase().includes('session')
             );
@@ -199,7 +204,7 @@ describe('🔒 Authentication Security - Session Security', () => {
                     password: securityConfig.testUsers.admin.password,
                 });
 
-            const responseCookies = response.headers['set-cookie'] || [];
+            const responseCookies = getCookies(response.headers['set-cookie']);
             const sessionCookie = responseCookies.find((c: string) =>
                 c.toLowerCase().includes('session')
             );
@@ -234,7 +239,7 @@ describe('🔒 Authentication Security - Session Security', () => {
                     password: securityConfig.testUsers.admin.password,
                 });
 
-            const cookies = loginResponse.headers['set-cookie'] || [];
+            const cookies = getCookies(loginResponse.headers['set-cookie']);
             const authToken = loginResponse.body?.token;
 
             // Step 2: Logout
@@ -277,7 +282,7 @@ describe('🔒 Authentication Security - Session Security', () => {
                     password: securityConfig.testUsers.admin.password,
                 });
 
-            const cookies = response.headers['set-cookie'] || [];
+            const cookies = getCookies(response.headers['set-cookie']);
 
             // Check cookie expiration
             let maxAgeSeconds = 0;
@@ -325,7 +330,7 @@ describe('🔒 Authentication Security - Session Security', () => {
                     password: securityConfig.testUsers.admin.password,
                 });
 
-            const cookies = loginResponse.headers['set-cookie'] || [];
+            const cookies = getCookies(loginResponse.headers['set-cookie']);
             const authToken = loginResponse.body?.token;
 
             // Try to use session from different IP
@@ -366,7 +371,7 @@ describe('🔒 Authentication Security - Session Security', () => {
                     password: securityConfig.testUsers.admin.password,
                 });
 
-            const cookies = loginResponse.headers['set-cookie'] || [];
+            const cookies = getCookies(loginResponse.headers['set-cookie']);
             const authToken = loginResponse.body?.token;
 
             // Try to use session with different User-Agent

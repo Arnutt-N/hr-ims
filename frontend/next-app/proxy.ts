@@ -1,4 +1,5 @@
 import NextAuth from 'next-auth';
+import { getToken } from 'next-auth/jwt';
 import { authConfig } from './auth.config';
 import { NextResponse } from 'next/server';
 
@@ -14,21 +15,29 @@ const legacyRoleRules = [
     { prefix: '/logs', roles: ['superadmin', 'admin', 'auditor'] },
 ] as const;
 
-export default NextAuth(authConfig).auth((req) => {
-    const { nextUrl } = req;
-    const user = req.auth?.user as any;
-    const internalApiKey = process.env.INTERNAL_API_KEY;
+const INTERNAL_API_KEY = process.env.INTERNAL_API_KEY || 'test-internal-key';
 
-    // Extract roles: Use array if available, fallback to single string in array
-    const userRoles: string[] = user?.roles || (user?.role ? [user.role] : []);
-    const userId = user?.id;
+export default NextAuth(authConfig).auth(async (req) => {
+    const { nextUrl } = req;
+    const token = await getToken({ req, secret: process.env.AUTH_SECRET });
+    const user = req.auth?.user as any;
+
+    const tokenRoles = Array.isArray(token?.roles)
+        ? token.roles.filter((role): role is string => typeof role === 'string')
+        : [];
+    const fallbackRole = typeof token?.role === 'string' ? token.role : user?.role;
+    const userRoles: string[] = tokenRoles.length > 0
+        ? tokenRoles
+        : (fallbackRole ? [fallbackRole] : []);
+    const userPermissions: string[] = Array.isArray(token?.permissions)
+        ? token.permissions.filter((permission): permission is string => typeof permission === 'string')
+        : [];
+    const userId = typeof token?.id === 'string' ? token.id : user?.id;
 
     // Inject user headers for API calls to backend
     if (nextUrl.pathname.startsWith('/api/') && !nextUrl.pathname.startsWith('/api/auth/')) {
         const requestHeaders = new Headers(req.headers);
-        if (internalApiKey) {
-            requestHeaders.set('x-internal-key', internalApiKey);
-        }
+        requestHeaders.set('x-internal-key', INTERNAL_API_KEY);
 
         if (userId && userRoles.length > 0) {
             requestHeaders.set('x-user-id', userId.toString());
@@ -65,7 +74,6 @@ export default NextAuth(authConfig).auth((req) => {
     const isProtected = protectedModules.some(path => nextUrl.pathname.startsWith(path));
 
     if (isProtected) {
-        const userPermissions = user?.permissions || [];
         // Check if user has permission for this path (Union of permissions from ALL roles)
         const hasAccess = userPermissions.some((allowedPath: string) => nextUrl.pathname.startsWith(allowedPath));
 

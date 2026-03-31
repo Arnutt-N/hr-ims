@@ -13,7 +13,8 @@ describe('Auth middleware', () => {
         const req: any = {
             headers: {
                 'x-user-id': '123',
-                'x-user-role': 'admin, approver'
+                'x-user-role': 'admin, approver',
+                'x-internal-key': 'test-internal-key',
             }
         };
         const res = createRes();

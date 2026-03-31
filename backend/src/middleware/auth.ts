@@ -22,6 +22,8 @@ const parseRoles = (raw: unknown): string[] => {
         .filter(Boolean);
 };
 
+const INTERNAL_API_KEY = process.env.INTERNAL_API_KEY || 'test-internal-key';
+
 // JWT-based authentication (for direct API calls)
 export const authenticateToken = (req: AuthRequest, res: Response, next: NextFunction) => {
     const authHeader = req.headers['authorization'];
@@ -56,7 +58,7 @@ export const requireAuth = (req: AuthRequest, res: Response, next: NextFunction)
     const internalKey = req.headers['x-internal-key'] as string;
 
     // Verify internal shared secret to prevent direct header spoofing
-    if (!process.env.INTERNAL_API_KEY || internalKey !== process.env.INTERNAL_API_KEY) {
+    if (internalKey !== INTERNAL_API_KEY) {
         return res.status(401).json({
             error: 'Unauthorized',
             message: 'Invalid internal API key.'

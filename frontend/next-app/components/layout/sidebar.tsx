@@ -28,7 +28,6 @@ import {
     Activity,
     FolderOpen,
     Shield,
-    Gauge,
     Mail,
     Database,
     Lock,
@@ -45,7 +44,7 @@ interface SidebarItem {
     label: string;
     count?: number;
     hasSubMenu?: boolean;
-    submenu?: { href: string; label: string; icon: any }[];
+    submenu?: { href: string; label: string; icon: any; allowedRoles?: string[] }[];
     adminOnly?: boolean;
     allowedRoles?: any[]; // Loose type to avoid import issues
 }
@@ -88,23 +87,37 @@ const sidebarItems: SidebarItem[] = [
             { href: '/settings/departments', label: 'Dept Mapping', icon: MapPin },
 
             // เมนูใหม่ - System Configuration (Superadmin only)
-            { href: '/settings/system', label: 'System Config', icon: Settings },
-            { href: '/settings/security', label: 'Security', icon: Shield },
-            { href: '/settings/rate-limit', label: 'Rate Limiting', icon: Gauge },
-            { href: '/settings/logging', label: 'Logging', icon: FileCode },
-            { href: '/settings/backup', label: 'Backup & Restore', icon: Database },
-            { href: '/settings/password-policy', label: 'Password Policy', icon: Lock },
+            { href: '/settings/system', label: 'System Config', icon: Settings, allowedRoles: ['superadmin'] },
+            { href: '/settings/permissions', label: 'Permissions', icon: Shield },
+            { href: '/settings/sessions', label: 'Active Sessions', icon: Lock },
+            { href: '/settings/logging', label: 'Logging', icon: FileCode, allowedRoles: ['superadmin'] },
+            { href: '/settings/backup', label: 'Backup & Restore', icon: Database, allowedRoles: ['superadmin'] },
             { href: '/settings/email', label: 'Email Config', icon: Mail },
             { href: '/settings/health', label: 'System Health', icon: HeartPulse },
         ]
     },
 ];
 
+function isHrefActive(href: string, pathname: string, searchParams: ReturnType<typeof useSearchParams>) {
+    const [targetPath, targetQuery] = href.split('?');
+    if (pathname !== targetPath) return false;
+
+    if (!targetQuery) return true;
+
+    const expectedParams = new URLSearchParams(targetQuery);
+    let matches = true;
+    expectedParams.forEach((value, key) => {
+        if (searchParams.get(key) !== value) matches = false;
+    });
+
+    return matches;
+}
+
 export function Sidebar({ user }: { user?: any }) {
     const pathname = usePathname();
     const searchParams = useSearchParams();
     const [isOpen, setIsOpen] = useState(false); // Mobile state
-    const [isInventoryOpen, setIsInventoryOpen] = useState(false);
+    const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({});
 
     // Close sidebar on route change (mobile)
     useEffect(() => {
@@ -187,12 +200,23 @@ export function Sidebar({ user }: { user?: any }) {
                         }
 
                         if (item.hasSubMenu) {
-                            const isActiveParent = pathname.startsWith('/inventory');
+                            const isActiveParent = item.href
+                                ? pathname === item.href || pathname.startsWith(`${item.href}/`)
+                                : false;
+                            const visibleSubmenuItems = item.submenu?.filter((sub) => {
+                                if (!sub.allowedRoles) return true;
+                                return !!user?.role && sub.allowedRoles.includes(user.role);
+                            }) ?? [];
+                            const hasActiveSubmenu = visibleSubmenuItems.some((sub) => isHrefActive(sub.href, pathname, searchParams));
+                            const isSubMenuOpen = openMenus[item.label] ?? (isActiveParent || hasActiveSubmenu);
 
                             return (
                                 <div key={idx} className="mb-2">
                                     <button
-                                        onClick={() => setIsInventoryOpen(!isInventoryOpen)}
+                                        onClick={() => setOpenMenus((prev) => ({
+                                            ...prev,
+                                            [item.label]: !(prev[item.label] ?? (isActiveParent || hasActiveSubmenu)),
+                                        }))}
                                         className={cn(
                                             "w-full flex items-center justify-between p-3.5 rounded-xl transition-all duration-200 group cursor-pointer",
                                             isActiveParent ? "bg-white/10 text-white" : "text-slate-400 hover:bg-white/5 hover:text-white"
@@ -202,11 +226,11 @@ export function Sidebar({ user }: { user?: any }) {
                                             <item.icon size={20} className={isActiveParent ? "text-blue-400" : "text-slate-500 group-hover:text-blue-300"} />
                                             <span className="font-medium text-sm">{item.label}</span>
                                         </div>
-                                        {isInventoryOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                                        {isSubMenuOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
                                     </button>
 
                                     <AnimatePresence>
-                                        {isInventoryOpen && (
+                                        {isSubMenuOpen && (
                                             <motion.div
                                                 initial={{ height: 0, opacity: 0 }}
                                                 animate={{ height: 'auto', opacity: 1 }}
@@ -214,26 +238,8 @@ export function Sidebar({ user }: { user?: any }) {
                                                 className="overflow-hidden"
                                             >
                                                 <div className="pl-4 mt-1 space-y-1">
-                                                    {item.submenu?.map((sub, subIdx) => {
-                                                        // Extract query params from href
-                                                        const urlParts = sub.href.split('?');
-                                                        const subPath = urlParts[0];
-                                                        const subQuery = urlParts[1];
-
-                                                        // Check if pathname matches
-                                                        const pathMatches = pathname === subPath;
-
-                                                        // Check if query params match strictly
-                                                        let queryMatches = false;
-                                                        if (subQuery) {
-                                                            const [key, value] = subQuery.split('=');
-                                                            queryMatches = searchParams.get(key) === value;
-                                                        } else {
-                                                            // If no subQuery (e.g. "All Items"), only match if there's no "type" param in URL
-                                                            queryMatches = !searchParams.has('type');
-                                                        }
-
-                                                        const isSubActive = pathMatches && queryMatches;
+                                                    {visibleSubmenuItems.map((sub, subIdx) => {
+                                                        const isSubActive = isHrefActive(sub.href, pathname, searchParams);
 
                                                         return (
                                                             <Link

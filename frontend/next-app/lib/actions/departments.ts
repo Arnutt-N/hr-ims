@@ -5,13 +5,14 @@ import { auth } from '@/auth';
 import { getSessionRoles, requireRole, ADMIN_ROLES } from '@/lib/auth-guards';
 
 const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:3001';
+const INTERNAL_API_KEY = process.env.INTERNAL_API_KEY || 'test-internal-key';
 
 function backendHeaders(session: { user: { id: string; role: string; roles?: string[] } }): Record<string, string> {
     const roles = getSessionRoles(session);
     return {
         'x-user-id': session.user.id,
         'x-user-role': roles.join(',') || session.user.role,
-        'x-internal-key': process.env.INTERNAL_API_KEY || '',
+        'x-internal-key': INTERNAL_API_KEY,
     };
 }
 

@@ -24,7 +24,7 @@ export interface SecurityTestResult {
             body?: any;
         };
         response?: {
-            status: number;
+            status?: number;
             headers?: Record<string, string>;
             body?: any;
             time?: number;
@@ -49,6 +49,16 @@ export interface VulnerabilityFinding {
     cwe?: string;
     owasp?: string;
 }
+
+type ResponseLike = Pick<AxiosResponse, 'headers'> & {
+    status?: number;
+    data?: any;
+    body?: any;
+    responseTime?: number;
+};
+
+const getResponseBody = (response: ResponseLike): any =>
+    response.data !== undefined ? response.data : response.body;
 
 // ============================================
 // Security HTTP Client
@@ -330,7 +340,7 @@ export const responseAnalysis = {
     /**
      * Check if response contains SQL error indicators
      */
-    hasSqlError(response: AxiosResponse): boolean {
+    hasSqlError(response: ResponseLike): boolean {
         const errorIndicators = [
             'sql syntax',
             'mysql_fetch',
@@ -345,9 +355,10 @@ export const responseAnalysis = {
             'quoted string not properly terminated',
         ];
 
-        const body = typeof response.data === 'string'
-            ? response.data.toLowerCase()
-            : JSON.stringify(response.data).toLowerCase();
+        const responseBody = getResponseBody(response);
+        const body = typeof responseBody === 'string'
+            ? responseBody.toLowerCase()
+            : JSON.stringify(responseBody).toLowerCase();
 
         return errorIndicators.some(indicator => body.includes(indicator.toLowerCase()));
     },
@@ -355,10 +366,11 @@ export const responseAnalysis = {
     /**
      * Check if response contains XSS payload (reflected)
      */
-    hasReflectedXss(response: AxiosResponse, payload: string): boolean {
-        const body = typeof response.data === 'string'
-            ? response.data
-            : JSON.stringify(response.data);
+    hasReflectedXss(response: ResponseLike, payload: string): boolean {
+        const responseBody = getResponseBody(response);
+        const body = typeof responseBody === 'string'
+            ? responseBody
+            : JSON.stringify(responseBody);
 
         return body.includes(payload);
     },
@@ -366,10 +378,11 @@ export const responseAnalysis = {
     /**
      * Check if response contains sensitive data
      */
-    hasSensitiveData(response: AxiosResponse): { found: boolean; types: string[] } {
-        const body = typeof response.data === 'string'
-            ? response.data
-            : JSON.stringify(response.data);
+    hasSensitiveData(response: ResponseLike): { found: boolean; types: string[] } {
+        const responseBody = getResponseBody(response);
+        const body = typeof responseBody === 'string'
+            ? responseBody
+            : JSON.stringify(responseBody);
 
         const types: string[] = [];
 
@@ -404,7 +417,7 @@ export const responseAnalysis = {
     /**
      * Check security headers
      */
-    checkSecurityHeaders(response: AxiosResponse): {
+    checkSecurityHeaders(response: ResponseLike): {
         missing: string[];
         insecure: string[];
     } {
@@ -438,8 +451,8 @@ export const responseAnalysis = {
     /**
      * Measure response time
      */
-    getResponseTime(response: AxiosResponse): number {
-        return (response as any).responseTime || 0;
+    getResponseTime(response: ResponseLike): number {
+        return response.responseTime || 0;
     },
 };
 

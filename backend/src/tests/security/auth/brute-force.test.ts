@@ -246,7 +246,7 @@ describe('🔒 Authentication Security - Brute Force Protection', () => {
     // ============================================
     describe('Username Enumeration Prevention', () => {
         it('ควรให้ response เหมือนกันสำหรับ user ที่มีและไม่มีในระบบ', async () => {
-            const existingUser = 'admin@test.com';
+            const existingUser = securityConfig.testUsers.admin.email;
             const nonExistingUser = 'nonexistent_user_12345@test.com';
             const wrongPassword = 'WrongPassword123!';
 
@@ -299,7 +299,7 @@ describe('🔒 Authentication Security - Brute Force Protection', () => {
                 let start = Date.now();
                 await request(targets.backend)
                     .post(loginEndpoint)
-                    .send({ email: 'admin@test.com', password: 'Wrong123!' });
+                    .send({ email: securityConfig.testUsers.admin.email, password: 'Wrong123!' });
                 existingUserTimes.push(Date.now() - start);
 
                 // Test non-existing user

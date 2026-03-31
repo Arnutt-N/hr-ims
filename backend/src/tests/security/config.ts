@@ -15,22 +15,22 @@ export const securityConfig = {
     // Test credentials (สำหรับ test environment เท่านั้น)
     testUsers: {
         superadmin: {
-            email: 'superadmin@test.com',
-            password: 'Test@123456',
+            email: 'superadmin@demo.com',
+            password: 'demo123',
             role: 'superadmin',
-            id: 1,
+            id: 3,
         },
         admin: {
-            email: 'admin@test.com',
-            password: 'Test@123456',
+            email: 'admin@demo.com',
+            password: 'demo123',
             role: 'admin',
-            id: 2,
+            id: 4,
         },
         user: {
-            email: 'user@test.com',
-            password: 'Test@123456',
+            email: 'user@demo.com',
+            password: 'demo123',
             role: 'user',
-            id: 3,
+            id: 8,
         },
         attacker: {
             email: 'attacker@evil.com',

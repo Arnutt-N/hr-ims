@@ -179,6 +179,7 @@ export async function isPasswordExpired(
 
     const expiryDate = new Date(passwordUpdatedAt);
     expiryDate.setDate(expiryDate.getDate() + settings.expiryDays);
+    expiryDate.setHours(23, 59, 59, 999);
 
     return new Date() > expiryDate;
 }

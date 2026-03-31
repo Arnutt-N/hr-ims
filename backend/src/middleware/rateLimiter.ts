@@ -1,4 +1,4 @@
-import rateLimit from 'express-rate-limit';
+import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 import { Request, Response, NextFunction } from 'express';
 import { getRateLimitSettings, isFeatureEnabled } from '../utils/settings';
 
@@ -38,7 +38,7 @@ export async function createApiLimiter() {
         },
         keyGenerator: (req: Request) => {
             // ใช้ IP หรือ User ID (ถ้ามี)
-            return (req as any).user?.id?.toString() || req.ip || 'unknown';
+            return (req as any).user?.id?.toString() || ipKeyGenerator(req.ip || '');
         }
     });
 }
@@ -68,7 +68,7 @@ export async function createAuthLimiter() {
             });
         },
         keyGenerator: (req: Request) => {
-            return req.ip || 'unknown';
+            return ipKeyGenerator(req.ip || '');
         }
     });
 }
@@ -117,6 +117,22 @@ export function dynamicRateLimit() {
         }
 
         return apiLimiterInstance(req, res, next);
+    };
+}
+
+export function dynamicAuthRateLimit() {
+    return async (req: Request, res: Response, next: NextFunction) => {
+        const enabled = await isFeatureEnabled('rateLimit');
+
+        if (!enabled) {
+            return next();
+        }
+
+        if (!authLimiterInstance) {
+            authLimiterInstance = await createAuthLimiter();
+        }
+
+        return authLimiterInstance(req, res, next);
     };
 }
 
