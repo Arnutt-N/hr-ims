@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -26,6 +27,7 @@ interface VerificationStatus {
 }
 
 export default function EmailSettingsPage() {
+    const router = useRouter();
     const [settings, setSettings] = useState<EmailSettings>({
         emailVerificationEnabled: false,
         emailSmtpHost: '',
@@ -41,11 +43,30 @@ export default function EmailSettingsPage() {
     const [testEmail, setTestEmail] = useState('');
     const [connectionStatus, setConnectionStatus] = useState<{ success: boolean; message: string } | null>(null);
     const [verificationStatus, setVerificationStatus] = useState<VerificationStatus | null>(null);
+    const [accessChecked, setAccessChecked] = useState(false);
 
     useEffect(() => {
-        fetchSettings();
-        fetchVerificationStatus();
-    }, []);
+        const bootstrap = async () => {
+            try {
+                const sessionRes = await fetch('/api/auth/session');
+                const session = await sessionRes.json();
+                const role = session?.user?.role;
+
+                if (role !== 'superadmin') {
+                    router.replace('/dashboard');
+                    return;
+                }
+
+                await Promise.all([fetchSettings(), fetchVerificationStatus()]);
+                setAccessChecked(true);
+            } catch {
+                toast.error('Failed to verify access');
+                router.replace('/dashboard');
+            }
+        };
+
+        void bootstrap();
+    }, [router]);
 
     const fetchSettings = async () => {
         try {
@@ -77,6 +98,7 @@ export default function EmailSettingsPage() {
     };
 
     const handleSave = async () => {
+        if (!accessChecked) return;
         setSaving(true);
         try {
             const res = await fetch('/api/settings', {
@@ -98,6 +120,7 @@ export default function EmailSettingsPage() {
     };
 
     const handleTestConnection = async () => {
+        if (!accessChecked) return;
         setTesting(true);
         setConnectionStatus(null);
         try {
@@ -118,6 +141,7 @@ export default function EmailSettingsPage() {
     };
 
     const handleSendTestEmail = async () => {
+        if (!accessChecked) return;
         if (!testEmail) {
             toast.error('Please enter an email address');
             return;
@@ -145,6 +169,7 @@ export default function EmailSettingsPage() {
     };
 
     const handleSendVerification = async () => {
+        if (!accessChecked) return;
         setSending(true);
         try {
             const res = await fetch('/api/email/send-verification', {
@@ -165,6 +190,10 @@ export default function EmailSettingsPage() {
             setSending(false);
         }
     };
+
+    if (!accessChecked) {
+        return <div className="p-8 text-center animate-pulse">Checking access...</div>;
+    }
 
     return (
         <div className="space-y-6">

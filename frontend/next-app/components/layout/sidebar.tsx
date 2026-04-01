@@ -92,7 +92,7 @@ const sidebarItems: SidebarItem[] = [
             { href: '/settings/sessions', label: 'Active Sessions', icon: Lock },
             { href: '/settings/logging', label: 'Logging', icon: FileCode, allowedRoles: ['superadmin'] },
             { href: '/settings/backup', label: 'Backup & Restore', icon: Database, allowedRoles: ['superadmin'] },
-            { href: '/settings/email', label: 'Email Config', icon: Mail },
+            { href: '/settings/email', label: 'Email Config', icon: Mail, allowedRoles: ['superadmin'] },
             { href: '/settings/health', label: 'System Health', icon: HeartPulse },
         ]
     },

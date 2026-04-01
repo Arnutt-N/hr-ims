@@ -17,6 +17,7 @@ interface InventoryItem {
 }
 
 import { addToCart } from '@/lib/actions/cart';
+import { getSafeImageSrc } from '@/lib/safe-image';
 import { toast } from 'sonner';
 import { useState } from 'react';
 
@@ -31,6 +32,7 @@ export function InventoryCard({ item, onAction }: InventoryCardProps) {
     const [loading, setLoading] = useState(false);
     const isAvailable = item.status === 'available' || item.stock > 0;
     const isConsumable = item.type === 'consumable';
+    const imageSrc = getSafeImageSrc(item.image);
 
     const handleAction = async () => {
         if (!isAvailable) return;
@@ -59,8 +61,8 @@ export function InventoryCard({ item, onAction }: InventoryCardProps) {
                 {/* Image Section */}
                 <Link href={`/inventory/${item.id}`}>
                     <div className="h-48 bg-slate-50/50 flex items-center justify-center relative overflow-hidden group-hover:bg-slate-100/50 transition-colors cursor-pointer">
-                        {item.image ? (
-                            <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
+                        {imageSrc ? (
+                            <img src={imageSrc} alt={item.name} className="w-full h-full object-cover" />
                         ) : (
                             <Package size={64} className="text-slate-200 group-hover:scale-110 transition-transform duration-500" />
                         )}

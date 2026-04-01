@@ -12,6 +12,7 @@ import StockLevelsTab from './StockLevelsTab';
 import StockHistoryTab from './StockHistoryTab';
 import ItemHeaderActions from './ItemHeaderActions';
 import Image from 'next/image';
+import { getSafeImageSrc } from '@/lib/safe-image';
 
 export const metadata = {
     title: 'Item Details | HR-IMS',
@@ -32,6 +33,7 @@ async function ItemDetailData({ id }: { id: number }) {
     }
 
     const totalStock = item.stockLevels.reduce((sum, level) => sum + level.quantity, 0);
+    const imageSrc = getSafeImageSrc(item.image);
 
     return (
         <div className="space-y-6">
@@ -40,9 +42,9 @@ async function ItemDetailData({ id }: { id: number }) {
                 <CardHeader className="pb-3">
                     <div className="flex items-start justify-between">
                         <div className="flex gap-4">
-                            {item.image ? (
+                            {imageSrc ? (
                                 <div className="relative w-20 h-20 rounded-lg overflow-hidden border-2 border-slate-200">
-                                    <Image src={item.image} alt={item.name} fill className="object-cover" />
+                                    <Image src={imageSrc} alt={item.name} fill className="object-cover" />
                                 </div>
                             ) : (
                                 <div className="w-20 h-20 bg-gradient-to-br from-indigo-50 to-purple-50 rounded-lg flex items-center justify-center border-2 border-slate-200">

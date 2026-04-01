@@ -34,6 +34,10 @@ function resolveStoragePath(storagePath: string): string {
     return path.isAbsolute(storagePath) ? storagePath : path.resolve(BACKEND_ROOT, storagePath);
 }
 
+async function ensureStoragePath(storagePath: string): Promise<void> {
+    await fs.mkdir(storagePath, { recursive: true });
+}
+
 function toPowerShellLiteral(value: string): string {
     return `'${value.replace(/'/g, "''")}'`;
 }
@@ -149,6 +153,7 @@ export async function cleanupOldBackups(): Promise<void> {
     const storagePath = resolveStoragePath(settings.storagePath);
 
     try {
+        await ensureStoragePath(storagePath);
         const files = await fs.readdir(storagePath);
         const backups = files
             .filter((file) => file.startsWith('backup-') && file.endsWith('.zip'))
@@ -186,6 +191,7 @@ export async function listBackups(): Promise<Array<{
     const storagePath = resolveStoragePath(settings.storagePath);
 
     try {
+        await ensureStoragePath(storagePath);
         const files = await fs.readdir(storagePath);
         const backups = files
             .filter((file) => file.startsWith('backup-') && file.endsWith('.zip'))
