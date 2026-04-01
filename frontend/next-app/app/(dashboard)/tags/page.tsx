@@ -2,11 +2,12 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { fetchInventoryItems } from '@/lib/actions/inventory';
+import { getSafeImageSrc } from '@/lib/safe-image';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { CheckCircle, QrCode, Printer, Download, Barcode, Layers } from 'lucide-react';
+import { CheckCircle, QrCode, Printer, Download, Barcode, Layers, Package } from 'lucide-react';
 import QRCode from 'react-qr-code';
 import JsBarcode from 'jsbarcode';
 import html2canvas from 'html2canvas';
@@ -20,6 +21,25 @@ import {
 
 type TemplateSize = 'small' | 'medium' | 'large';
 type TagType = 'qr' | 'barcode' | 'both';
+
+const SUSPICIOUS_TAG_TEXT = /(\{\{.*\}\}|\$\{.*\}|<[^>]+>|javascript:|onerror=|onload=|<script|<\/script>|\\x00)/i;
+
+function getTagCodeValue(item: { id: number; serial?: string | null }) {
+    const serial = item.serial?.trim();
+    if (serial) return serial.slice(0, 64);
+    return `ASSET-${item.id}`;
+}
+
+function getTagDisplayName(item: { id: number; name?: string | null; serial?: string | null }) {
+    const rawName = item.name?.replace(/\s+/g, ' ').trim() || '';
+    if (!rawName) return item.serial?.trim() || `Asset #${item.id}`;
+
+    if (SUSPICIOUS_TAG_TEXT.test(rawName) || rawName.length > 80) {
+        return item.serial?.trim() || `Asset #${item.id}`;
+    }
+
+    return rawName;
+}
 
 // Barcode Generator Component
 const BarcodeGenerator = ({ value, width = 2 }: { value: string; width?: number }) => {
@@ -167,7 +187,8 @@ export default function TagGeneratorPage() {
             width: fit-content;
         `;
 
-        const value = item.serial || item.name;
+        const value = getTagCodeValue(item);
+        const displayName = getTagDisplayName(item);
 
         // Add QR code if needed
         if (tagType === 'qr' || tagType === 'both') {
@@ -222,12 +243,12 @@ export default function TagGeneratorPage() {
         // Add item info
         const nameDiv = document.createElement('div');
         nameDiv.style.cssText = `font-weight: bold; color: #1e293b; margin-bottom: 4px; font-size: ${config.fontSize};`;
-        nameDiv.textContent = item.name;
+        nameDiv.textContent = displayName;
         div.appendChild(nameDiv);
 
         const serialDiv = document.createElement('div');
         serialDiv.style.cssText = 'font-size: 12px; color: #64748b; font-family: monospace; background: #f1f5f9; display: inline-block; padding: 4px 8px; border-radius: 4px;';
-        serialDiv.textContent = item.serial || 'NO-SN';
+        serialDiv.textContent = value;
         div.appendChild(serialDiv);
 
         // Add footer
@@ -249,7 +270,8 @@ export default function TagGeneratorPage() {
 
     // Render a single tag for preview
     const renderTagPreview = (item: any) => {
-        const value = item.serial || item.name;
+        const value = getTagCodeValue(item);
+        const displayName = getTagDisplayName(item);
 
         return (
             <div className="bg-white p-6 rounded-lg shadow-lg border border-slate-200 text-center" style={{ padding: config.padding }}>
@@ -269,10 +291,10 @@ export default function TagGeneratorPage() {
                     </div>
                 )}
                 <div className="font-bold text-slate-800 mb-1" style={{ fontSize: config.fontSize }}>
-                    {item.name}
+                    {displayName}
                 </div>
                 <div className="text-xs text-slate-500 font-mono bg-slate-100 inline-block px-2 py-1 rounded">
-                    {item.serial || 'NO-SN'}
+                    {value}
                 </div>
                 <div className="mt-4 pt-4 border-t border-slate-100 flex justify-between items-center text-[10px] text-slate-400 uppercase tracking-widest">
                     <span>IMS Asset</span>
@@ -284,7 +306,8 @@ export default function TagGeneratorPage() {
 
     // Render a tag for print layout
     const renderPrintTag = (item: any) => {
-        const value = item.serial || item.name;
+        const value = getTagCodeValue(item);
+        const displayName = getTagDisplayName(item);
 
         return (
             <div
@@ -308,10 +331,10 @@ export default function TagGeneratorPage() {
                     </div>
                 )}
                 <div className="font-bold text-slate-800 mb-1" style={{ fontSize: config.fontSize }}>
-                    {item.name}
+                    {displayName}
                 </div>
                 <div className="text-xs text-slate-500 font-mono bg-slate-100 inline-block px-2 py-1 rounded">
-                    {item.serial || 'NO-SN'}
+                    {value}
                 </div>
                 <div className="mt-4 pt-4 border-t border-slate-200 flex justify-between items-center text-[10px] text-slate-400 uppercase tracking-widest">
                     <span>IMS Asset</span>
@@ -401,6 +424,9 @@ export default function TagGeneratorPage() {
                         <div className="overflow-y-auto flex-1 p-2">
                             {filteredItems.map(item => {
                                 const isSelected = selectedItems.some(i => i.id === item.id);
+                                const imageSrc = getSafeImageSrc(item.image);
+                                const displayName = getTagDisplayName(item);
+                                const displayCode = getTagCodeValue(item);
                                 return (
                                     <div
                                         key={item.id}
@@ -410,14 +436,25 @@ export default function TagGeneratorPage() {
                                                 ? 'bg-indigo-50 border-indigo-200 shadow-sm'
                                                 : 'bg-white border-transparent hover:bg-slate-50 hover:border-slate-100'}`}
                                     >
-                                        <div className="w-12 h-12 bg-white rounded-lg flex items-center justify-center text-2xl border border-slate-100">
+                                        <div className="relative w-12 h-12 bg-white rounded-lg flex items-center justify-center text-transparent border border-slate-100 overflow-hidden">
+                                            {imageSrc ? (
+                                                <img
+                                                    src={imageSrc}
+                                                    alt={displayName}
+                                                    className="absolute inset-0 h-full w-full object-cover"
+                                                />
+                                            ) : (
+                                                <span className="absolute inset-0 flex items-center justify-center text-slate-300">
+                                                    <Package size={18} />
+                                                </span>
+                                            )}
                                             {item.image || '📦'}
                                         </div>
                                         <div className="flex-1">
-                                            <h4 className={`font-bold text-sm ${isSelected ? 'text-indigo-700' : 'text-slate-700'}`}>
-                                                {item.name}
+                                            <h4 className={`font-bold text-sm truncate ${isSelected ? 'text-indigo-700' : 'text-slate-700'}`}>
+                                                {displayName}
                                             </h4>
-                                            <span className="text-xs text-slate-400 font-mono">{item.serial || 'NO-SN'}</span>
+                                            <span className="text-xs text-slate-400 font-mono">{displayCode}</span>
                                         </div>
                                         {isSelected && <div className="text-indigo-600"><CheckCircle size={18} /></div>}
                                     </div>
