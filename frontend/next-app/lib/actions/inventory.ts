@@ -4,7 +4,7 @@ import prisma from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { redirect } from 'next/navigation';
-import { checkLowStock } from './notifications';
+import { checkLowStockInternal } from './notifications';
 import { auth } from '@/auth';
 
 const InventorySchema = z.object({
@@ -28,6 +28,9 @@ export async function fetchInventoryItems(
     type?: string,
     warehouseId?: number,
 ) {
+    const session = await auth();
+    if (!session) throw new Error('Unauthorized');
+
     const ITEMS_PER_PAGE = 12; // Increased for grid view
     const offset = (currentPage - 1) * ITEMS_PER_PAGE;
 
@@ -106,6 +109,9 @@ export async function fetchInventoryItems(
 }
 
 export async function fetchInventoryPages(query: string, type?: string) {
+    const session = await auth();
+    if (!session) throw new Error('Unauthorized');
+
     const ITEMS_PER_PAGE = 12;
     const typeFilter = type && type !== 'all' ? { type: type } : {};
 
@@ -210,8 +216,8 @@ export async function updateInventoryItem(id: number, data: z.infer<typeof Updat
             }
         });
 
-        // Trigger low stock check
-        await checkLowStock();
+        // Trigger low stock check (internal — caller already authenticated)
+        await checkLowStockInternal();
 
         revalidatePath('/inventory');
         return { success: true, message: 'Item updated successfully' };

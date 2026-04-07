@@ -2,7 +2,7 @@
 
 import prisma from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
-import { checkLowStock } from './notifications';
+import { checkLowStockInternal } from './notifications';
 import { auth } from '@/auth';
 import { sendOverdueEmail, sendStatusUpdateEmail } from '@/lib/mail';
 
@@ -184,8 +184,8 @@ export async function updateRequestStatus(id: number, status: 'approved' | 'reje
         revalidatePath('/requests');
         revalidatePath('/inventory');
 
-        // Trigger low stock check
-        await checkLowStock();
+        // Trigger low stock check (internal — caller already authenticated)
+        await checkLowStockInternal();
 
         return { success: true };
 

@@ -4,22 +4,13 @@ import prisma from '@/lib/prisma';
 import { auth } from '@/auth';
 import { revalidatePath } from 'next/cache';
 
-export async function checkLowStock() {
-    const session = await auth();
-    // Require authentication: only admin/superadmin or system cron may trigger this
-    if (!session?.user) {
-        return { error: 'Unauthorized' };
-    }
-    const allowedRoles = ['admin', 'superadmin', 'approver'];
-    if (!allowedRoles.includes(session.user.role)) {
-        return { error: 'Forbidden' };
-    }
-
+/**
+ * Internal low-stock check — no auth guard.
+ * Called by other Server Actions (e.g. after inventory update or request approval)
+ * where the caller has already been authenticated and authorized.
+ */
+export async function checkLowStockInternal(): Promise<{ success: boolean; count?: number; error?: string }> {
     try {
-        console.log("Checking low stock levels...");
-
-        // 1. Find items where quantity <= minStock
-        // Use raw comparison to support column-vs-column check
         const allStockLevels = await prisma.stockLevel.findMany({
             where: {
                 minStock: { not: null },
@@ -28,25 +19,22 @@ export async function checkLowStock() {
                 item: true,
                 warehouse: {
                     include: {
-                        managers: true // We need to know who to notify
+                        managers: true
                     }
                 }
             }
         });
 
-        // Filter in application code: quantity <= minStock
         const lowStockItems = allStockLevels.filter(
             s => s.minStock !== null && s.quantity <= s.minStock
         );
 
-        // 2. Create Notifications
         let count = 0;
         for (const stock of lowStockItems) {
             const managers = stock.warehouse.managers;
             const message = `Low Stock Alert: ${stock.item.name} in ${stock.warehouse.name} is down to ${stock.quantity} (Min: ${stock.minStock})`;
 
             for (const manager of managers) {
-                // Prevent duplicate unread notifications for same item
                 const existing = await prisma.notification.findFirst({
                     where: {
                         userId: manager.id,
@@ -68,14 +56,30 @@ export async function checkLowStock() {
             }
         }
 
-        console.log(`Generated ${count} low stock notifications.`);
         revalidatePath('/dashboard');
         return { success: true, count };
 
     } catch (error) {
         console.error('Failed to check low stock:', error);
-        return { error: 'Failed to generate notifications' };
+        return { success: false, error: 'Failed to generate notifications' };
     }
+}
+
+/**
+ * Public low-stock check — requires admin/superadmin/approver role.
+ * Called from client components (e.g. notification bell, dashboard widget).
+ */
+export async function checkLowStock() {
+    const session = await auth();
+    if (!session?.user) {
+        return { error: 'Unauthorized' };
+    }
+    const allowedRoles = ['admin', 'superadmin', 'approver'];
+    if (!allowedRoles.includes(session.user.role)) {
+        return { error: 'Forbidden' };
+    }
+
+    return checkLowStockInternal();
 }
 
 export async function getNotifications(limit = 10) {
