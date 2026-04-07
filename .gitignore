@@ -48,6 +48,11 @@ yarn-debug.log*
 yarn-error.log*
 lerna-debug.log*
 .pnpm-debug.log*
+!project-log-md/handoff/
+!project-log-md/handoff/HANDOFF_BOARD.md
+!project-log-md/handoff/logs/
+!project-log-md/handoff/logs/.gitkeep
+!project-log-md/handoff/logs/*.md
 
 # Testing & Coverage
 coverage/
@@ -108,5 +113,6 @@ prisma/dev.db-journal
 examples/
 secrets/
 research/
+.claude/settings.local.json
 
 

@@ -336,29 +336,33 @@ This project uses multiple AI assistants working together. You may encounter wor
 
 ### Key Collaboration Files
 
-1. **`.agent/AI_COLLABORATION_PROTOCOL.md`** - Full collaboration guide (READ THIS FIRST)
-2. **`research/handoffs/`** - Task handoff documents between AIs
-3. **`research/kilo/`** - Kilo Code's analysis and recommendations
-4. **`.agent/skills/`** - Reusable skills/knowledge for all AIs
-5. **`.agent/workflows/`** - Shared workflow commands
+1. **`.agents/AI_COLLABORATION_PROTOCOL.md`** - Full collaboration guide (READ THIS FIRST)
+2. **`project-log-md/handoff/HANDOFF_BOARD.md`** - Shared handoff dashboard
+3. **`project-log-md/handoff/logs/`** - Task handoff logs between AIs
+4. **`research/kilo/`** - Kilo Code's analysis and recommendations
+5. **`.agents/skills/`** - Reusable skills/knowledge for all AIs
+6. **`.agents/workflows/`** - Shared workflow commands
 
 ### Before Starting Work
 
-1. Check `research/handoffs/` for any pending tasks from other AIs
+1. Check `project-log-md/handoff/HANDOFF_BOARD.md` and relevant logs in `project-log-md/handoff/logs/`
 2. Review recent Git commits to see what was changed
-3. Read relevant skills in `.agent/skills/` if working on specific domains
+3. Read relevant skills in `.agents/skills/` if working on specific domains
 
 ### After Completing Work
 
-Create a handoff document at `research/handoffs/YYYY-MM-DD_task-name_claude-to-any.md`:
+Create a handoff log at `project-log-md/handoff/logs/YYYY-MM-DD_HHmm_claude_code_to_any.md` and update `project-log-md/handoff/HANDOFF_BOARD.md`:
 
 ```markdown
-# Task Handoff: [Task Name]
+# Handoff Log
 
-**From:** Claude Code
-**To:** Any
-**Date:** YYYY-MM-DD
-**Status:** Completed/In Progress
+| Field | Value |
+|-------|-------|
+| **Date** | YYYY-MM-DD HH:mm |
+| **From Agent** | claude_code |
+| **To Agent** | any |
+| **Session Duration** | n/a |
+| **Remark** | Short context |
 
 ## Summary
 [What you did]
@@ -366,7 +370,7 @@ Create a handoff document at `research/handoffs/YYYY-MM-DD_task-name_claude-to-a
 ## Files Changed
 - `path/to/file.ts` - Description
 
-## Next Steps
+## Handoff Tasks
 - [ ] Task 1
 - [ ] Task 2
 
