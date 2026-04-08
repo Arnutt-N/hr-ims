@@ -114,5 +114,5 @@ examples/
 secrets/
 research/
 .claude/settings.local.json
-
+switch_mode.bat
 

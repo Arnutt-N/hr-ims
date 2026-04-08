@@ -30,7 +30,10 @@ The Prisma schema source of truth is `backend/prisma/schema.prisma`.
 cd backend
 npx prisma generate
 npx prisma db push
+npx prisma db seed
 ```
+
+Run the seed step on a fresh clone or any time you need the demo/admin data recreated after rebuilding `backend/prisma/dev.db`.
 
 ## Tests
 
