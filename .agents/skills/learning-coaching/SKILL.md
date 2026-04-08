@@ -44,7 +44,7 @@ hr-ims/
 │       ├── lib/         # Utilities, Server Actions
 │       └── package.json
 │
-└── .agent/
+└── .agents/
     ├── skills/          # เอกสารนี้!
     └── workflows/       # คำสั่งที่ใช้บ่อย
 ```
@@ -112,7 +112,7 @@ npm run dev
 
 ```bash
 # ดู workflow ที่มี
-ls .agent/workflows/
+ls .agents/workflows/
 
 # รันทั้ง Backend + Frontend
 # ใช้คำสั่ง: /start_dev
@@ -316,7 +316,7 @@ docker-compose logs -f            # ดู logs
 docker-compose down               # หยุด
 ```
 
-> **ดูรายละเอียดเพิ่มเติม:** [cicd-containerization skill](file:///d:/02%20genAI/hr-ims/.agent/skills/cicd-containerization/SKILL.md)
+> **ดูรายละเอียดเพิ่มเติม:** [cicd-containerization skill](file:///d:/02%20genAI/hr-ims/.agents/skills/cicd-containerization/SKILL.md)
 
 ### 6.2 Deploy ไปยัง Production
 
@@ -539,8 +539,8 @@ git log --stat
 5. ✅ ฝึกบ่อยๆ จะเก่งขึ้นเอง
 
 ### Resources สำคัญ:
-- 📚 Skills อื่นๆ ใน `.agent/skills/`
-- 🔧 Workflows ใน `.agent/workflows/`
+- 📚 Skills อื่นๆ ใน `.agents/skills/`
+- 🔧 Workflows ใน `.agents/workflows/`
 - 💻 Source code ใน `backend/` และ `frontend/`
 - 📖 Documentation ของแต่ละ library
 

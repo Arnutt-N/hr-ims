@@ -13,13 +13,17 @@ export const authConfig = {
             const isOnResetPassword = nextUrl.pathname.startsWith('/reset-password');
             const isApiRoute = nextUrl.pathname.startsWith('/api/');
             const isAuthPage = isOnLogin || isOnRegister || isOnForgotPassword || isOnResetPassword;
+            const shouldRedirectAuthenticatedUser =
+                isOnRegister || isOnForgotPassword || isOnResetPassword;
 
             const isPublic = isAuthPage || isApiRoute;
 
             if (!isPublic && !isLoggedIn) {
                 return false; // Redirect unauthenticated users to login
             }
-            if (isLoggedIn && isAuthPage) {
+            // Keep /login page redirects inside the page itself so App Router receives
+            // a normal Next redirect instead of a middleware redirect during RSC navigation.
+            if (isLoggedIn && shouldRedirectAuthenticatedUser) {
                 return Response.redirect(new URL('/dashboard', nextUrl));
             }
             return true;

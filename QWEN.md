@@ -70,16 +70,16 @@ hr-ims/
 │   ├── ADMIN_GUIDE_TH.md
 │   └── TECHNICAL_GUIDE_TH.md
 │
-├── .agent/                     # AI Agent configuration
+├── .agents/                    # AI Agent configuration
 │   ├── AI_COLLABORATION_PROTOCOL.md
 │   ├── skills/                 # Knowledge base
 │   └── workflows/              # Slash commands
 │
-├── research/                   # AI research & handoffs (gitignored)
-│   ├── handoffs/               # Task handoff documents
+├── research/                   # AI research only (gitignored)
 │   └── [ai-name]/              # Per-AI analysis
 │
-└── project-log-md/             # Project logs by AI
+└── project-log-md/             # Project logs and handoff system
+    ├── handoff/                # HANDOFF_BOARD.md + handoff logs
     ├── antigravity/
     ├── claude_code/
     └── kilo/
@@ -392,7 +392,7 @@ JWT_SECRET="your-jwt-secret"
 | `backend/src/middleware/auth.ts` | Authentication middleware |
 | `CLAUDE.md` | Detailed development guide |
 | `AGENTS.md` | AI Agent collaboration protocol |
-| `.agent/AI_COLLABORATION_PROTOCOL.md` | Multi-AI workflow guide |
+| `.agents/AI_COLLABORATION_PROTOCOL.md` | Multi-AI workflow guide |
 
 ---
 
@@ -401,14 +401,15 @@ JWT_SECRET="your-jwt-secret"
 This project uses multiple AI assistants. Key protocols:
 
 ### Before Starting Work
-1. Check `research/handoffs/` for pending tasks
+1. Check `project-log-md/handoff/HANDOFF_BOARD.md` and relevant logs
 2. Review recent git commits
-3. Read relevant skills in `.agent/skills/`
+3. Read relevant skills in `.agents/skills/`
 
 ### After Completing Work
-1. Create handoff document at `research/handoffs/YYYY-MM-DD_task-name.md`
-2. Update project log in `project-log-md/[ai-name]/`
-3. Commit with format: `[AI-NAME] brief description`
+1. Create handoff log at `project-log-md/handoff/logs/YYYY-MM-DD_HHmm_<from>_to_<to>.md`
+2. Update `project-log-md/handoff/HANDOFF_BOARD.md`
+3. Update project log in `project-log-md/[ai-name]/`
+4. Commit with format: `[AI-NAME] brief description`
 
 ### Git Commit Convention
 

@@ -3,6 +3,8 @@
 
 เอกสารนี้เป็นคู่มือสำหรับ AI Agents ที่ทำงานร่วมกันในโปรเจค HR-IMS รวมถึงคำสั่ง build/test/lint, แนวทางการเขียนโค้ด, และโปรโตคอลการส่งมอบงานระหว่าง AI
 
+> Migration note (2026-04-03): โฟลเดอร์ AI workspace ระดับ repo ถูกเปลี่ยนชื่อจาก `.agent/` เป็น `.agents/` แล้ว หากเจอเอกสารเก่าใน `project-log-md/`, `research/`, หรือ archive ที่ยังอ้าง `.agent/` ให้ตีความตาม path เดิมก่อน rename เว้นแต่เอกสารนั้นกำลังอ้างอิงประวัติย้อนหลังโดยตรง
+
 ---
 
 ## 1. 🎯 AI Agent Collaboration System
@@ -20,18 +22,21 @@
 
 เมื่อทำงานเสร็จหรือต้องการส่งต่อให้ AI ตัวอื่น:
 
-1. **สร้าง Handoff Document** ที่: `research/handoffs/YYYY-MM-DD_task-name_from-to.md`
-2. **ใช้ Template มาตรฐาน:**
+1. **สร้าง Handoff Log** ที่: `project-log-md/handoff/logs/YYYY-MM-DD_HHmm_<from>_to_<to>.md`
+2. **อัปเดต Handoff Board** ที่: `project-log-md/handoff/HANDOFF_BOARD.md`
+3. **ใช้ Template มาตรฐาน:**
 
 ```markdown
-# Task Handoff: [ชื่องาน]
+# Handoff Log
 
 ---
-**From:** [ชื่อ AI]
-**To:** [ชื่อ AI หรือ Any]
-**Date:** YYYY-MM-DD
-**Priority:** High/Medium/Low
-**Status:** Completed/In Progress/Blocked
+| Field | Value |
+|-------|-------|
+| **Date** | YYYY-MM-DD HH:mm |
+| **From Agent** | [agent_id] |
+| **To Agent** | [agent_id หรือ all] |
+| **Session Duration** | [ช่วงเวลาที่ทำงาน หรือ n/a] |
+| **Remark** | [หมายเหตุเพิ่มเติม ถ้ามี] |
 
 ---
 
@@ -45,6 +50,10 @@
 ## สิ่งที่ต้องทำต่อ
 - [ ] งาน 1
 - [ ] งาน 2
+
+## งานที่ส่งต่อ
+- [ ] งานที่ต้องทำต่อ 1
+- [ ] งานที่ต้องทำต่อ 2
 
 ## ข้อควรระวัง / หมายเหตุ
 [สิ่งที่ AI ตัวถัดไปควรรู้]
@@ -337,17 +346,17 @@ hr-ims/
 │       ├── schema.prisma       # Database schema (Single Source of Truth)
 │       └── dev.db              # SQLite database
 │
-├── .agent/                     # AI Configuration
+├── .agents/                    # AI Configuration
 │   ├── workflows/              # Slash commands
 │   ├── skills/                 # Knowledge base
 │   └── AI_COLLABORATION_PROTOCOL.md
 │
-├── research/                   # Research & Handoffs (gitignored)
-│   ├── handoffs/               # Task handoff documents
+├── research/                   # Research & Analysis (gitignored)
 │   ├── kilo/                   # Kilo Code analysis
 │   └── antigravity/            # Antigravity research
 │
-└── project-log-md/             # Project logs by AI
+└── project-log-md/             # Project logs and handoff system
+    ├── handoff/                # HANDOFF_BOARD.md + handoff logs
     ├── antigravity/
     ├── claude_code/
     ├── kilo/
@@ -497,6 +506,10 @@ npx prisma migrate reset
   - Completed by: Kilo | Date: 2026-01-29
   - Location: `research/kilo/`
 
+- [x] **AI Workspace Rename** - เปลี่ยนชื่อโฟลเดอร์ AI workspace เป็น `.agents/`
+  - Completed by: CodeX | Date: 2026-04-03
+  - Location: `.agents/`
+
 ---
 
 ## 7. 🆘 Emergency Procedures
@@ -571,7 +584,8 @@ cd backend && npx prisma generate
 | ไฟล์ | รายละเอียด |
 |------|-----------|
 | `CLAUDE.md` | คู่มือเฉพาะสำหรับ Claude Code |
-| `.agent/AI_COLLABORATION_PROTOCOL.md` | โปรโตคอลการทำงานร่วมกันระหว่าง AI |
+| `.agents/AI_COLLABORATION_PROTOCOL.md` | โปรโตคอลการทำงานร่วมกันระหว่าง AI |
+| `project-log-md/handoff/HANDOFF_BOARD.md` | Dashboard กลางสำหรับ handoff ระหว่าง AI |
 | `backend/prisma/schema.prisma` | Database schema (Single Source of Truth) |
 | `frontend/next-app/lib/actions/*.ts` | Server Actions ทั้งหมด |
 | `backend/src/middleware/auth.ts` | Authentication & Authorization middleware |
@@ -583,8 +597,9 @@ cd backend && npx prisma generate
 ## 9. ✅ AI Collaboration Checklist
 
 ### ก่อนเริ่มงาน:
-- [ ] อ่าน `research/handoffs/` ล่าสุด (ถ้ามี)
-- [ ] ตรวจสอบ `.agent/skills/` ที่เกี่ยวข้อง
+- [ ] อ่าน `project-log-md/handoff/HANDOFF_BOARD.md`
+- [ ] อ่าน handoff logs ที่เกี่ยวข้องใน `project-log-md/handoff/logs/` (ถ้ามี)
+- [ ] ตรวจสอบ `.agents/skills/` ที่เกี่ยวข้อง
 - [ ] รัน `git status` และ `git pull`
 - [ ] ตรวจสอบ Next Tasks Queue ในหมวด 6
 
@@ -598,7 +613,8 @@ cd backend && npx prisma generate
 ### หลังเสร็จงาน:
 - [ ] รัน tests: `npm test` (ต้องผ่านทั้งหมด)
 - [ ] รัน lint: `npm run lint` (frontend)
-- [ ] สร้าง handoff document ที่ `research/handoffs/`
+- [ ] สร้าง handoff log ที่ `project-log-md/handoff/logs/`
+- [ ] อัปเดต `project-log-md/handoff/HANDOFF_BOARD.md`
 - [ ] อัปเดต Next Tasks Queue ในหมวด 6
 - [ ] บันทึก project log ที่ `project-log-md/[ai-name]/`
 - [ ] Commit ด้วย format: `[AI-NAME] description`
@@ -642,6 +658,6 @@ Examples:
 
 ---
 
-*Last Updated: 2026-01-30 | Created by: Claude Code*
+*Last Updated: 2026-04-03 | Created by: Claude Code*
 *สำหรับ AI Agents ทุกตัวที่ทำงานใน HR-IMS Project*
-*หากมีคำถาม กรุณาอ่าน `.agent/AI_COLLABORATION_PROTOCOL.md`*
+*หากมีคำถาม กรุณาอ่าน `.agents/AI_COLLABORATION_PROTOCOL.md`*

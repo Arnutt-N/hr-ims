@@ -4,6 +4,8 @@
 
 เอกสารนี้อธิบายวิธีการทำงานร่วมกันระหว่าง AI Assistants หลายตัวในโปรเจค HR-IMS
 
+> Migration note (2026-04-03): path ปัจจุบันของ AI workspace คือ `.agents/` เอกสารย้อนหลังบางส่วนอาจยังอ้าง `.agent/` ซึ่งเป็นชื่อเดิมก่อน rename
+
 ---
 
 ## 1. AI Assistants ที่ทำงานร่วมกัน
@@ -22,7 +24,7 @@
 
 ```
 hr-ims/
-├── .agent/                           # 🔧 AI Configuration & Workflows
+├── .agents/                          # 🔧 AI Configuration & Workflows
 │   ├── workflows/                    # Slash commands (ทุก AI ใช้ร่วมกัน)
 │   ├── skills/                       # Skills/Knowledge base
 │   └── AI_COLLABORATION_PROTOCOL.md  # ไฟล์นี้
@@ -42,19 +44,21 @@ hr-ims/
 
 ## 3. วิธีส่งมอบงานระหว่าง AI
 
-### 3.1 การสร้าง Handoff Document
+### 3.1 การสร้าง Handoff Log
 
-เมื่อทำงานเสร็จหรือต้องการส่งต่อให้ AI ตัวอื่น ให้สร้างไฟล์ในรูปแบบ:
+เมื่อทำงานเสร็จหรือต้องการส่งต่อให้ AI ตัวอื่น ให้สร้างไฟล์ใน `project-log-md/handoff/logs/` และอัปเดต `project-log-md/handoff/HANDOFF_BOARD.md` ตามรูปแบบนี้:
 
 ```markdown
-# Task Handoff: [ชื่องาน]
+# Handoff Log
 
 ---
-**From:** [ชื่อ AI ที่ส่งงาน]
-**To:** [ชื่อ AI ที่รับงาน หรือ "Any"]
-**Date:** [วันที่]
-**Priority:** [High/Medium/Low]
-**Status:** [Completed/In Progress/Blocked]
+| Field | Value |
+|-------|-------|
+| **Date** | [วันที่และเวลา] |
+| **From Agent** | [agent_id ที่ส่งงาน] |
+| **To Agent** | [agent_id ที่รับงาน หรือ "all"] |
+| **Session Duration** | [ช่วงเวลาที่ทำงาน หรือ n/a] |
+| **Remark** | [หมายเหตุเพิ่มเติม ถ้ามี] |
 
 ---
 
@@ -69,6 +73,10 @@ hr-ims/
 - [ ] งาน 1
 - [ ] งาน 2
 
+## งานที่ส่งต่อ
+- [ ] งานที่ต้องทำต่อ 1
+- [ ] งานที่ต้องทำต่อ 2
+
 ## ข้อควรระวัง / หมายเหตุ
 [สิ่งที่ AI ตัวถัดไปควรรู้]
 
@@ -82,11 +90,13 @@ npm run dev
 ### 3.2 ตำแหน่งที่เก็บ Handoff Documents
 
 ```
-research/
-├── handoffs/
-│   ├── 2026-01-29_security-tests_antigravity-to-any.md
-│   ├── 2026-01-29_system-analysis_kilo-to-antigravity.md
-│   └── ...
+project-log-md/
+├── handoff/
+│   ├── HANDOFF_BOARD.md
+│   └── logs/
+│       ├── 2026-02-11_1300_antigravity_to_all.md
+│       ├── 2026-02-11_1633_codex_to_all.md
+│       └── ...
 ```
 
 ---
@@ -129,10 +139,11 @@ Examples:
 
 ### 5.1 ขั้นตอนก่อนเริ่มงาน
 
-1. **อ่านเอกสารล่าสุด** ใน `research/handoffs/`
-2. **ตรวจสอบ task.md** ถ้ามี (อยู่ใน brain folder ของแต่ละ session)
-3. **อ่าน skill ที่เกี่ยวข้อง** ใน `.agent/skills/`
-4. **ตรวจสอบ workflows** ใน `.agent/workflows/`
+1. **อ่าน `project-log-md/handoff/HANDOFF_BOARD.md`**
+2. **อ่าน handoff logs ที่เกี่ยวข้อง** ใน `project-log-md/handoff/logs/`
+3. **ตรวจสอบ task.md** ถ้ามี (อยู่ใน brain folder ของแต่ละ session)
+4. **อ่าน skill ที่เกี่ยวข้อง** ใน `.agents/skills/`
+5. **ตรวจสอบ workflows** ใน `.agents/workflows/`
 
 ### 5.2 คำสั่งเริ่มต้นที่ควรรัน
 
@@ -268,9 +279,10 @@ research/kilo/
 คุณกำลังทำงานในโปรเจค HR-IMS ซึ่งมี AI หลายตัวทำงานร่วมกัน
 
 กรุณาอ่านไฟล์เหล่านี้ก่อนเริ่มงาน:
-1. `.agent/AI_COLLABORATION_PROTOCOL.md` - วิธีทำงานร่วมกัน
-2. `research/handoffs/` - งานที่ส่งต่อ (ถ้ามี)
-3. `.agent/skills/` - Skills ที่เกี่ยวข้อง
+1. `.agents/AI_COLLABORATION_PROTOCOL.md` - วิธีทำงานร่วมกัน
+2. `project-log-md/handoff/HANDOFF_BOARD.md` - สถานะกลางและ handoff queue
+3. `project-log-md/handoff/logs/` - handoff logs ล่าสุด
+4. `.agents/skills/` - Skills ที่เกี่ยวข้อง
 
 หลังจากอ่านแล้ว ให้สรุปสิ่งที่เข้าใจและพร้อมรับงานต่อ
 ```
@@ -278,8 +290,8 @@ research/kilo/
 ### 8.2 Handoff Prompt (เมื่อส่งต่องาน)
 
 ```
-กรุณาสร้างเอกสาร handoff ตามรูปแบบใน `.agent/AI_COLLABORATION_PROTOCOL.md`
-สำหรับงานที่ทำเสร็จ และบันทึกที่ `research/handoffs/`
+กรุณาสร้าง handoff log ตามรูปแบบใน `.agents/AI_COLLABORATION_PROTOCOL.md`
+สำหรับงานที่ทำเสร็จ ให้บันทึกที่ `project-log-md/handoff/logs/` และอัปเดต `project-log-md/handoff/HANDOFF_BOARD.md`
 ```
 
 ---
@@ -303,4 +315,4 @@ research/kilo/
 
 ---
 
-*Last Updated: 2026-01-29 by Antigravity*
+*Last Updated: 2026-04-03 by CodeX*
