@@ -12,7 +12,7 @@
         "audit": "npm audit",
         "postinstall": "prisma generate --schema=../../backend/prisma/schema.prisma --generator client_frontend",
         "vercel:install": "npm ci --legacy-peer-deps",
-        "vercel:build": "next build"
+        "vercel:build": "npm run build"
     },
     "dependencies": {
         "@auth/prisma-adapter": "^2.11.1",
