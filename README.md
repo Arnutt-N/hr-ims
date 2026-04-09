@@ -35,6 +35,20 @@ npx prisma db seed
 
 Run the seed step on a fresh clone or any time you need the demo/admin data recreated after rebuilding `backend/prisma/dev.db`.
 
+## TiDB
+
+This repo now includes a TiDB preparation path without breaking the default SQLite local dev setup.
+
+```bash
+npm run db:generate:tidb
+npm run db:push:tidb
+npm run db:seed:tidb
+```
+
+Set `TIDB_DATABASE_URL` in `backend/.env` before running those commands, then cut over runtime `DATABASE_URL` in both `backend/.env` and `frontend/next-app/.env` when you are ready to run the app on TiDB.
+
+See `docs/TIDB_SETUP.md` for the full cutover notes and backup limitations.
+
 ## Tests
 
 ```bash

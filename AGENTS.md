@@ -144,6 +144,11 @@ npx prisma migrate dev            # Create and apply migration
 npx prisma migrate deploy         # Apply migrations (production)
 npx prisma studio                 # Open Prisma Studio GUI (port 5555)
 npx prisma db seed                # Seed database with initial data
+
+# TiDB preparation flow (uses TIDB_DATABASE_URL in backend/.env)
+npm run db:generate:tidb          # Generate Prisma client from TiDB-compatible schema
+npm run db:push:tidb              # Push schema to TiDB
+npm run db:seed:tidb              # Seed TiDB
 ```
 
 ### 2.5 Quick Start (Windows)
@@ -365,9 +370,10 @@ hr-ims/
 
 ### 4.2 Shared Database Architecture (สำคัญ!)
 
-**⚠️ CRITICAL:** โปรเจคนี้ใช้ SQLite database ร่วมกันระหว่าง Frontend และ Backend
+**⚠️ CRITICAL:** โปรเจคนี้ใช้ Prisma schema ร่วมกันระหว่าง Frontend และ Backend โดย `backend/prisma/schema.prisma` เป็น source of truth
 
-- **Database File:** `backend/prisma/dev.db`
+- **Default local dev DB:** `backend/prisma/dev.db` (SQLite)
+- **TiDB prep/cutover:** ใช้ `TIDB_DATABASE_URL` + `npm run db:generate:tidb` / `npm run db:push:tidb`
 - **Schema Definition:** `backend/prisma/schema.prisma` (Single Source of Truth)
 - **Prisma Clients:**
   - Backend: `backend/node_modules/@prisma/client`
@@ -375,9 +381,9 @@ hr-ims/
 
 **การแก้ไข Schema:**
 1. แก้ไข `backend/prisma/schema.prisma`
-2. รัน `cd backend && npx prisma generate` (สร้าง client ทั้ง 2 ฝั่ง)
-3. รัน `cd backend && npx prisma db push` (อัปเดต database)
-4. ทดสอบว่าทั้ง frontend และ backend ใช้งานได้
+2. ถ้าเป็น local SQLite: รัน `cd backend && npx prisma generate` และ `cd backend && npx prisma db push`
+3. ถ้าเป็น TiDB: รัน `npm run db:generate:tidb` และ `npm run db:push:tidb`
+4. ทดสอบว่าทั้ง frontend และ backend ใช้งานได้กับ `DATABASE_URL` เดียวกัน
 
 ### 4.3 Security Patterns
 

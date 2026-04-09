@@ -19,7 +19,7 @@ export interface BackupResult {
 
 export interface RestoreResult {
     success: boolean;
-    status: 'success' | 'invalid_path' | 'not_found' | 'failed';
+    status: 'success' | 'invalid_path' | 'not_found' | 'failed' | 'unsupported';
     restoredPath?: string;
     databasePath?: string;
     uploadsRestored?: boolean;
@@ -28,7 +28,29 @@ export interface RestoreResult {
 
 const execFileAsync = promisify(execFile);
 const BACKEND_ROOT = path.resolve(__dirname, '../..');
-const DATABASE_PATH = path.join(BACKEND_ROOT, 'prisma', 'dev.db');
+const PRISMA_ROOT = path.join(BACKEND_ROOT, 'prisma');
+
+function resolveDatabasePath(databaseUrl: string | undefined): string | null {
+    const trimmedUrl = databaseUrl?.trim();
+    if (!trimmedUrl?.startsWith('file:')) {
+        return null;
+    }
+
+    const rawPath = trimmedUrl.slice('file:'.length);
+    if (!rawPath) {
+        return null;
+    }
+
+    return path.isAbsolute(rawPath) ? rawPath : path.resolve(PRISMA_ROOT, rawPath);
+}
+
+function getDatabasePath(): string | null {
+    return resolveDatabasePath(process.env.DATABASE_URL);
+}
+
+function getUnsupportedBackupMessage(operation: 'backup' | 'restore'): string {
+    return `Application-level ${operation} only supports SQLite file databases. Use TiDB-native backup tooling for TiDB deployments.`;
+}
 
 function resolveStoragePath(storagePath: string): string {
     return path.isAbsolute(storagePath) ? storagePath : path.resolve(BACKEND_ROOT, storagePath);
@@ -53,6 +75,7 @@ async function pathExists(filePath: string): Promise<boolean> {
 
 export async function createBackup(): Promise<BackupResult> {
     const settings = await getBackupSettings();
+    const databasePath = getDatabasePath();
 
     if (!settings.enabled) {
         return {
@@ -65,6 +88,17 @@ export async function createBackup(): Promise<BackupResult> {
         };
     }
 
+    if (!databasePath) {
+        return {
+            success: false,
+            path: '',
+            filename: '',
+            size: 0,
+            timestamp: new Date(),
+            error: getUnsupportedBackupMessage('backup')
+        };
+    }
+
     try {
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
         const filename = `backup-${timestamp}.zip`;
@@ -72,6 +106,17 @@ export async function createBackup(): Promise<BackupResult> {
         const backupPath = path.join(storagePath, filename);
 
         await fs.mkdir(storagePath, { recursive: true });
+
+        if (!(await pathExists(databasePath))) {
+            return {
+                success: false,
+                path: '',
+                filename: '',
+                size: 0,
+                timestamp: new Date(),
+                error: `Database file not found: ${databasePath}`
+            };
+        }
 
         const output = createWriteStream(backupPath);
         const archive = archiver('zip', { zlib: { level: 9 } });
@@ -92,7 +137,7 @@ export async function createBackup(): Promise<BackupResult> {
             archive.on('error', reject);
 
             archive.pipe(output);
-            archive.file(DATABASE_PATH, { name: 'database.db' });
+            archive.file(databasePath, { name: 'database.db' });
 
             if (hasUploads) {
                 archive.directory(path.join(BACKEND_ROOT, 'uploads'), 'uploads');
@@ -215,6 +260,16 @@ export async function listBackups(): Promise<Array<{
 }
 
 export async function restoreBackup(backupPath: string): Promise<RestoreResult> {
+    const databasePath = getDatabasePath();
+    if (!databasePath) {
+        return {
+            success: false,
+            status: 'unsupported',
+            restoredPath: backupPath,
+            error: getUnsupportedBackupMessage('restore')
+        };
+    }
+
     try {
         await fs.access(backupPath);
     } catch {
@@ -227,7 +282,7 @@ export async function restoreBackup(backupPath: string): Promise<RestoreResult> 
     }
 
     const tempDir = path.join(path.dirname(backupPath), `.restore-${Date.now()}`);
-    const backupDatabasePath = `${DATABASE_PATH}.restore-backup`;
+    const backupDatabasePath = `${databasePath}.restore-backup`;
 
     try {
         await fs.mkdir(tempDir, { recursive: true });
@@ -260,11 +315,11 @@ export async function restoreBackup(backupPath: string): Promise<RestoreResult> 
         await prisma.$disconnect();
 
         try {
-            if (await pathExists(DATABASE_PATH)) {
-                await fs.copyFile(DATABASE_PATH, backupDatabasePath);
+            if (await pathExists(databasePath)) {
+                await fs.copyFile(databasePath, backupDatabasePath);
             }
 
-            await fs.copyFile(extractedDatabase, DATABASE_PATH);
+            await fs.copyFile(extractedDatabase, databasePath);
 
             if (uploadsRestored) {
                 await fs.rm(uploadsTarget, { recursive: true, force: true });
@@ -275,7 +330,7 @@ export async function restoreBackup(backupPath: string): Promise<RestoreResult> 
         } catch (restoreError) {
             if (await pathExists(backupDatabasePath)) {
                 try {
-                    await fs.copyFile(backupDatabasePath, DATABASE_PATH);
+                    await fs.copyFile(backupDatabasePath, databasePath);
                 } catch {
                     // Ignore rollback failure.
                 }
@@ -296,7 +351,7 @@ export async function restoreBackup(backupPath: string): Promise<RestoreResult> 
             success: true,
             status: 'success',
             restoredPath: backupPath,
-            databasePath: DATABASE_PATH,
+            databasePath,
             uploadsRestored
         };
     } catch (error) {

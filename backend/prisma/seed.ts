@@ -4,6 +4,92 @@ import bcrypt from 'bcrypt';
 
 const prisma = new PrismaClient();
 
+const ROLE_LABELS: Record<string, string> = {
+    superadmin: 'Super Administrator',
+    admin: 'Administrator',
+    approver: 'Approver',
+    auditor: 'Auditor',
+    technician: 'Technician',
+    user: 'Standard User',
+};
+
+const ROLE_PERMISSIONS: Record<string, Array<{ menu: string; path: string }>> = {
+    superadmin: [
+        { menu: 'Dashboard', path: '/dashboard' },
+        { menu: 'Inventory', path: '/inventory' },
+        { menu: 'Cart', path: '/cart' },
+        { menu: 'My Assets', path: '/my-assets' },
+        { menu: 'Requests', path: '/requests' },
+        { menu: 'Maintenance', path: '/maintenance' },
+        { menu: 'History', path: '/history' },
+        { menu: 'Reports', path: '/reports' },
+        { menu: 'Scanner', path: '/scanner' },
+        { menu: 'Tags', path: '/tags' },
+        { menu: 'Users', path: '/users' },
+        { menu: 'Audit Logs', path: '/logs' },
+        { menu: 'Categories', path: '/settings/categories' },
+        { menu: 'Warehouses', path: '/settings/warehouses' },
+        { menu: 'Dept Mapping', path: '/settings/departments' },
+        { menu: 'System Config', path: '/settings/system' },
+        { menu: 'Permissions', path: '/settings/permissions' },
+        { menu: 'Active Sessions', path: '/settings/sessions' },
+        { menu: 'Logging', path: '/settings/logging' },
+        { menu: 'Backup & Restore', path: '/settings/backup' },
+        { menu: 'Email Config', path: '/settings/email' },
+        { menu: 'System Health', path: '/settings/health' },
+    ],
+    admin: [
+        { menu: 'Dashboard', path: '/dashboard' },
+        { menu: 'Inventory', path: '/inventory' },
+        { menu: 'Cart', path: '/cart' },
+        { menu: 'My Assets', path: '/my-assets' },
+        { menu: 'Requests', path: '/requests' },
+        { menu: 'Maintenance', path: '/maintenance' },
+        { menu: 'History', path: '/history' },
+        { menu: 'Reports', path: '/reports' },
+        { menu: 'Scanner', path: '/scanner' },
+        { menu: 'Tags', path: '/tags' },
+        { menu: 'Users', path: '/users' },
+        { menu: 'Audit Logs', path: '/logs' },
+        { menu: 'Categories', path: '/settings/categories' },
+        { menu: 'Warehouses', path: '/settings/warehouses' },
+        { menu: 'Dept Mapping', path: '/settings/departments' },
+        { menu: 'Permissions', path: '/settings/permissions' },
+        { menu: 'Active Sessions', path: '/settings/sessions' },
+        { menu: 'System Health', path: '/settings/health' },
+    ],
+    approver: [
+        { menu: 'Dashboard', path: '/dashboard' },
+        { menu: 'Inventory', path: '/inventory' },
+        { menu: 'Cart', path: '/cart' },
+        { menu: 'My Assets', path: '/my-assets' },
+        { menu: 'Requests', path: '/requests' },
+    ],
+    auditor: [
+        { menu: 'Dashboard', path: '/dashboard' },
+        { menu: 'Inventory', path: '/inventory' },
+        { menu: 'Cart', path: '/cart' },
+        { menu: 'My Assets', path: '/my-assets' },
+        { menu: 'History', path: '/history' },
+        { menu: 'Reports', path: '/reports' },
+        { menu: 'Audit Logs', path: '/logs' },
+    ],
+    technician: [
+        { menu: 'Dashboard', path: '/dashboard' },
+        { menu: 'Inventory', path: '/inventory' },
+        { menu: 'Cart', path: '/cart' },
+        { menu: 'My Assets', path: '/my-assets' },
+        { menu: 'Maintenance', path: '/maintenance' },
+        { menu: 'Scanner', path: '/scanner' },
+    ],
+    user: [
+        { menu: 'Dashboard', path: '/dashboard' },
+        { menu: 'Inventory', path: '/inventory' },
+        { menu: 'Cart', path: '/cart' },
+        { menu: 'My Assets', path: '/my-assets' },
+    ],
+};
+
 async function main() {
     const password = await bcrypt.hash('password123', 10);
 
@@ -34,10 +120,16 @@ async function main() {
         },
     });
 
+    await prisma.history.deleteMany({});
+    await prisma.requestItem.deleteMany({});
+    await prisma.request.deleteMany({});
+    await prisma.departmentMapping.deleteMany({});
+    await prisma.userRole.deleteMany({});
+    await prisma.rolePermission.deleteMany({});
+
     // Inventory
     // Inventory - Clear dependent tables first
     await prisma.stockLevel.deleteMany({});
-    await prisma.requestItem.deleteMany({});
     await prisma.cartItem.deleteMany({});
     await prisma.stockTransaction.deleteMany({});
     await prisma.stockTransfer.deleteMany({});
@@ -77,6 +169,21 @@ async function main() {
             },
         });
     }
+
+    const allSeedUsers = [
+        { id: admin.id, role: 'admin' },
+        { id: staff.id, role: 'user' },
+        ...(
+            await prisma.user.findMany({
+                where: {
+                    email: {
+                        in: demoUsers.map((user) => user.email),
+                    },
+                },
+                select: { id: true, role: true },
+            })
+        ),
+    ];
 
     // Settings (Upsert to prevent duplicates)
     await prisma.settings.upsert({
@@ -143,15 +250,119 @@ async function main() {
         });
     }
 
+    // 5. Warehouses
+    const mainWarehouse = await prisma.warehouse.upsert({
+        where: { code: 'WH-HQ' },
+        update: {
+            name: 'Main Warehouse',
+            type: 'main',
+            isActive: true,
+        },
+        create: {
+            name: 'Main Warehouse',
+            code: 'WH-HQ',
+            type: 'main',
+            isActive: true,
+            managers: {
+                connect: { id: admin.id },
+            },
+        },
+    });
+
+    for (const [slug, name] of Object.entries(ROLE_LABELS)) {
+        await prisma.role.upsert({
+            where: { slug },
+            update: {
+                name,
+                description: `Default ${name} role`,
+            },
+            create: {
+                slug,
+                name,
+                description: `Default ${name} role`,
+            },
+        });
+    }
+
+    for (const seededUser of allSeedUsers) {
+        const role = await prisma.role.findUnique({
+            where: { slug: seededUser.role },
+        });
+
+        if (!role) {
+            continue;
+        }
+
+        await prisma.userRole.upsert({
+            where: {
+                userId_roleId: {
+                    userId: seededUser.id,
+                    roleId: role.id,
+                },
+            },
+            update: {},
+            create: {
+                userId: seededUser.id,
+                roleId: role.id,
+            },
+        });
+    }
+
+    for (const [roleSlug, permissions] of Object.entries(ROLE_PERMISSIONS)) {
+        const role = await prisma.role.findUnique({
+            where: { slug: roleSlug },
+        });
+
+        for (const permission of permissions) {
+            await prisma.rolePermission.upsert({
+                where: {
+                    role_menu: {
+                        role: roleSlug,
+                        menu: permission.menu,
+                    },
+                },
+                update: {
+                    path: permission.path,
+                    canView: true,
+                    roleId: role?.id,
+                },
+                create: {
+                    role: roleSlug,
+                    roleId: role?.id,
+                    menu: permission.menu,
+                    path: permission.path,
+                    canView: true,
+                },
+            });
+        }
+    }
+
+    await prisma.warehouse.upsert({
+        where: { code: 'WH-IT' },
+        update: {
+            name: 'IT Warehouse',
+            type: 'division',
+            divisionId: 4,
+            isActive: true,
+        },
+        create: {
+            name: 'IT Warehouse',
+            code: 'WH-IT',
+            type: 'division',
+            divisionId: 4,
+            isActive: true,
+            managers: {
+                connect: { id: admin.id },
+            },
+        },
+    });
+
 
     // ==========================================
     // SEED INVENTORY & STOCK
     // ==========================================
 
-    const warehouses = await prisma.warehouse.findMany();
-    const mainWarehouse = warehouses.find(w => w.type === 'main') || warehouses[0];
-
-    // 5. Test Inventory Items
+    // 6. Test Inventory Items
     const itemsData = [
         { name: 'MacBook Pro M3', category: 'IT', type: 'durable', serial: 'MBP-M3-001', status: 'available', image: '💻', stock: 10 },
         { name: 'Dell XPS 15', category: 'IT', type: 'durable', serial: 'DELL-XPS-001', status: 'available', image: '💻', stock: 5 },
