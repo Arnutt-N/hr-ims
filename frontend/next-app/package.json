@@ -9,7 +9,10 @@
         "lint": "eslint .",
         "test": "vitest",
         "test:ui": "vitest --ui",
-        "audit": "npm audit"
+        "audit": "npm audit",
+        "postinstall": "prisma generate --schema=../../backend/prisma/schema.prisma",
+        "vercel:install": "npm ci --legacy-peer-deps",
+        "vercel:build": "next build"
     },
     "dependencies": {
         "@auth/prisma-adapter": "^2.11.1",
