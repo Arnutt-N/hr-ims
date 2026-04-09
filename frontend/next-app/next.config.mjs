@@ -4,6 +4,16 @@ const baseConfig = {
     turbopack: {
         root: process.cwd(), // Fix Turbopack workspace root detection
     },
+    // uploadthing ships .d.cts declaration files that use ESM syntax,
+    // which webpack 5 (via `next build --webpack`) rejects with a
+    // "Specified module format (CommonJs) is not matching..." error.
+    // Running these packages through Next's compiler avoids the mismatch.
+    transpilePackages: [
+        '@uploadthing/react',
+        '@uploadthing/mime-types',
+        '@uploadthing/shared',
+        'uploadthing',
+    ],
     async rewrites() {
         return {
             fallback: [
