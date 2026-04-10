@@ -120,24 +120,29 @@ jobs:
 
   # ---------------------------------------------------------------------------
   # Vercel-parity build
-  # Mirrors EXACTLY what Vercel does with the root vercel.json:
-  #   1. Resolve commands from vercel.json (no `framework` field, so Vercel
-  #      skips framework detection — that's how this configuration sidesteps
-  #      the "No Next.js version detected" trap)
-  #   2. Run installCommand from root: npm --prefix frontend/next-app ci --legacy-peer-deps
-  #      - frontend's postinstall hook then fires: prisma generate against
-  #        the backend schema using the client_frontend generator
-  #   3. Run buildCommand from root: npm --prefix frontend/next-app run build
-  #   4. Verify outputDirectory exists (frontend/next-app/.next-build because
-  #      next.config.mjs sets a custom distDir for prod/dev isolation)
-  #
-  # If you change vercel.json (or move it into frontend/next-app/ when Vercel
-  # Root Directory is updated to frontend/next-app), update the commands and
-  # outputDirectory check below to match.
+  # Mirrors EXACTLY what Vercel does when Vercel Project Settings has
+  # Root Directory = frontend/next-app:
+  #   1. cd frontend/next-app (the resolved Root Directory)
+  #   2. Read frontend/next-app/vercel.json
+  #   3. Verify framework detection: "next" must be in package.json deps
+  #      (Vercel CLI checks this when framework: "nextjs" is set)
+  #   4. Run installCommand from vercel.json (npm run vercel:install ->
+  #      npm ci --legacy-peer-deps)
+  #      - postinstall hook fires: prisma generate against backend schema
+  #        via the client_frontend generator
+  #   5. Run buildCommand from vercel.json (npm run vercel:build ->
+  #      next build --webpack)
+  #   6. Verify the outputDirectory from vercel.json exists. Default for
+  #      Next.js would be .next, but next.config.mjs sets a custom
+  #      distDir of .next-build for dev/prod isolation, so vercel.json
+  #      must specify outputDirectory: ".next-build" to match.
   # ---------------------------------------------------------------------------
   vercel-build:
     name: Vercel · parity build (vercel.json)
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend/next-app
     env:
       # Prisma generate only reads the schema file — no DB connection is made
       # during postinstall or `next build`.
@@ -160,7 +165,21 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/next-app/package-lock.json
 
-      - name: Read commands from root vercel.json
+      - name: Verify Vercel framework detection would pass
+        # When vercel.json has framework: "nextjs", Vercel CLI walks the
+        # resolved Root Directory's package.json looking for "next" in
+        # dependencies/devDependencies. If absent, Vercel errors with
+        # "No Next.js version detected" before running any commands.
+        run: |
+          HAS_NEXT=$(node -p "Boolean(require('./package.json').dependencies?.next || require('./package.json').devDependencies?.next)")
+          if [ "$HAS_NEXT" != "true" ]; then
+            echo "::error::Vercel framework detection would FAIL — 'next' is not in frontend/next-app/package.json dependencies"
+            exit 1
+          fi
+          NEXT_VERSION=$(node -p "require('./package.json').dependencies?.next || require('./package.json').devDependencies?.next")
+          echo "Vercel framework detection: OK (next=$NEXT_VERSION)"
+
+      - name: Read commands from frontend/next-app/vercel.json
         id: vercel
         run: |
           INSTALL=$(node -p "require('./vercel.json').installCommand")

@@ -1,6 +1,0 @@
-{
-  "$schema": "https://openapi.vercel.sh/vercel.json",
-  "installCommand": "npm --prefix frontend/next-app ci --legacy-peer-deps",
-  "buildCommand": "npm --prefix frontend/next-app run build",
-  "outputDirectory": "frontend/next-app/.next-build"
-}
