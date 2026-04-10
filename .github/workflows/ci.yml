@@ -114,10 +114,14 @@ jobs:
         run: npm run build
 
       - name: Unit & integration tests (Jest)
-        # src/tests/{unit,integration,security}/** — all run under `npm test`.
-        # If any suite needs a real DB (integration/security), we may need to
-        # wire up a service container in a follow-up.
-        run: npm test
+        # Security tests (src/tests/security/**) are E2E-style and require a
+        # live Express server + Redis. They are designed to run separately via
+        #   npm test -- --testPathPattern=security
+        # against a running backend. Excluded here so CI runs only the fast
+        # unit + integration suites. To add security tests to CI, create a
+        # dedicated job with service containers (Redis) and a backend startup
+        # step.
+        run: npm test -- --testPathIgnorePatterns=src/tests/security
 
   # ---------------------------------------------------------------------------
   # Vercel-parity build
