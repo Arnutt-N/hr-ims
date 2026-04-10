@@ -59,17 +59,12 @@ jobs:
           cache-dependency-path: frontend/next-app/package-lock.json
 
       - name: Install dependencies
-        # --legacy-peer-deps matches what vercel:install does (root package.json).
+        # --legacy-peer-deps matches what frontend's vercel:install does.
         # React 19 + some Radix packages still advertise older peer ranges.
+        # The postinstall hook in frontend/next-app/package.json runs
+        #   prisma generate --schema=../../backend/prisma/schema.prisma --generator client_frontend
+        # automatically — no separate step needed here.
         run: npm ci --legacy-peer-deps
-
-      - name: Generate Prisma Client (frontend generator only)
-        # Schema lives in backend/prisma but we only want `client_frontend` so
-        # we don't need to install backend/node_modules for this job.
-        run: >-
-          npx prisma generate
-          --schema ../../backend/prisma/schema.prisma
-          --generator client_frontend
 
       - name: Lint (ESLint)
         run: npm run lint
@@ -125,18 +120,30 @@ jobs:
 
   # ---------------------------------------------------------------------------
   # Vercel-parity build
-  # Runs the EXACT same commands Vercel's vercel.json is configured to run:
-  #   - installCommand: npm run vercel:install
-  #   - buildCommand:   npm run vercel:build
-  # This is the authoritative build check — if this passes, Vercel should too
-  # (provided Vercel's Root Directory setting matches where vercel.json lives).
+  # Mirrors EXACTLY what Vercel does when Root Directory is set to
+  # frontend/next-app:
+  #   1. cd frontend/next-app
+  #   2. Read frontend/next-app/vercel.json
+  #   3. Verify framework detection: "next" must be in package.json deps
+  #   4. Run installCommand (vercel:install -> npm ci --legacy-peer-deps)
+  #      - postinstall hook fires: prisma generate against backend schema
+  #   5. Run buildCommand (vercel:build -> next build --webpack)
+  #
+  # The framework-detection check (step 3) is what caught us out earlier:
+  # the previous root-level mirror passed because it was just shell commands,
+  # but the real Vercel CLI fails framework detection BEFORE running install
+  # if it can't find "next" in the resolved Root Directory's package.json.
   # ---------------------------------------------------------------------------
   vercel-build:
     name: Vercel · parity build (vercel.json)
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend/next-app
     env:
-      # Prisma generate only reads the schema file, no DB connection is made.
-      DATABASE_URL: file:./backend/prisma/dev.db
+      # Prisma generate only reads the schema file — no DB connection is made
+      # during postinstall or `next build`.
+      DATABASE_URL: file:./dev.db
       # NextAuth v5 statically analyzes Route Handlers at build time and
       # requires these to be present. Dummy values are safe — nothing actually
       # signs or verifies tokens during `next build`.
@@ -153,22 +160,27 @@ jobs:
         with:
           node-version: '24'
           cache: npm
-          # Cache on both lock files because vercel:install installs both sides.
-          cache-dependency-path: |
-            backend/package-lock.json
-            frontend/next-app/package-lock.json
+          cache-dependency-path: frontend/next-app/package-lock.json
+
+      - name: Verify Vercel framework detection
+        # Vercel CLI walks up from Root Directory and looks for "next" in
+        # dependencies/devDependencies of the matching package.json. If this
+        # check fails, Vercel errors with: "No Next.js version detected".
+        run: |
+          if ! node -e "process.exit(require('./package.json').dependencies?.next || require('./package.json').devDependencies?.next ? 0 : 1)"; then
+            echo "::error::Vercel framework detection would FAIL — 'next' is not in frontend/next-app/package.json dependencies"
+            exit 1
+          fi
+          echo "Vercel framework detection: OK ($(node -p "require('./package.json').dependencies.next"))"
 
       - name: Run vercel:install (mirrors Vercel's installCommand)
-        # Expands to:
-        #   npm --prefix backend ci
-        #   npm --prefix frontend/next-app ci --legacy-peer-deps
-        #   npm run db:generate   (prisma generate from backend sqlite schema)
+        # Expands to: npm ci --legacy-peer-deps
+        # The postinstall hook then fires:
+        #   prisma generate --schema=../../backend/prisma/schema.prisma --generator client_frontend
         run: npm run vercel:install
 
       - name: Run vercel:build (mirrors Vercel's buildCommand)
-        # Expands to:
-        #   npm run db:generate
-        #   npm --prefix frontend/next-app run build   (next build --webpack)
+        # Expands to: npm run build -> next build --webpack
         run: npm run vercel:build
 
   # ---------------------------------------------------------------------------

@@ -9,8 +9,6 @@
         "dev:frontend": "npm --prefix frontend/next-app run dev",
         "dev:backend": "npm --prefix backend run dev",
         "build": "npm --prefix frontend/next-app run build",
-        "vercel:install": "npm --prefix backend ci && npm --prefix frontend/next-app ci --legacy-peer-deps && npm run db:generate",
-        "vercel:build": "npm run db:generate && npm --prefix frontend/next-app run build",
         "start": "npm --prefix frontend/next-app run start",
         "lint": "npm --prefix frontend/next-app run lint",
         "test": "npm --prefix frontend/next-app run test",
