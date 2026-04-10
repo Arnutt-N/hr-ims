@@ -3,6 +3,7 @@
 import prisma from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
 import { auth } from '@/auth';
+import { requireRole, ADMIN_ROLES } from '@/lib/auth-guards';
 
 export async function getMaintenanceItems() {
     const session = await auth();
@@ -39,8 +40,12 @@ export async function updateMaintenanceStatus(
     status: string,
     repairNotes?: string
 ) {
-    const session = await auth();
-    if (!session?.user?.role || session.user.role !== 'admin') {
+    // Use ADMIN_ROLES (admin + superadmin) instead of hard-coded 'admin'
+    // string comparison, which silently blocked superadmin users from
+    // updating maintenance status because their token role is 'superadmin'
+    // not 'admin'.
+    const session = await requireRole(...ADMIN_ROLES);
+    if (!session) {
         return { error: 'Unauthorized - Admin only' };
     }
 
