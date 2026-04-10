@@ -1,0 +1,224 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Cancel in-progress runs when new commits are pushed to the same ref.
+# Saves minutes and gives faster feedback on rapid iteration (e.g. PR #3).
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+# ---------------------------------------------------------------------------
+# Dual-provider strategy
+#
+# This repo uses SQLite as the Prisma "source of truth" schema and generates
+# a MySQL-flavored copy on-demand for TiDB via backend/scripts/prepare-tidb-prisma.js.
+#
+# - `frontend` / `backend` / `vercel-build` jobs use the SQLite source schema.
+#   They are fast and validate the default dev/build flow. Prisma Client
+#   generated from SQLite has IDENTICAL TypeScript types to the MySQL client,
+#   so type-checking and building Next.js works the same either way.
+#
+# - `tidb-schema` job validates the TiDB schema transform and generates the
+#   MySQL-flavored client. This catches regressions in the transform script
+#   or the schema itself (e.g. new Prisma syntax the regex doesn't handle).
+# ---------------------------------------------------------------------------
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Frontend · lint + unit tests
+  # Lightweight job for fast PR feedback. Does NOT run `next build` —
+  # the full build lives in `vercel-build` so we avoid duplicate work.
+  # ---------------------------------------------------------------------------
+  frontend:
+    name: Frontend · lint + test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend/next-app
+    env:
+      DATABASE_URL: file:./dev.db
+      NEXTAUTH_URL: http://localhost:3000
+      NEXTAUTH_SECRET: ci-dummy-secret-do-not-use-in-production
+      AUTH_SECRET: ci-dummy-secret-do-not-use-in-production
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: frontend/next-app/package-lock.json
+
+      - name: Install dependencies
+        # --legacy-peer-deps matches what vercel:install does (root package.json).
+        # React 19 + some Radix packages still advertise older peer ranges.
+        run: npm ci --legacy-peer-deps
+
+      - name: Generate Prisma Client (frontend generator only)
+        # Schema lives in backend/prisma but we only want `client_frontend` so
+        # we don't need to install backend/node_modules for this job.
+        run: >-
+          npx prisma generate
+          --schema ../../backend/prisma/schema.prisma
+          --generator client_frontend
+
+      - name: Lint (ESLint)
+        run: npm run lint
+
+      - name: Unit tests (Vitest)
+        # `npm run test` invokes `vitest` which defaults to watch mode.
+        # Use `vitest run` for single-run non-interactive CI mode.
+        run: npx vitest run
+
+  # ---------------------------------------------------------------------------
+  # Backend · tsc + Jest
+  # ---------------------------------------------------------------------------
+  backend:
+    name: Backend · typecheck + test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      DATABASE_URL: file:./prisma/dev.db
+      JWT_SECRET: ci-dummy-secret-do-not-use-in-production
+      NODE_ENV: test
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma Client (backend default generator)
+        run: npm run prisma:generate
+
+      - name: TypeScript build (tsc)
+        run: npm run build
+
+      - name: Unit & integration tests (Jest)
+        # src/tests/{unit,integration,security}/** — all run under `npm test`.
+        # If any suite needs a real DB (integration/security), we may need to
+        # wire up a service container in a follow-up.
+        run: npm test
+
+  # ---------------------------------------------------------------------------
+  # Vercel-parity build
+  # Runs the EXACT same commands Vercel's vercel.json is configured to run:
+  #   - installCommand: npm run vercel:install
+  #   - buildCommand:   npm run vercel:build
+  # This is the authoritative build check — if this passes, Vercel should too
+  # (provided Vercel's Root Directory setting matches where vercel.json lives).
+  # ---------------------------------------------------------------------------
+  vercel-build:
+    name: Vercel · parity build (vercel.json)
+    runs-on: ubuntu-latest
+    env:
+      # Prisma generate only reads the schema file, no DB connection is made.
+      DATABASE_URL: file:./backend/prisma/dev.db
+      # NextAuth v5 statically analyzes Route Handlers at build time and
+      # requires these to be present. Dummy values are safe — nothing actually
+      # signs or verifies tokens during `next build`.
+      NEXTAUTH_URL: http://localhost:3000
+      NEXTAUTH_SECRET: ci-dummy-secret-do-not-use-in-production
+      AUTH_SECRET: ci-dummy-secret-do-not-use-in-production
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          # Cache on both lock files because vercel:install installs both sides.
+          cache-dependency-path: |
+            backend/package-lock.json
+            frontend/next-app/package-lock.json
+
+      - name: Run vercel:install (mirrors Vercel's installCommand)
+        # Expands to:
+        #   npm --prefix backend ci
+        #   npm --prefix frontend/next-app ci --legacy-peer-deps
+        #   npm run db:generate   (prisma generate from backend sqlite schema)
+        run: npm run vercel:install
+
+      - name: Run vercel:build (mirrors Vercel's buildCommand)
+        # Expands to:
+        #   npm run db:generate
+        #   npm --prefix frontend/next-app run build   (next build --webpack)
+        run: npm run vercel:build
+
+  # ---------------------------------------------------------------------------
+  # TiDB schema validation
+  # Validates that:
+  #   1. The SQLite -> MySQL transform (prepare-tidb-prisma.js) still works
+  #   2. The generated schema is a valid Prisma schema for mysql provider
+  #   3. `prisma generate` succeeds against the TiDB-flavored schema
+  #
+  # No real TiDB connection is made — dummy TIDB_DATABASE_URL satisfies the
+  # guard in scripts/prisma-tidb.js but `prisma generate` never touches it.
+  # ---------------------------------------------------------------------------
+  tidb-schema:
+    name: TiDB · schema transform + validate
+    runs-on: ubuntu-latest
+    env:
+      # Dummy TiDB URL — only used to satisfy scripts/prisma-tidb.js's presence
+      # check. Prisma generate reads the schema file only, it does NOT connect
+      # to the database. Do not put a real URL here.
+      TIDB_DATABASE_URL: mysql://dummy:dummy@127.0.0.1:4000/dummy?sslaccept=strict
+      DATABASE_URL: mysql://dummy:dummy@127.0.0.1:4000/dummy?sslaccept=strict
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: |
+            backend/package-lock.json
+            frontend/next-app/package-lock.json
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: npm ci
+
+      - name: Install frontend dependencies
+        # Required because the TiDB generator writes to
+        # frontend/next-app/node_modules/.prisma/client — that directory must
+        # exist (via npm ci) before `prisma generate` can write into it.
+        working-directory: frontend/next-app
+        run: npm ci --legacy-peer-deps
+
+      - name: Prepare TiDB schema (sqlite -> mysql transform)
+        working-directory: backend
+        run: npm run db:prepare:tidb
+
+      - name: Validate transformed schema parses as mysql
+        working-directory: backend
+        run: npx prisma validate --schema prisma/.generated/schema.tidb.prisma
+
+      - name: Generate Prisma Client from TiDB schema (dry run, no DB)
+        working-directory: backend
+        run: npm run db:generate:tidb
