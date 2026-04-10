@@ -1,0 +1,140 @@
+name: Security E2E
+
+# ---------------------------------------------------------------------------
+# Security E2E tests run OWASP-style penetration tests against a live
+# Express backend. They are NOT part of the default CI because they need:
+#   - A running backend (port 3001)
+#   - A seeded database (requires superadmin@demo.com / admin@demo.com / user@demo.com)
+#   - Redis for rate-limiting middleware
+#
+# Triggers:
+#   - workflow_dispatch:     manual run from the Actions tab
+#   - schedule (commented):  enable once the suite is stable to run nightly
+# ---------------------------------------------------------------------------
+on:
+  workflow_dispatch:
+  # Uncomment to enable nightly runs once the baseline is trusted:
+  # schedule:
+  #   - cron: '0 18 * * *'  # 18:00 UTC = 01:00 ICT (Thailand) every day
+
+concurrency:
+  group: security-e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  security:
+    name: Security · OWASP E2E suite
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    services:
+      # Redis is required by the rate-limiting middleware (express-rate-limit +
+      # ioredis). Without Redis, the rate-limiter falls back to in-memory which
+      # breaks several brute-force tests.
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 5
+
+    env:
+      # SQLite file database — fast to create and seed, scoped to this runner.
+      DATABASE_URL: file:./prisma/dev.db
+      # Backend must listen on 3001 to match securityConfig.targets.backend
+      PORT: '3001'
+      TEST_BACKEND_URL: http://localhost:3001
+      # Must match the default in backend/src/tests/security/config.ts and
+      # the INTERNAL_API_KEY env var consumed by backend/src/middleware/auth.ts
+      INTERNAL_API_KEY: test-internal-key
+      # JWT signing (dummy — security tests use the x-internal-key bypass path)
+      JWT_SECRET: ci-dummy-secret-do-not-use-in-production
+      # Redis URL for ioredis client (matches the service port above)
+      REDIS_URL: redis://localhost:6379
+      NODE_ENV: test
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: npm ci
+
+      - name: Generate Prisma Client
+        working-directory: backend
+        run: npm run prisma:generate
+
+      - name: Push schema to SQLite
+        working-directory: backend
+        run: npx prisma db push --schema prisma/schema.prisma --skip-generate
+
+      - name: Seed demo users required by security/config.ts
+        working-directory: backend
+        run: npx prisma db seed
+
+      - name: TypeScript build
+        working-directory: backend
+        run: npm run build
+
+      - name: Start backend in background
+        working-directory: backend
+        run: |
+          nohup node dist/index.js > /tmp/backend.log 2>&1 &
+          echo $! > /tmp/backend.pid
+
+      - name: Wait for backend to be ready
+        # Poll /api/health for up to 60 seconds. Fail fast if the server
+        # crashed during startup (dump the log so we can diagnose).
+        run: |
+          for i in {1..30}; do
+            if curl -sf http://localhost:3001/api/health > /dev/null 2>&1; then
+              echo "Backend is ready after ${i} attempts"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "::error::Backend failed to start within 60s"
+          echo "--- backend.log ---"
+          cat /tmp/backend.log || true
+          exit 1
+
+      - name: Run security test suite
+        working-directory: backend
+        # continue-on-error lets us establish a baseline on the first run
+        # without breaking the workflow. Once we know which tests reliably
+        # pass we can tighten this to hard-fail.
+        continue-on-error: true
+        run: npm test -- --testPathPattern=src/tests/security
+
+      - name: Dump backend log on failure
+        if: failure()
+        run: |
+          echo "--- backend.log ---"
+          cat /tmp/backend.log || true
+
+      - name: Stop backend
+        if: always()
+        run: |
+          if [ -f /tmp/backend.pid ]; then
+            kill "$(cat /tmp/backend.pid)" 2>/dev/null || true
+          fi
+
+      - name: Upload security reports (if generated)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-reports
+          path: backend/security-reports/
+          if-no-files-found: ignore
+          retention-days: 14
