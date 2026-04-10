@@ -193,13 +193,13 @@ describe('Password Policy Service', () => {
 
     describe('isPasswordExpired', () => {
         it('uses the configured expiry window', async () => {
-            // Use relative dates so this test does not bit-rot as time moves forward.
-            // Previous version used hardcoded dates (2026-01-01 / 2026-03-01) which
-            // silently expired ~2 months after being written.
-            const ONE_HOUR_MS = 60 * 60 * 1000;
-            const ONE_DAY_MS = 24 * ONE_HOUR_MS;
-            const oldDate = new Date(Date.now() - 10 * ONE_DAY_MS); // 10 days ago — beyond 1-day expiry
-            const recentDate = new Date(Date.now() - ONE_HOUR_MS);  // 1 hour ago — within 1-day expiry
+            // Use relative dates anchored to baseSettings.expiryDays (30) so the
+            // test does not bit-rot as the clock moves forward. The numeric `1`
+            // passed to isPasswordExpired is the USER ID — the expiry window
+            // comes from the mocked getPasswordPolicySettings() -> baseSettings.
+            const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+            const oldDate = new Date(Date.now() - 60 * ONE_DAY_MS);    // 60 days ago — beyond 30-day window
+            const recentDate = new Date(Date.now() - 5 * ONE_DAY_MS);  // 5 days ago — within 30-day window
 
             await expect(isPasswordExpired(1, oldDate)).resolves.toBe(true);
             await expect(isPasswordExpired(1, recentDate)).resolves.toBe(false);
