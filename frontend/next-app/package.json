@@ -10,7 +10,7 @@
         "test": "vitest",
         "test:ui": "vitest --ui",
         "audit": "npm audit",
-        "postinstall": "prisma generate --schema=../../backend/prisma/schema.prisma --generator client_frontend",
+        "postinstall": "node scripts/postinstall.cjs",
         "vercel:install": "npm ci --legacy-peer-deps",
         "vercel:build": "npm run build"
     },
