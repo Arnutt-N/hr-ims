@@ -98,11 +98,24 @@ const sidebarItems: SidebarItem[] = [
     },
 ];
 
+// Query-string keys that act as mutually-exclusive tab selectors across
+// sibling submenu items. If the current URL contains any of these keys,
+// a "default" child link (one whose href has no query string) must NOT
+// highlight — otherwise "All Items" and "Borrow" would both look active
+// at the same time when the user is on /inventory?type=durable.
+//
+// Add more keys here if new tab-style submenus are introduced (e.g. for
+// requests or warehouse filters).
+const MUTEX_QUERY_KEYS = ['type'];
+
 function isHrefActive(href: string, pathname: string, searchParams: ReturnType<typeof useSearchParams>) {
     const [targetPath, targetQuery] = href.split('?');
     if (pathname !== targetPath) return false;
 
-    if (!targetQuery) return true;
+    if (!targetQuery) {
+        // Default/"All" link — active only when no sibling tab selector is set.
+        return !MUTEX_QUERY_KEYS.some((key) => searchParams.get(key));
+    }
 
     const expectedParams = new URLSearchParams(targetQuery);
     let matches = true;
