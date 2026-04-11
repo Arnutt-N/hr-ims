@@ -57,7 +57,7 @@ export default function RegisterPage() {
                     <form action={dispatch} className="space-y-4">
                         <div className="space-y-2">
                             <label className="text-sm font-medium text-blue-100 ml-1" htmlFor="name">
-                                Full Name
+                                {t('register.field.name')}
                             </label>
                             <div className="relative">
                                 <User className="absolute left-4 top-1/2 transform -translate-y-1/2 text-blue-300" size={18} />
@@ -74,7 +74,7 @@ export default function RegisterPage() {
 
                         <div className="space-y-2">
                             <label className="text-sm font-medium text-blue-100 ml-1" htmlFor="email">
-                                Email Address
+                                {t('register.field.email')}
                             </label>
                             <div className="relative">
                                 <Mail className="absolute left-4 top-1/2 transform -translate-y-1/2 text-blue-300" size={18} />
@@ -91,7 +91,7 @@ export default function RegisterPage() {
 
                         <div className="space-y-2">
                             <label className="text-sm font-medium text-blue-100 ml-1" htmlFor="password">
-                                Password
+                                {t('register.field.password')}
                             </label>
                             <div className="relative">
                                 <Lock className="absolute left-4 top-1/2 transform -translate-y-1/2 text-blue-300" size={18} />
@@ -116,7 +116,7 @@ export default function RegisterPage() {
 
                         <div className="space-y-2">
                             <label className="text-sm font-medium text-blue-100 ml-1" htmlFor="confirmPassword">
-                                Confirm Password
+                                {t('register.field.confirm-password')}
                             </label>
                             <div className="relative">
                                 <Lock className="absolute left-4 top-1/2 transform -translate-y-1/2 text-blue-300" size={18} />
@@ -155,7 +155,7 @@ export default function RegisterPage() {
                         </div>
 
                         <div className="text-center text-sm">
-                            <span className="text-slate-400">Already have an account? </span>
+                            <span className="text-slate-400">{t('register.link.sign-in')} </span>
                             <Link href="/login" className="text-blue-300 hover:text-blue-200 transition-colors font-medium">
                                 Sign In
                             </Link>
@@ -183,6 +183,7 @@ export default function RegisterPage() {
 
 function RegisterButton() {
     const { pending } = useFormStatus();
+    const { t } = useI18n();
 
     return (
         <button
@@ -190,7 +191,7 @@ function RegisterButton() {
             disabled={pending}
             className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold py-3 rounded-xl transition-all shadow-lg shadow-indigo-600/30 disabled:opacity-70 cursor-pointer"
         >
-            {pending ? 'Creating Account...' : 'Create Account'}
+            {pending ? t('common.loading') : t('register.button.submit')}
         </button>
     );
 }
