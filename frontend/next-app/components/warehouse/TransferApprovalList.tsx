@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { CheckCircle, XCircle, Clock, Package, ArrowRight } from 'lucide-react';
+import { APPROVER_ROLES } from '@/lib/role-access';
 
 interface StockTransfer {
     id: number;
@@ -169,8 +170,8 @@ export default function TransferApprovalList({ userId, userRole }: TransferAppro
                                 </div>
                             )}
 
-                            {/* Action Buttons (Admin/Approver only) */}
-                            {(userRole === 'admin' || userRole === 'approver') && transfer.status === 'pending' && (
+                            {/* Action Buttons (Approver-capable roles only) */}
+                            {APPROVER_ROLES.includes(userRole) && transfer.status === 'pending' && (
                                 <div className="flex gap-2 pt-3 border-t">
                                     <Button
                                         onClick={() => handleApprove(transfer.id)}

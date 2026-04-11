@@ -1,13 +1,14 @@
 'use server';
 
+import { auth } from '@/auth';
 import prisma from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
-import { auth } from '@/auth';
 import { z } from 'zod';
 import bcrypt from 'bcrypt';
 import { Role } from '@/lib/types/user-types';
 import { logActivity } from '@/lib/actions/audit';
 import { ensureUserHasPrimaryRole, syncUserPrimaryRole } from '@/lib/role-sync';
+import { ADMIN_ROLES, SUPERADMIN_ONLY, requireRole, sessionHasAnyRole } from '@/lib/auth-guards';
 
 
 // Validation Schemas
@@ -34,9 +35,8 @@ const updateUserSchema = userSchema.partial();
 // ... (schemas remain same)
 
 export async function getUsers() {
-    const session = await auth();
-    const role = session?.user?.role;
-    if (!session || (role !== Role.superadmin as any && role !== Role.admin as any)) {
+    const session = await requireRole(...ADMIN_ROLES);
+    if (!session?.user) {
         return { error: 'Unauthorized - Admin only' };
     }
 
@@ -64,11 +64,11 @@ export async function getUsers() {
 }
 
 export async function createUser(data: any) {
-    const session = await auth();
-    const currentUserRole = session?.user?.role;
+    const session = await requireRole(...ADMIN_ROLES);
+    const isCurrentUserSuperadmin = sessionHasAnyRole(session, ...SUPERADMIN_ONLY);
 
     // 1. Basic Auth Check
-    if (!session || (currentUserRole !== Role.superadmin as any && currentUserRole !== Role.admin as any)) {
+    if (!session?.user) {
         return { error: 'Unauthorized - Admin only' };
     }
 
@@ -77,7 +77,7 @@ export async function createUser(data: any) {
         const validated = createUserSchema.parse(data);
 
         // 2. Role Restriction: Only Superadmin can create Superadmin
-        if (validated.role === Role.superadmin && currentUserRole !== Role.superadmin as any) {
+        if (validated.role === Role.superadmin && !isCurrentUserSuperadmin) {
             return { error: 'Forbidden: Only Superadmin can create another Superadmin' };
         }
 
@@ -130,11 +130,11 @@ export async function createUser(data: any) {
 }
 
 export async function updateUser(id: number, data: any) {
-    const session = await auth();
-    const currentUserRole = session?.user?.role;
+    const session = await requireRole(...ADMIN_ROLES);
+    const isCurrentUserSuperadmin = sessionHasAnyRole(session, ...SUPERADMIN_ONLY);
 
     // 1. Basic Auth Check
-    if (!session || (currentUserRole !== Role.superadmin as any && currentUserRole !== Role.admin as any)) {
+    if (!session?.user) {
         return { error: 'Unauthorized - Admin only' };
     }
 
@@ -147,7 +147,7 @@ export async function updateUser(id: number, data: any) {
         if (!targetUser) return { error: 'User not found' };
 
         // 2. Role Restriction: Only Superadmin can edit a Superadmin
-        if (targetUser.role === Role.superadmin && currentUserRole !== Role.superadmin as any) {
+        if (targetUser.role === Role.superadmin && !isCurrentUserSuperadmin) {
             // Allow user to edit themselves? usually handled by profile update, currently this is admin function
             // If admin trying to edit superadmin -> Forbidden
             if (parseInt(session.user?.id!) !== id) {
@@ -156,7 +156,7 @@ export async function updateUser(id: number, data: any) {
         }
 
         // 3. Role Restriction: Only Superadmin can promote someone to Superadmin
-        if (validated.role === Role.superadmin && currentUserRole !== Role.superadmin as any) {
+        if (validated.role === Role.superadmin && !isCurrentUserSuperadmin) {
             return { error: 'Forbidden: Only Superadmin can assign Superadmin role' };
         }
 
@@ -211,11 +211,11 @@ export async function updateUser(id: number, data: any) {
 }
 
 export async function deleteUser(id: number) {
-    const session = await auth();
-    const currentUserRole = session?.user?.role;
+    const session = await requireRole(...ADMIN_ROLES);
+    const isCurrentUserSuperadmin = sessionHasAnyRole(session, ...SUPERADMIN_ONLY);
 
     // 1. Basic Auth Check
-    if (!session || (currentUserRole !== Role.superadmin as any && currentUserRole !== Role.admin as any)) {
+    if (!session?.user) {
         return { error: 'Unauthorized - Admin only' };
     }
 
@@ -230,7 +230,7 @@ export async function deleteUser(id: number) {
         if (!targetUser) return { error: 'User not found' };
 
         // 2. Role Restriction: Only Superadmin can delete Master/Superadmin
-        if (targetUser.role === Role.superadmin && currentUserRole !== Role.superadmin as any) {
+        if (targetUser.role === Role.superadmin && !isCurrentUserSuperadmin) {
             return { error: 'Forbidden: You cannot delete a Superadmin account' };
         }
 
@@ -253,10 +253,9 @@ export async function deleteUser(id: number) {
 }
 
 export async function revokeUserSessions(userId: number) {
-    const session = await auth();
-    const currentUserRole = session?.user?.role;
+    const session = await requireRole(...ADMIN_ROLES);
 
-    if (!session || (currentUserRole !== Role.superadmin as any && currentUserRole !== Role.admin as any)) {
+    if (!session?.user) {
         return { error: 'Unauthorized' };
     }
 

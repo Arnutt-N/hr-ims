@@ -7,6 +7,7 @@ import bcrypt from 'bcrypt';
 import { User as PrismaUser } from '@prisma/client';
 import { ensureUserHasPrimaryRole } from './lib/role-sync';
 import { Role } from '@/lib/types/user-types';
+import { getRoleList } from '@/lib/role-access';
 
 async function getUser(email: string): Promise<PrismaUser | undefined> {
     try {
@@ -103,24 +104,32 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                     roles.push(fallbackRole);
                 }
 
-                token.roles = roles;
+                const normalizedRoles = getRoleList({
+                    roles,
+                    role: userDb.role || fallbackRole,
+                });
 
                 // PROMOTE ROLE: If superadmin is in the list, ensure token.role is also superadmin
                 // This handles legacy pages that only check token.role
-                if (roles.includes('superadmin')) {
+                if (normalizedRoles.includes('superadmin')) {
                     token.role = 'superadmin';
-                } else if (roles.includes('admin') && token.role !== 'superadmin') {
+                } else if (normalizedRoles.includes('admin') && token.role !== 'superadmin') {
                     token.role = 'admin';
                 } else {
-                    token.role = roles[0] || userDb.role || fallbackRole;
+                    token.role = normalizedRoles[0] || userDb.role || fallbackRole;
                 }
+
+                token.roles = getRoleList({
+                    roles: normalizedRoles,
+                    role: typeof token.role === 'string' ? token.role : undefined,
+                });
 
                 // 2. Fetch Permissions for ALL assigned roles
                 const permissions = await prisma.rolePermission.findMany({
                     where: {
                         OR: [
-                            { role: { in: roles } }, // Legacy string-based match
-                            { roleRef: { slug: { in: roles } } } // Relation-based match
+                            { role: { in: token.roles } }, // Legacy string-based match
+                            { roleRef: { slug: { in: token.roles } } } // Relation-based match
                         ],
                         canView: true
                     }
@@ -138,11 +147,15 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         async session({ session, token }) {
             if (token && session.user) {
                 const sessionRole = typeof token.role === 'string' ? token.role : 'user';
+                const sessionRoles = getRoleList({
+                    roles: Array.isArray(token.roles)
+                        ? token.roles.filter((role): role is string => typeof role === 'string')
+                        : [],
+                    role: sessionRole,
+                });
                 session.user.id = typeof token.id === 'string' ? token.id : '';
                 (session.user as any).role = sessionRole;
-                (session.user as any).roles = Array.isArray(token.roles)
-                    ? token.roles.filter((role): role is string => typeof role === 'string')
-                    : [sessionRole];
+                (session.user as any).roles = sessionRoles;
                 (session.user as any).permissions = Array.isArray(token.permissions)
                     ? token.permissions.filter((permission): permission is string => typeof permission === 'string')
                     : [];

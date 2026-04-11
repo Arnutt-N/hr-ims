@@ -2,6 +2,7 @@
 
 import prisma from '@/lib/prisma';
 import { auth } from '@/auth';
+import { sessionHasAnyRole } from '@/lib/auth-guards';
 
 export async function logActivity(
     action: string,
@@ -35,10 +36,7 @@ export async function logActivity(
 export async function getAuditLogs(limit = 50) {
     try {
         const session = await auth();
-        const userRoles = (session?.user as any)?.roles || [session?.user?.role];
-        const isAuthorized = userRoles.some((r: string) => ['superadmin', 'admin', 'auditor'].includes(r));
-
-        if (!isAuthorized) {
+        if (!sessionHasAnyRole(session, 'superadmin', 'admin', 'auditor')) {
             return { error: 'Unauthorized' };
         }
 

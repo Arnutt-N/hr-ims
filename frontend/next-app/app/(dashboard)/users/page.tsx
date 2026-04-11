@@ -10,6 +10,7 @@ import { toast } from 'sonner';
 import { UserPlus, Edit, Trash2, Search, Users as UsersIcon } from 'lucide-react';
 import { UserFormDialog } from '@/components/dashboard/user-form-dialog';
 import { useI18n } from '@/lib/i18n/provider';
+import { sessionHasAnyRole, SUPERADMIN_ONLY } from '@/lib/role-access';
 import {
     Table,
     TableBody,
@@ -32,6 +33,7 @@ import {
 export default function UserManagementPage() {
     const { data: session } = useSession();
     const { t } = useI18n();
+    const canManageSuperadmins = sessionHasAnyRole(session, ...SUPERADMIN_ONLY);
     const [users, setUsers] = useState<any[]>([]);
     const [filteredUsers, setFilteredUsers] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
@@ -235,7 +237,7 @@ export default function UserManagementPage() {
                 onSubmit={handleFormSubmit}
                 initialData={selectedUser}
                 mode={dialogMode}
-                currentUserRole={session?.user?.role}
+                canManageSuperadmins={canManageSuperadmins}
             />
 
             {/* Delete Confirmation */}

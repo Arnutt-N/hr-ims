@@ -1,12 +1,12 @@
-import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { SystemSettingsForm } from "./SystemSettingsForm";
 import { getServerT } from "@/lib/i18n/server";
+import { requireRole, SUPERADMIN_ONLY } from "@/lib/auth-guards";
 
 export default async function SystemSettingsPage() {
-    const session = await auth();
+    const session = await requireRole(...SUPERADMIN_ONLY);
 
-    if (!session?.user || session.user.role !== "superadmin") {
+    if (!session?.user) {
         redirect("/dashboard");
     }
 
