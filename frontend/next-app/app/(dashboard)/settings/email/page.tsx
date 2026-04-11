@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, Mail, Send, CheckCircle, XCircle, RefreshCw } from 'lucide-react';
+import { useI18n } from '@/lib/i18n/provider';
 import { toast } from 'sonner';
 
 interface EmailSettings {
@@ -27,6 +28,7 @@ interface VerificationStatus {
 }
 
 export default function EmailSettingsPage() {
+    const { t } = useI18n();
     const router = useRouter();
     const [settings, setSettings] = useState<EmailSettings>({
         emailVerificationEnabled: false,
@@ -198,7 +200,7 @@ export default function EmailSettingsPage() {
     return (
         <div className="space-y-6">
             <div>
-                <h1 className="text-2xl font-bold">Email Settings</h1>
+                <h1 className="text-2xl font-bold">{t('settings.email.title')}</h1>
                 <p className="text-muted-foreground">
                     Configure email server and verification settings
                 </p>

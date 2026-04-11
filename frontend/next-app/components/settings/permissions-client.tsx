@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { getPermissions, updatePermission } from '@/lib/actions/permissions';
+import { useI18n } from '@/lib/i18n/provider';
 import {
     Table,
     TableBody,
@@ -35,6 +36,7 @@ const MENUS = [
 ];
 
 export function PermissionsClient() {
+    const { t } = useI18n();
     const [permissions, setPermissions] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
 
@@ -97,9 +99,9 @@ export function PermissionsClient() {
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
                     <h1 className="text-3xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
-                        <Shield className="text-blue-600" /> Role Permissions
+                        <Shield className="text-blue-600" /> {t('settings.permissions.title')}
                     </h1>
-                    <p className="text-slate-500">Configure menu access for each user role.</p>
+                    <p className="text-slate-500">{t('settings.permissions.subtitle')}</p>
                 </div>
             </div>
 

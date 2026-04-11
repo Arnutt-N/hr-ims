@@ -267,6 +267,120 @@ const en: Dictionary = {
     'profile.menu.my-profile': 'My Profile',
     'profile.menu.settings': 'Settings',
     'profile.menu.sign-out': 'Sign out',
+
+    // Auth: register / forgot-password / reset-password
+    'register.title': 'Create Account',
+    'register.subtitle': 'Register to access the HR-IMS system',
+    'register.field.name': 'Full Name',
+    'register.field.email': 'Email Address',
+    'register.field.password': 'Password',
+    'register.field.confirm-password': 'Confirm Password',
+    'register.field.department': 'Department',
+    'register.button.submit': 'Create Account',
+    'register.link.sign-in': 'Already have an account? Sign in',
+    'register.error.mismatch': 'Passwords do not match',
+    'register.success': 'Account created successfully',
+    'forgot.title': 'Forgot Password',
+    'forgot.subtitle': "Enter your email and we'll send you a reset link",
+    'forgot.field.email': 'Email Address',
+    'forgot.button.submit': 'Send Reset Link',
+    'forgot.link.back': 'Back to sign in',
+    'forgot.success': 'If the email exists, a reset link has been sent.',
+    'reset.title': 'Reset Password',
+    'reset.subtitle': 'Choose a new password for your account',
+    'reset.field.new-password': 'New Password',
+    'reset.field.confirm-password': 'Confirm New Password',
+    'reset.button.submit': 'Reset Password',
+    'reset.success': 'Password reset successfully',
+    'reset.error.invalid-token': 'This reset link is invalid or expired',
+
+    // Settings — shared
+    'settings.section.general': 'General Settings',
+    'settings.section.borrow': 'Borrow Settings',
+    'settings.section.features': 'System Features',
+    'settings.save-config': 'Save Configuration',
+
+    // Settings — Categories
+    'settings.categories.title': 'Categories',
+    'settings.categories.subtitle': 'Manage inventory item categories',
+    'settings.categories.add': 'Add Category',
+    'settings.categories.all': 'All Categories',
+
+    // Settings — Warehouses
+    'settings.warehouses.title': 'Warehouse Management',
+    'settings.warehouses.subtitle': 'Configure warehouses and assign managers',
+    'settings.warehouses.add': 'Add Warehouse',
+    'settings.warehouses.all': 'All Warehouses',
+    'settings.warehouses.table.code': 'Code',
+    'settings.warehouses.table.name': 'Name',
+    'settings.warehouses.table.type': 'Type',
+    'settings.warehouses.table.managers': 'Managers',
+    'settings.warehouses.table.items': 'Items',
+    'settings.warehouses.table.actions': 'Actions',
+
+    // Settings — Departments
+    'settings.departments.title': 'Department Mapping',
+    'settings.departments.subtitle': 'Map departments to warehouses',
+    'settings.departments.add': 'Add Mapping',
+    'settings.departments.dialog.add': 'Map Department to Warehouse',
+    'settings.departments.dialog.edit': 'Edit Department Mapping',
+
+    // Settings — System
+    'settings.system.title': 'System Configuration',
+    'settings.system.subtitle': 'Manage application settings and defaults',
+
+    // Settings — Permissions
+    'settings.permissions.title': 'Permissions',
+    'settings.permissions.subtitle': 'Manage role permissions and access control',
+
+    // Settings — Sessions
+    'settings.sessions.title': 'Active Sessions',
+    'settings.sessions.subtitle': 'Monitor and manage user sessions',
+
+    // Settings — Logging
+    'settings.logging.title': 'Logging Settings',
+    'settings.logging.subtitle': 'Configure system logging and log retention',
+    'settings.logging.config': 'Logging Configuration',
+    'settings.logging.viewer': 'Log Viewer',
+
+    // Settings — Backup
+    'settings.backup.title': 'Backup & Restore',
+    'settings.backup.subtitle': 'Database backup and restore operations',
+    'settings.backup.config': 'Backup Configuration',
+    'settings.backup.history': 'Backup History',
+
+    // Settings — Email
+    'settings.email.title': 'Email Settings',
+    'settings.email.subtitle': 'SMTP and email notification configuration',
+    'settings.email.smtp': 'SMTP Configuration',
+    'settings.email.features': 'Features',
+
+    // Settings — Health
+    'settings.health.title': 'System Health',
+    'settings.health.subtitle': 'Monitor system status and performance',
+    'settings.health.db-stats': 'Database Statistics',
+
+    // Notification bell
+    'notifications.title': 'Notifications',
+    'notifications.empty': 'No notifications',
+    'notifications.mark-all-read': 'Mark all as read',
+    'notifications.view-all': 'View all',
+    'notifications.check-low-stock': 'Check Low Stock',
+
+    // Status badges (shared across tables)
+    'status.active': 'Active',
+    'status.inactive': 'Inactive',
+    'status.pending': 'Pending',
+    'status.approved': 'Approved',
+    'status.rejected': 'Rejected',
+    'status.completed': 'Completed',
+    'status.cancelled': 'Cancelled',
+    'status.available': 'Available',
+    'status.borrowed': 'Borrowed',
+    'status.in-use': 'In Use',
+    'status.reported': 'Reported',
+    'status.in-repair': 'In Repair',
+    'status.repaired': 'Repaired',
 };
 
 const th: Dictionary = {
@@ -519,6 +633,120 @@ const th: Dictionary = {
     'profile.menu.my-profile': 'โปรไฟล์ของฉัน',
     'profile.menu.settings': 'ตั้งค่า',
     'profile.menu.sign-out': 'ออกจากระบบ',
+
+    // Auth: register / forgot-password / reset-password
+    'register.title': 'สร้างบัญชีใหม่',
+    'register.subtitle': 'ลงทะเบียนเพื่อใช้งานระบบ HR-IMS',
+    'register.field.name': 'ชื่อ-นามสกุล',
+    'register.field.email': 'อีเมล',
+    'register.field.password': 'รหัสผ่าน',
+    'register.field.confirm-password': 'ยืนยันรหัสผ่าน',
+    'register.field.department': 'หน่วยงาน',
+    'register.button.submit': 'สร้างบัญชี',
+    'register.link.sign-in': 'มีบัญชีแล้ว? เข้าสู่ระบบ',
+    'register.error.mismatch': 'รหัสผ่านไม่ตรงกัน',
+    'register.success': 'สร้างบัญชีสำเร็จ',
+    'forgot.title': 'ลืมรหัสผ่าน',
+    'forgot.subtitle': 'กรอกอีเมลของคุณ ระบบจะส่งลิงก์รีเซ็ตให้',
+    'forgot.field.email': 'อีเมล',
+    'forgot.button.submit': 'ส่งลิงก์รีเซ็ต',
+    'forgot.link.back': 'กลับไปหน้าเข้าสู่ระบบ',
+    'forgot.success': 'หากอีเมลนี้มีอยู่ในระบบ ระบบจะส่งลิงก์รีเซ็ตให้',
+    'reset.title': 'รีเซ็ตรหัสผ่าน',
+    'reset.subtitle': 'ตั้งรหัสผ่านใหม่สำหรับบัญชีของคุณ',
+    'reset.field.new-password': 'รหัสผ่านใหม่',
+    'reset.field.confirm-password': 'ยืนยันรหัสผ่านใหม่',
+    'reset.button.submit': 'รีเซ็ตรหัสผ่าน',
+    'reset.success': 'รีเซ็ตรหัสผ่านสำเร็จ',
+    'reset.error.invalid-token': 'ลิงก์รีเซ็ตนี้ไม่ถูกต้องหรือหมดอายุ',
+
+    // Settings — shared
+    'settings.section.general': 'การตั้งค่าทั่วไป',
+    'settings.section.borrow': 'การตั้งค่าการยืม',
+    'settings.section.features': 'ฟีเจอร์ระบบ',
+    'settings.save-config': 'บันทึกการตั้งค่า',
+
+    // Settings — Categories
+    'settings.categories.title': 'หมวดหมู่',
+    'settings.categories.subtitle': 'จัดการหมวดหมู่พัสดุในคลัง',
+    'settings.categories.add': 'เพิ่มหมวดหมู่',
+    'settings.categories.all': 'หมวดหมู่ทั้งหมด',
+
+    // Settings — Warehouses
+    'settings.warehouses.title': 'จัดการคลังพัสดุ',
+    'settings.warehouses.subtitle': 'ตั้งค่าคลังและกำหนดผู้ดูแล',
+    'settings.warehouses.add': 'เพิ่มคลังใหม่',
+    'settings.warehouses.all': 'คลังทั้งหมด',
+    'settings.warehouses.table.code': 'รหัส',
+    'settings.warehouses.table.name': 'ชื่อ',
+    'settings.warehouses.table.type': 'ประเภท',
+    'settings.warehouses.table.managers': 'ผู้ดูแล',
+    'settings.warehouses.table.items': 'จำนวนพัสดุ',
+    'settings.warehouses.table.actions': 'จัดการ',
+
+    // Settings — Departments
+    'settings.departments.title': 'ผูกข้อมูลหน่วยงาน',
+    'settings.departments.subtitle': 'ผูกหน่วยงานเข้ากับคลังพัสดุ',
+    'settings.departments.add': 'เพิ่มการผูก',
+    'settings.departments.dialog.add': 'ผูกหน่วยงานกับคลัง',
+    'settings.departments.dialog.edit': 'แก้ไขการผูกหน่วยงาน',
+
+    // Settings — System
+    'settings.system.title': 'ตั้งค่าระบบ',
+    'settings.system.subtitle': 'จัดการการตั้งค่าและค่าเริ่มต้น',
+
+    // Settings — Permissions
+    'settings.permissions.title': 'สิทธิ์การใช้งาน',
+    'settings.permissions.subtitle': 'จัดการสิทธิ์และการเข้าถึงของแต่ละบทบาท',
+
+    // Settings — Sessions
+    'settings.sessions.title': 'การใช้งานปัจจุบัน',
+    'settings.sessions.subtitle': 'ตรวจสอบและจัดการ session ของผู้ใช้',
+
+    // Settings — Logging
+    'settings.logging.title': 'ตั้งค่าการบันทึก',
+    'settings.logging.subtitle': 'กำหนดการบันทึกและระยะเวลาเก็บข้อมูล',
+    'settings.logging.config': 'การตั้งค่าการบันทึก',
+    'settings.logging.viewer': 'ดูบันทึกระบบ',
+
+    // Settings — Backup
+    'settings.backup.title': 'สำรองและกู้คืนข้อมูล',
+    'settings.backup.subtitle': 'สำรองและกู้คืนฐานข้อมูล',
+    'settings.backup.config': 'การตั้งค่าสำรองข้อมูล',
+    'settings.backup.history': 'ประวัติการสำรอง',
+
+    // Settings — Email
+    'settings.email.title': 'ตั้งค่าอีเมล',
+    'settings.email.subtitle': 'กำหนด SMTP และการส่งอีเมลแจ้งเตือน',
+    'settings.email.smtp': 'การตั้งค่า SMTP',
+    'settings.email.features': 'ฟีเจอร์',
+
+    // Settings — Health
+    'settings.health.title': 'สถานะระบบ',
+    'settings.health.subtitle': 'ตรวจสอบสถานะและประสิทธิภาพของระบบ',
+    'settings.health.db-stats': 'สถิติฐานข้อมูล',
+
+    // Notification bell
+    'notifications.title': 'การแจ้งเตือน',
+    'notifications.empty': 'ไม่มีการแจ้งเตือน',
+    'notifications.mark-all-read': 'อ่านทั้งหมดแล้ว',
+    'notifications.view-all': 'ดูทั้งหมด',
+    'notifications.check-low-stock': 'ตรวจสอบสต็อกต่ำ',
+
+    // Status badges (shared across tables)
+    'status.active': 'ใช้งาน',
+    'status.inactive': 'ไม่ได้ใช้งาน',
+    'status.pending': 'รออนุมัติ',
+    'status.approved': 'อนุมัติแล้ว',
+    'status.rejected': 'ปฏิเสธ',
+    'status.completed': 'เสร็จสิ้น',
+    'status.cancelled': 'ยกเลิก',
+    'status.available': 'พร้อมใช้งาน',
+    'status.borrowed': 'ถูกยืม',
+    'status.in-use': 'ใช้งานอยู่',
+    'status.reported': 'แจ้งซ่อม',
+    'status.in-repair': 'กำลังซ่อม',
+    'status.repaired': 'ซ่อมเสร็จแล้ว',
 };
 
 export const MESSAGES: Record<Locale, Dictionary> = { en, th };

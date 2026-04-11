@@ -8,8 +8,10 @@ import { motion } from 'framer-motion';
 import { Package, User, Mail, Lock, ArrowLeft, CheckCircle, Eye, EyeOff, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { useI18n } from '@/lib/i18n/provider';
 
 export default function RegisterPage() {
+    const { t } = useI18n();
     const router = useRouter();
     const [errorMessage, dispatch] = useActionState(registerUser, undefined);
     const [showPassword, setShowPassword] = useState(false);
@@ -39,7 +41,7 @@ export default function RegisterPage() {
                     <Package size={32} className="text-white" />
                 </div>
 
-                <h1 className="text-2xl font-bold text-white mb-2 text-center">Create Account</h1>
+                <h1 className="text-2xl font-bold text-white mb-2 text-center">{t('register.title')}</h1>
                 <p className="text-blue-200 mb-6 text-center text-sm">
                     {errorMessage?.success ? "Account created successfully!" : "Join IMS.Pro to manage inventory"}
                 </p>

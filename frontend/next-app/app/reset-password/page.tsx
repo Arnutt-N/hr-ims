@@ -6,8 +6,10 @@ import { motion } from 'framer-motion';
 import { Package, Lock, CheckCircle, Eye, EyeOff } from 'lucide-react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
+import { useI18n } from '@/lib/i18n/provider';
 
 function ResetPasswordContent() {
+    const { t } = useI18n();
     const searchParams = useSearchParams();
     const token = searchParams.get('token') || 'demo-token';
 
@@ -60,7 +62,7 @@ function ResetPasswordContent() {
                     <Package size={32} className="text-white" />
                 </div>
 
-                <h1 className="text-2xl font-bold text-white mb-2 text-center">Reset Password</h1>
+                <h1 className="text-2xl font-bold text-white mb-2 text-center">{t('reset.title')}</h1>
                 <p className="text-blue-200 mb-6 text-center text-sm">
                     {success ? "Password reset successful" : "Enter your new password"}
                 </p>
@@ -130,7 +132,7 @@ function ResetPasswordContent() {
                             disabled={loading}
                             className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold py-3 rounded-xl transition-all shadow-lg shadow-indigo-600/30 disabled:opacity-70 cursor-pointer"
                         >
-                            {loading ? 'Resetting...' : 'Reset Password'}
+                            {loading ? t('common.loading') : t('reset.button.submit')}
                         </button>
                     </form>
                 ) : (

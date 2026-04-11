@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useI18n } from '@/lib/i18n/provider';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -67,6 +68,7 @@ interface HealthStatus {
 }
 
 export default function HealthPage() {
+    const { t } = useI18n();
     const [health, setHealth] = useState<HealthStatus | null>(null);
     const [loading, setLoading] = useState(false);
     const [adminMode, setAdminMode] = useState(false);
@@ -152,7 +154,7 @@ export default function HealthPage() {
         <div className="space-y-6">
             <div className="flex items-center justify-between">
                 <div>
-                    <h1 className="text-2xl font-bold">System Health</h1>
+                    <h1 className="text-2xl font-bold">{t('settings.health.title')}</h1>
                     <p className="text-muted-foreground">
                         Monitor system status and performance
                     </p>

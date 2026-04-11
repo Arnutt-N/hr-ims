@@ -5,8 +5,10 @@ import { requestPasswordReset } from '@/lib/actions/password-reset';
 import { motion } from 'framer-motion';
 import { Package, Mail, ArrowLeft, CheckCircle } from 'lucide-react';
 import Link from 'next/link';
+import { useI18n } from '@/lib/i18n/provider';
 
 export default function ForgotPasswordPage() {
+    const { t } = useI18n();
     const [email, setEmail] = useState('');
     const [loading, setLoading] = useState(false);
     const [submitted, setSubmitted] = useState(false);
@@ -39,7 +41,7 @@ export default function ForgotPasswordPage() {
                     <Package size={32} className="text-white" />
                 </div>
 
-                <h1 className="text-2xl font-bold text-white mb-2 text-center">Forgot Password?</h1>
+                <h1 className="text-2xl font-bold text-white mb-2 text-center">{t('forgot.title')}</h1>
                 <p className="text-blue-200 mb-6 text-center text-sm">
                     {submitted ? "Check your email" : "Enter your email to reset your password"}
                 </p>
@@ -69,7 +71,7 @@ export default function ForgotPasswordPage() {
                             disabled={loading}
                             className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold py-3 rounded-xl transition-all shadow-lg shadow-indigo-600/30 disabled:opacity-70 cursor-pointer"
                         >
-                            {loading ? 'Sending...' : 'Send Reset Link'}
+                            {loading ? t('common.loading') : t('forgot.button.submit')}
                         </button>
                     </form>
                 ) : (
@@ -87,7 +89,7 @@ export default function ForgotPasswordPage() {
                         className="inline-flex items-center gap-2 text-sm text-blue-300 hover:text-blue-200 transition-colors"
                     >
                         <ArrowLeft size={16} />
-                        Back to Login
+                        {t('forgot.link.back')}
                     </Link>
                 </div>
 

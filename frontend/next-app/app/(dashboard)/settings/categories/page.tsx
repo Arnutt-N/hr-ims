@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { getCategories, deleteCategory, syncCategories } from '@/lib/actions/categories';
+import { useI18n } from '@/lib/i18n/provider';
 import { Button } from '@/components/ui/button';
 import {
     Table,
@@ -31,6 +32,7 @@ import {
 const ITEMS_PER_PAGE = 10;
 
 export default function CategoriesPage() {
+    const { t } = useI18n();
     const [categories, setCategories] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
@@ -106,9 +108,9 @@ export default function CategoriesPage() {
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
                     <h1 className="text-3xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
-                        <FolderOpen className="text-blue-600" /> Category Management
+                        <FolderOpen className="text-blue-600" /> {t('settings.categories.title')}
                     </h1>
-                    <p className="text-slate-500">Manage inventory categories and classifications.</p>
+                    <p className="text-slate-500">{t('settings.categories.subtitle')}</p>
                 </div>
                 <div className="flex gap-2">
                     <Button variant="outline" onClick={handleSync} disabled={syncing}>
@@ -116,14 +118,14 @@ export default function CategoriesPage() {
                         Sync from Items
                     </Button>
                     <Button className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-200" onClick={() => { setSelectedCategory(null); setDialogOpen(true); }}>
-                        <Plus className="mr-2 h-4 w-4" /> Add Category
+                        <Plus className="mr-2 h-4 w-4" /> {t('settings.categories.add')}
                     </Button>
                 </div>
             </div>
 
             <Card>
                 <CardHeader>
-                    <CardTitle>All Categories</CardTitle>
+                    <CardTitle>{t('settings.categories.all')}</CardTitle>
                     <CardDescription>
                         List of all registered categories. Use 'Sync' to import from existing inventory data.
                     </CardDescription>

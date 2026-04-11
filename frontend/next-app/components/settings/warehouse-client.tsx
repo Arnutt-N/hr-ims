@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/table';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Warehouse as WarehouseIcon, Plus, Edit, Trash2, Search, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { useI18n } from '@/lib/i18n/provider';
 import { toast } from 'sonner';
 import { WarehouseDialog } from '@/components/settings/warehouse-dialog';
 import { Badge } from '@/components/ui/badge';
@@ -38,6 +39,7 @@ interface WarehouseClientProps {
 const ITEMS_PER_PAGE = 10;
 
 export function WarehouseClient({ initialWarehouses }: WarehouseClientProps) {
+    const { t } = useI18n();
     const router = useRouter();
     const [dialogOpen, setDialogOpen] = useState(false);
     const [selectedWarehouse, setSelectedWarehouse] = useState<Warehouse | null>(null);
@@ -91,12 +93,12 @@ export function WarehouseClient({ initialWarehouses }: WarehouseClientProps) {
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
                     <h1 className="text-3xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
-                        <WarehouseIcon className="text-blue-600" /> Warehouse Management
+                        <WarehouseIcon className="text-blue-600" /> {t('settings.warehouses.title')}
                     </h1>
-                    <p className="text-slate-500">Configure warehouses and assign managers.</p>
+                    <p className="text-slate-500">{t('settings.warehouses.subtitle')}</p>
                 </div>
                 <Button className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-200" onClick={() => { setSelectedWarehouse(null); setDialogOpen(true); }}>
-                    <Plus className="mr-2 h-4 w-4" /> Add Warehouse
+                    <Plus className="mr-2 h-4 w-4" /> {t('settings.warehouses.add')}
                 </Button>
             </div>
 
@@ -104,7 +106,7 @@ export function WarehouseClient({ initialWarehouses }: WarehouseClientProps) {
                 <CardHeader className="pb-3">
                     <div className="flex justify-between items-center">
                         <div>
-                            <CardTitle>All Warehouses</CardTitle>
+                            <CardTitle>{t('settings.warehouses.all')}</CardTitle>
                             <CardDescription>
                                 List of registered warehouses in the system.
                             </CardDescription>

@@ -5,8 +5,10 @@ import { getActiveSessions, revokeSession, revokeAllOtherSessions } from '@/lib/
 import { Button } from '@/components/ui/button';
 import { Shield, Smartphone, Monitor, Globe, XCircle, Trash2, RefreshCcw } from 'lucide-react';
 import { toast } from 'sonner';
+import { useI18n } from '@/lib/i18n/provider';
 
 export default function SessionsPage() {
+    const { t } = useI18n();
     const [sessions, setSessions] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
 
@@ -55,9 +57,9 @@ export default function SessionsPage() {
                 <div>
                     <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
                         <Shield className="text-indigo-600" />
-                        Active Sessions
+                        {t('settings.sessions.title')}
                     </h2>
-                    <p className="text-slate-500">Manage devices currently logged into your account.</p>
+                    <p className="text-slate-500">{t('settings.sessions.subtitle')}</p>
                 </div>
                 <div className="flex gap-2">
                     <Button variant="outline" size="sm" onClick={loadSessions} disabled={loading}>
