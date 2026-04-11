@@ -28,7 +28,7 @@ export async function Header() {
                 <NotificationBell canTriggerLowStockCheck={canTriggerLowStockCheck} />
 
                 {/* Profile dropdown (avatar-only trigger, details revealed in menu) */}
-                <div className="pl-2 border-l border-slate-200">
+                <div className="pl-4 border-l border-slate-200">
                     <ProfileDropdown user={user ?? null} />
                 </div>
             </div>

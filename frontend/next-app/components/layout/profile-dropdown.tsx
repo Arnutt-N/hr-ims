@@ -1,6 +1,6 @@
 'use client';
 
-import { User as UserIcon, LogOut, Settings as SettingsIcon, UserCircle, Languages, Check } from 'lucide-react';
+import { User as UserIcon, LogOut, Settings as SettingsIcon, UserCircle, Check } from 'lucide-react';
 import Link from 'next/link';
 import {
     DropdownMenu,
@@ -100,8 +100,9 @@ export function ProfileDropdown({ user }: { user?: ProfileUser | null }) {
                 <DropdownMenuSeparator />
 
                 {/* Language picker — primarily for mobile where the top-bar
-                    segmented control is hidden. Two rows: TH + EN. Active
-                    row shows a check icon. */}
+                    segmented control is hidden. Two rows: TH + EN. The
+                    active language gets a gradient badge that mirrors the
+                    desktop segmented control, plus a trailing check icon. */}
                 <div className="sm:hidden">
                     <DropdownMenuItem
                         onSelect={(event) => {
@@ -110,7 +111,15 @@ export function ProfileDropdown({ user }: { user?: ProfileUser | null }) {
                         }}
                         className="cursor-pointer"
                     >
-                        <Languages size={16} className="mr-2 text-slate-500" />
+                        <span
+                            aria-hidden="true"
+                            className={`mr-2 inline-flex h-5 w-7 items-center justify-center rounded-md text-[10px] font-bold tracking-wider ${locale === 'th'
+                                ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-sm shadow-blue-500/20'
+                                : 'bg-slate-100 text-slate-600'
+                                }`}
+                        >
+                            TH
+                        </span>
                         <span className="flex-1">ภาษาไทย</span>
                         {locale === 'th' && <Check size={14} className="text-indigo-600" />}
                     </DropdownMenuItem>
@@ -121,7 +130,15 @@ export function ProfileDropdown({ user }: { user?: ProfileUser | null }) {
                         }}
                         className="cursor-pointer"
                     >
-                        <Languages size={16} className="mr-2 text-slate-500" />
+                        <span
+                            aria-hidden="true"
+                            className={`mr-2 inline-flex h-5 w-7 items-center justify-center rounded-md text-[10px] font-bold tracking-wider ${locale === 'en'
+                                ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-sm shadow-blue-500/20'
+                                : 'bg-slate-100 text-slate-600'
+                                }`}
+                        >
+                            EN
+                        </span>
                         <span className="flex-1">English</span>
                         {locale === 'en' && <Check size={14} className="text-indigo-600" />}
                     </DropdownMenuItem>
