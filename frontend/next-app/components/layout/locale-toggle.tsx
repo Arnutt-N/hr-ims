@@ -1,49 +1,66 @@
 'use client';
 
-import { Languages } from 'lucide-react';
+import { motion } from 'framer-motion';
 import { useI18n } from '@/lib/i18n/provider';
+import type { Locale } from '@/lib/i18n/messages';
 
 /**
- * Two-state language toggle. Shows the currently-active locale code and
- * switches to the opposite locale on click. The provider persists the
- * choice in a cookie and updates React context so client components
- * re-render immediately.
+ * Segmented-control language toggle. Two pill segments sit side by side
+ * (TH | EN) with an animated highlight that slides under the active one
+ * when the user clicks the other segment.
  *
- * Server components that call getServerT() read the locale from the
- * cookie at render time, so after writing the cookie we trigger a full
- * window reload. A lighter-weight router.refresh() would be preferable,
- * but Next.js 16's RSC caching does not always include the cookie as
- * part of the cache key, so the refreshed payload can come back
- * identical to the previous render — the user sees the sidebar and
- * header flip but the main page content stays in the old locale.
- * A hard reload guarantees every server component re-runs against the
- * fresh cookie value. Losing client state is acceptable here because
- * the user explicitly asked for a global language change.
+ * After writing the cookie via setLocale() we hard-reload the page so
+ * Server Components re-render against the new cookie — see comment in
+ * the previous version of this file for the reasoning.
  */
-export function LocaleToggle() {
-    const { locale, setLocale, t } = useI18n();
-    const next = locale === 'th' ? 'en' : 'th';
+const OPTIONS: ReadonlyArray<{ value: Locale; short: string; aria: string }> = [
+    { value: 'th', short: 'TH', aria: 'ภาษาไทย' },
+    { value: 'en', short: 'EN', aria: 'English' },
+];
 
-    const handleClick = () => {
-        setLocale(next);
-        // Nuclear option: full reload so every server component re-runs
-        // with the freshly-written cookie. See header comment for why
-        // router.refresh() is not enough.
+export function LocaleToggle() {
+    const { locale, setLocale } = useI18n();
+
+    const handleSelect = (value: Locale) => {
+        if (value === locale) return;
+        setLocale(value);
         if (typeof window !== 'undefined') {
+            // Force Server Components to re-render against the new cookie.
             window.location.reload();
         }
     };
 
     return (
-        <button
-            type="button"
-            onClick={handleClick}
-            aria-label={t('header.locale.switch')}
-            title={t('header.locale.switch')}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 text-xs font-semibold uppercase tracking-wide transition-colors cursor-pointer"
+        <div
+            role="radiogroup"
+            aria-label="Language"
+            className="relative inline-flex items-center p-0.5 rounded-full bg-slate-100 border border-slate-200"
         >
-            <Languages size={16} className="text-slate-400" />
-            <span>{locale === 'th' ? 'ไทย' : 'EN'}</span>
-        </button>
+            {OPTIONS.map((option) => {
+                const isActive = option.value === locale;
+                return (
+                    <button
+                        key={option.value}
+                        type="button"
+                        role="radio"
+                        aria-checked={isActive}
+                        aria-label={option.aria}
+                        onClick={() => handleSelect(option.value)}
+                        className={`relative z-10 px-3 py-1.5 text-xs font-semibold tracking-wide transition-colors cursor-pointer ${isActive ? 'text-white' : 'text-slate-500 hover:text-slate-700'
+                            }`}
+                    >
+                        {isActive && (
+                            <motion.span
+                                layoutId="locale-toggle-pill"
+                                className="absolute inset-0 rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 shadow-md shadow-blue-500/20"
+                                transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                                aria-hidden="true"
+                            />
+                        )}
+                        <span className="relative z-10">{option.short}</span>
+                    </button>
+                );
+            })}
+        </div>
     );
 }

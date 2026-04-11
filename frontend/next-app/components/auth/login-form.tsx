@@ -3,7 +3,7 @@
 import { useI18n } from '@/lib/i18n/provider';
 
 import { useState } from 'react';
-import { useActionState } from 'react';
+import { useActionState, useRef } from 'react';
 import { useFormStatus } from 'react-dom';
 import { authenticate } from '@/lib/actions/auth';
 import { motion } from 'framer-motion';
@@ -25,10 +25,16 @@ export default function LoginForm() {
     const [showPassword, setShowPassword] = useState(false);
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const formRef = useRef<HTMLFormElement>(null);
 
     const handleDemoLogin = (demoEmail: string, demoPassword: string) => {
         setEmail(demoEmail);
         setPassword(demoPassword);
+        // Defer to next tick so React commits the controlled-input state
+        // before the form reads current values during submission.
+        setTimeout(() => {
+            formRef.current?.requestSubmit();
+        }, 0);
         // Submit form after state updates
         setTimeout(() => {
             const form = document.querySelector('form') as HTMLFormElement;
@@ -37,7 +43,7 @@ export default function LoginForm() {
     };
 
     return (
-        <div className="flex h-screen bg-[#0f172a] font-['Noto_Sans_Thai'] relative overflow-hidden items-center justify-center p-4">
+        <div className="flex min-h-screen bg-[#0f172a] font-['Noto_Sans_Thai'] relative overflow-y-auto items-start md:items-center justify-center px-4 py-8 md:py-12">
             {/* Background Effects */}
             <div className="absolute inset-0 bg-gradient-to-b from-slate-900 via-[#1e1b4b] to-[#172554] opacity-100 z-0 pointer-events-none"></div>
             <div className="absolute top-0 left-0 w-full h-full bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-5 z-0 pointer-events-none mix-blend-overlay"></div>
@@ -46,17 +52,17 @@ export default function LoginForm() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5 }}
-                className="relative z-10 bg-white/5 backdrop-blur-xl border border-white/10 p-6 md:p-10 rounded-3xl shadow-2xl max-w-2xl w-full text-center"
+                className="relative z-10 bg-white/5 backdrop-blur-xl border border-white/10 p-5 md:p-7 rounded-2xl md:rounded-3xl shadow-2xl max-w-md w-full text-center"
             >
-                <div className="mx-auto mb-8 bg-gradient-to-br from-blue-500 to-indigo-600 p-4 rounded-2xl w-20 h-20 md:w-24 md:h-24 flex items-center justify-center shadow-lg shadow-blue-500/30 ring-4 ring-white/5">
+                <div className="mx-auto mb-4 bg-gradient-to-br from-blue-500 to-indigo-600 p-3 rounded-2xl w-14 h-14 md:w-16 md:h-16 flex items-center justify-center shadow-lg shadow-blue-500/30 ring-4 ring-white/5">
                     <Package size={48} className="text-white hidden md:block" />
                     <Package size={32} className="text-white md:hidden" />
                 </div>
 
-                <h1 className="text-2xl md:text-3xl font-bold text-white mb-2 tracking-tight">IMS.Pro</h1>
-                <p className="text-blue-200 mb-8 font-light text-sm md:text-base">{t('login.subtitle')}</p>
+                <h1 className="text-xl md:text-2xl font-bold text-white mb-1 tracking-tight">IMS.Pro</h1>
+                <p className="text-blue-200 mb-5 font-light text-xs md:text-sm">{t('login.subtitle')}</p>
 
-                <form action={dispatch} className="space-y-4 text-left">
+                <form ref={formRef} action={dispatch} className="space-y-3 text-left">
                     <div className="space-y-2">
                         <label className="text-sm font-medium text-blue-100 ml-1" htmlFor="email">{t('login.field.email')}</label>
                         <div className="relative">
@@ -69,7 +75,7 @@ export default function LoginForm() {
                                 onChange={(e) => setEmail(e.target.value)}
                                 placeholder="admin@example.com"
                                 required
-                                className="w-full pl-11 pr-4 py-3 md:py-3.5 bg-slate-900/50 border border-slate-700 rounded-xl text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all"
+                                className="w-full pl-11 pr-4 py-2.5 bg-slate-900/50 border border-slate-700 rounded-xl text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all"
                             />
                         </div>
                     </div>
@@ -87,7 +93,7 @@ export default function LoginForm() {
                                 required
                                 minLength={6}
                                 placeholder="••••••••"
-                                className="w-full pl-11 pr-12 py-3 md:py-3.5 bg-slate-900/50 border border-slate-700 rounded-xl text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all"
+                                className="w-full pl-11 pr-12 py-2.5 bg-slate-900/50 border border-slate-700 rounded-xl text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all"
                             />
                             <button
                                 type="button"
@@ -184,19 +190,30 @@ function LoginButton() {
     const { t } = useI18n();
 
     return (
-        <button
+        <motion.button
             type="submit"
             disabled={pending}
-            className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold py-3 md:py-4 rounded-xl transition-all shadow-lg shadow-indigo-600/30 flex items-center justify-center gap-2 group disabled:opacity-70 cursor-pointer"
+            whileHover={{ scale: pending ? 1 : 1.02 }}
+            whileTap={{ scale: pending ? 1 : 0.98 }}
+            transition={{ type: 'spring', stiffness: 400, damping: 20 }}
+            className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold py-2.5 md:py-3 rounded-xl shadow-lg shadow-indigo-600/30 flex items-center justify-center gap-2 group disabled:opacity-70 disabled:cursor-wait cursor-pointer"
         >
             {pending ? (
-                <span>Logging in...</span>
+                <>
+                    <motion.span
+                        className="inline-block w-5 h-5 border-2 border-white/30 border-t-white rounded-full"
+                        animate={{ rotate: 360 }}
+                        transition={{ duration: 0.8, repeat: Infinity, ease: 'linear' }}
+                        aria-hidden="true"
+                    />
+                    <span>{t('common.loading')}</span>
+                </>
             ) : (
                 <>
-                    <Shield size={20} className="text-white/90" />
+                    <Shield size={18} className="text-white/90" />
                     <span>{t('login.button.sign-in')}</span>
                 </>
             )}
-        </button>
+        </motion.button>
     );
 }

@@ -36,8 +36,8 @@ import {
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useI18n } from '@/lib/i18n/provider';
+import { SignOutDialog } from './sign-out-dialog';
 import { motion, AnimatePresence } from 'framer-motion';
-import { logout } from '@/lib/actions/auth';
 
 interface SidebarItem {
     href: string;
@@ -178,9 +178,6 @@ export function Sidebar({ user }: { user?: any }) {
         setIsOpen(false);
     }, [pathname]);
 
-    const handleLogout = async () => {
-        await logout();
-    };
 
     return (
         <>
@@ -350,14 +347,16 @@ export function Sidebar({ user }: { user?: any }) {
                 </nav>
 
                 {/* Footer */}
-                <div className="relative z-10 p-6 border-t border-white/10 bg-black/10 backdrop-blur-sm mt-2">
-                    <button
-                        onClick={handleLogout}
-                        className="flex items-center justify-center gap-4 w-full p-3 rounded-xl text-slate-400 hover:text-white hover:bg-white/5 transition-all group cursor-pointer"
-                    >
-                        <LogOut size={22} className="group-hover:-translate-x-1 transition-transform" />
-                        <span className="font-medium text-sm">{t('sidebar.sign-out')}</span>
-                    </button>
+                <div className="relative z-10 px-3 py-2 border-t border-white/10 bg-black/10 backdrop-blur-sm">
+                    <SignOutDialog>
+                        <button
+                            type="button"
+                            className="flex items-center justify-center gap-2 w-full py-2 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 transition-all group cursor-pointer"
+                        >
+                            <LogOut size={16} className="group-hover:-translate-x-0.5 transition-transform" />
+                            <span className="font-medium text-xs">{t('sidebar.sign-out')}</span>
+                        </button>
+                    </SignOutDialog>
                 </div>
             </aside>
         </>

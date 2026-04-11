@@ -255,6 +255,18 @@ const en: Dictionary = {
     'login.version': 'System Version 4.0.0 (Next.js Edition)',
     'login.error.invalid': 'Invalid credentials.',
     'login.error.generic': 'Something went wrong.',
+
+    // Sign out flow
+    'signout.dialog.title': 'Sign out?',
+    'signout.dialog.description': 'You will be returned to the login page and any unsaved work will be lost.',
+    'signout.dialog.confirm': 'Sign out',
+    'signout.toast.description': 'Signing you out…',
+    'signout.toast.error': 'Could not sign out. Please try again.',
+
+    // Profile dropdown (header)
+    'profile.menu.my-profile': 'My Profile',
+    'profile.menu.settings': 'Settings',
+    'profile.menu.sign-out': 'Sign out',
 };
 
 const th: Dictionary = {
@@ -495,6 +507,18 @@ const th: Dictionary = {
     'login.version': 'System Version 4.0.0 (Next.js Edition)',
     'login.error.invalid': 'อีเมลหรือรหัสผ่านไม่ถูกต้อง',
     'login.error.generic': 'เกิดข้อผิดพลาดบางอย่าง',
+
+    // Sign out flow
+    'signout.dialog.title': 'ออกจากระบบ?',
+    'signout.dialog.description': 'คุณจะถูกนำกลับไปหน้าเข้าสู่ระบบ และข้อมูลที่ยังไม่ได้บันทึกจะหายไป',
+    'signout.dialog.confirm': 'ออกจากระบบ',
+    'signout.toast.description': 'กำลังออกจากระบบ…',
+    'signout.toast.error': 'ออกจากระบบไม่สำเร็จ กรุณาลองใหม่',
+
+    // Profile dropdown (header)
+    'profile.menu.my-profile': 'โปรไฟล์ของฉัน',
+    'profile.menu.settings': 'ตั้งค่า',
+    'profile.menu.sign-out': 'ออกจากระบบ',
 };
 
 export const MESSAGES: Record<Locale, Dictionary> = { en, th };
