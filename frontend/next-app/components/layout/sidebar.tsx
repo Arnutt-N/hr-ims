@@ -336,7 +336,7 @@ export function Sidebar({ user }: { user?: any }) {
                             >
                                 <div className="flex items-center gap-3">
                                     <item.icon size={20} className={isActive ? "text-white" : "text-slate-500 group-hover:text-blue-300 transition-colors"} />
-                                    <span className="font-medium text-sm">{item.label}</span>
+                                    <span className="font-medium text-sm">{t(sidebarLabelKey(item.label))}</span>
                                 </div>
                                 {item.count && (
                                     <span className="bg-rose-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded shadow-sm">
