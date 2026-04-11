@@ -35,6 +35,7 @@ import {
     HeartPulse
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
+import { useI18n } from '@/lib/i18n/provider';
 import { motion, AnimatePresence } from 'framer-motion';
 import { logout } from '@/lib/actions/auth';
 
@@ -108,6 +109,45 @@ const sidebarItems: SidebarItem[] = [
 // requests or warehouse filters).
 const MUTEX_QUERY_KEYS = ['type'];
 
+/**
+ * Maps the English label (used as the data-model key) to a translation key.
+ * Anything not in the map falls back to the raw label, which is also the
+ * fallback behavior of translate() when a key is missing — so untranslated
+ * items still render, just in English.
+ */
+const SIDEBAR_LABEL_KEYS: Readonly<Record<string, string>> = Object.freeze({
+    'Dashboard': 'sidebar.dashboard',
+    'Inventory': 'sidebar.inventory',
+    'All Items': 'sidebar.inventory.all',
+    'Borrow (Durable)': 'sidebar.inventory.borrow',
+    'Withdraw': 'sidebar.inventory.withdraw',
+    'Cart': 'sidebar.cart',
+    'My Assets': 'sidebar.my-assets',
+    'Requests': 'sidebar.requests',
+    'Maintenance': 'sidebar.maintenance',
+    'History': 'sidebar.history',
+    'Reports': 'sidebar.reports',
+    'Scanner': 'sidebar.scanner',
+    'Tags': 'sidebar.tags',
+    'Users': 'sidebar.users',
+    'Audit Logs': 'sidebar.logs',
+    'Settings': 'sidebar.settings',
+    'Categories': 'sidebar.settings.categories',
+    'Warehouses': 'sidebar.settings.warehouses',
+    'Dept Mapping': 'sidebar.settings.departments',
+    'System Config': 'sidebar.settings.system',
+    'Permissions': 'sidebar.settings.permissions',
+    'Active Sessions': 'sidebar.settings.sessions',
+    'Logging': 'sidebar.settings.logging',
+    'Backup & Restore': 'sidebar.settings.backup',
+    'Email Config': 'sidebar.settings.email',
+    'System Health': 'sidebar.settings.health',
+});
+
+function sidebarLabelKey(label: string): string {
+    return SIDEBAR_LABEL_KEYS[label] ?? label;
+}
+
 function isHrefActive(href: string, pathname: string, searchParams: ReturnType<typeof useSearchParams>) {
     const [targetPath, targetQuery] = href.split('?');
     if (pathname !== targetPath) return false;
@@ -129,6 +169,7 @@ function isHrefActive(href: string, pathname: string, searchParams: ReturnType<t
 export function Sidebar({ user }: { user?: any }) {
     const pathname = usePathname();
     const searchParams = useSearchParams();
+    const { t } = useI18n();
     const [isOpen, setIsOpen] = useState(false); // Mobile state
     const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({});
 
@@ -184,7 +225,7 @@ export function Sidebar({ user }: { user?: any }) {
                         </div>
                         <div>
                             <h1 className="text-xl font-bold tracking-wide text-white">IMS.Pro</h1>
-                            <p className="text-[10px] text-blue-300 uppercase tracking-widest font-semibold">Inventory System</p>
+                            <p className="text-[10px] text-blue-300 uppercase tracking-widest font-semibold">{t('sidebar.brand.subtitle')}</p>
                         </div>
                     </div>
                 </div>
@@ -237,7 +278,7 @@ export function Sidebar({ user }: { user?: any }) {
                                     >
                                         <div className="flex items-center gap-3">
                                             <item.icon size={20} className={isActiveParent ? "text-blue-400" : "text-slate-500 group-hover:text-blue-300"} />
-                                            <span className="font-medium text-sm">{item.label}</span>
+                                            <span className="font-medium text-sm">{t(sidebarLabelKey(item.label))}</span>
                                         </div>
                                         {isSubMenuOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
                                     </button>
@@ -269,7 +310,7 @@ export function Sidebar({ user }: { user?: any }) {
                                                                     "transition-colors",
                                                                     isSubActive ? "text-white" : "text-slate-500 group-hover/sub:text-blue-300"
                                                                 )} />}
-                                                                <span>{sub.label}</span>
+                                                                <span>{t(sidebarLabelKey(sub.label))}</span>
                                                             </Link>
                                                         )
                                                     })}
@@ -315,7 +356,7 @@ export function Sidebar({ user }: { user?: any }) {
                         className="flex items-center justify-center gap-4 w-full p-3 rounded-xl text-slate-400 hover:text-white hover:bg-white/5 transition-all group cursor-pointer"
                     >
                         <LogOut size={22} className="group-hover:-translate-x-1 transition-transform" />
-                        <span className="font-medium text-sm">Sign Out</span>
+                        <span className="font-medium text-sm">{t('sidebar.sign-out')}</span>
                     </button>
                 </div>
             </aside>

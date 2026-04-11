@@ -1,41 +1,28 @@
 ﻿import { auth } from '@/auth';
 import { Search, ChevronDown, User as UserIcon } from 'lucide-react';
 import { NotificationBell } from './notification-bell';
-import { formatThaiDate } from '@/lib/date-utils';
 import { APPROVER_ROLES, sessionHasAnyRole } from '@/lib/auth-guards';
-
-// [2026-02-11] Modified by CodeX: add cursor-pointer to native buttons
+import { HeaderTitle } from './header-title';
+import { LocaleToggle } from './locale-toggle';
+import { SearchInput } from './header-search';
 
 export async function Header() {
     const session = await auth();
-
-    // if (!session?.user) {
-    //     redirect('/login');
-    // }
-
     const user = session?.user;
-    const today = formatThaiDate(new Date());
     const canTriggerLowStockCheck = sessionHasAnyRole(session, ...APPROVER_ROLES);
 
     return (
         <header className="h-20 bg-white/80 backdrop-blur-md border-b border-slate-200/60 flex items-center justify-between px-6 md:px-8 sticky top-0 z-20 transition-all duration-300">
-            {/* Left: Title or Breadcrumbs */}
-            <div className="flex flex-col ml-12 md:ml-0">
-                <h2 className="text-xl font-bold text-slate-800 tracking-tight">Dashboard Overview</h2>
-                <p className="text-xs text-slate-500 font-medium mt-0.5">{today}</p>
-            </div>
+            {/* Left: Dynamic page title (pathname-driven, locale-aware) */}
+            <HeaderTitle />
 
             {/* Right: Actions & Profile */}
             <div className="flex items-center gap-4 ml-auto">
                 {/* Search Bar (Hidden on mobile) */}
-                <div className="hidden md:flex items-center bg-slate-100/50 rounded-xl px-4 py-2.5 border border-slate-200 focus-within:ring-2 focus-within:ring-blue-100 transition-all w-64">
-                    <Search size={18} className="text-slate-400" />
-                    <input
-                        type="text"
-                        placeholder="Search..."
-                        className="bg-transparent border-none focus:outline-none text-sm ml-3 w-full text-slate-600 placeholder:text-slate-400"
-                    />
-                </div>
+                <SearchInput />
+
+                {/* Language toggle */}
+                <LocaleToggle />
 
                 {/* Notifications */}
                 <NotificationBell canTriggerLowStockCheck={canTriggerLowStockCheck} />
