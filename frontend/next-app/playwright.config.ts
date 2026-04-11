@@ -1,5 +1,11 @@
 import { defineConfig, devices } from '@playwright/test';
 
+// Allow overriding the dev server port via env var so tests can run even
+// when something else (Hyper-V, Docker proxy, another Node process) has
+// port 3000 reserved. Falls back to 3000 to preserve existing behavior.
+const PORT = process.env.PORT || '3000';
+const BASE_URL = `http://localhost:${PORT}`;
+
 export default defineConfig({
     testDir: './tests/e2e',
     fullyParallel: true,
@@ -8,7 +14,7 @@ export default defineConfig({
     workers: process.env.CI ? 1 : undefined,
     reporter: 'html',
     use: {
-        baseURL: 'http://localhost:3000',
+        baseURL: BASE_URL,
         trace: 'on-first-retry',
     },
     projects: [
@@ -23,7 +29,11 @@ export default defineConfig({
     ],
     webServer: {
         command: 'npm run dev',
-        url: 'http://localhost:3000',
+        url: BASE_URL,
+        env: { PORT },
+        // Next.js 16 with --webpack takes longer than the default 60s on
+        // first compile for this monorepo — give it up to 3 minutes.
+        timeout: 180_000,
         reuseExistingServer: !process.env.CI,
     },
 });
