@@ -76,8 +76,8 @@ async function captureRoute(page: Page, route: RouteDef, outDir: string): Promis
             .waitForFunction(
                 () => {
                     const body = document.body?.innerText || '';
-                    // Match patterns like "Loading users...", "Loading cart...", "Loading history..."
-                    return !/Loading\s+[\w\s]*\.{3}/i.test(body);
+                    // Match English "Loading users..." etc AND Thai "กำลังโหลด..."
+                    return !/Loading\s+[\w\s]*\.{3}/i.test(body) && !/กำลังโหลด\s*\.{3}/.test(body);
                 },
                 { timeout: 15_000 },
             )

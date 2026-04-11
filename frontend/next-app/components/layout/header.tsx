@@ -12,12 +12,12 @@ export async function Header() {
     const canTriggerLowStockCheck = sessionHasAnyRole(session, ...APPROVER_ROLES);
 
     return (
-        <header className="h-20 bg-white/80 backdrop-blur-md border-b border-slate-200/60 flex items-center justify-between px-6 md:px-8 sticky top-0 z-20 transition-all duration-300">
+        <header className="h-16 md:h-20 bg-white/80 backdrop-blur-md border-b border-slate-200/60 flex items-center justify-between px-3 sm:px-5 md:px-8 sticky top-0 z-20 transition-all duration-300 gap-2">
             {/* Left: Dynamic page title (pathname-driven, locale-aware) */}
             <HeaderTitle />
 
             {/* Right: Actions & Profile */}
-            <div className="flex items-center gap-4 ml-auto">
+            <div className="flex items-center gap-1.5 sm:gap-2 md:gap-4 ml-auto shrink-0">
                 {/* Search Bar (Hidden on mobile) */}
                 <SearchInput />
 

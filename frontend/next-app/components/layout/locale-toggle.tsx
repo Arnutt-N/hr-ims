@@ -34,7 +34,7 @@ export function LocaleToggle() {
         <div
             role="radiogroup"
             aria-label="Language"
-            className="relative inline-flex items-center p-0.5 rounded-full bg-slate-100 border border-slate-200"
+            className="relative hidden sm:inline-flex items-center p-0.5 rounded-full bg-slate-100 border border-slate-200"
         >
             {OPTIONS.map((option) => {
                 const isActive = option.value === locale;

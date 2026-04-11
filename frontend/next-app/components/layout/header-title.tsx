@@ -27,9 +27,20 @@ export function HeaderTitle() {
             }).format(new Date());
 
     return (
-        <div className="flex flex-col ml-12 md:ml-0">
-            <h2 className="text-xl font-bold text-slate-800 tracking-tight">{title}</h2>
-            <p className="text-xs text-slate-500 font-medium mt-0.5">{today}</p>
+        <div className="flex flex-col ml-12 md:ml-0 min-w-0 flex-shrink">
+            {/*
+              truncate + min-w-0 lets this column shrink when the sibling
+              toolbar (search, locale, bell, avatar) eats into the header
+              width on narrow viewports. Without it, Thai titles like
+              "ภาพรวมระบบ" wrap to two lines and push the whole header
+              taller than 80px on mobile + tablet.
+            */}
+            <h2 className="text-base sm:text-lg md:text-xl font-bold text-slate-800 tracking-tight truncate">
+                {title}
+            </h2>
+            <p className="text-[10px] sm:text-xs text-slate-500 font-medium mt-0.5 truncate">
+                {today}
+            </p>
         </div>
     );
 }

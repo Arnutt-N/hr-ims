@@ -1,6 +1,6 @@
 'use client';
 
-import { User as UserIcon, ChevronDown, LogOut, Settings as SettingsIcon, UserCircle } from 'lucide-react';
+import { User as UserIcon, ChevronDown, LogOut, Settings as SettingsIcon, UserCircle, Languages, Check } from 'lucide-react';
 import Link from 'next/link';
 import {
     DropdownMenu,
@@ -26,9 +26,17 @@ type ProfileUser = {
  * user gets a confirm step + toast + loading animation.
  */
 export function ProfileDropdown({ user }: { user?: ProfileUser | null }) {
-    const { t } = useI18n();
+    const { t, locale, setLocale } = useI18n();
     const name = user?.name?.trim() || 'Guest User';
     const email = user?.email?.trim() || '—';
+
+    const switchLocale = (next: 'th' | 'en') => {
+        if (next === locale) return;
+        setLocale(next);
+        if (typeof window !== 'undefined') {
+            window.location.reload();
+        }
+    };
 
     return (
         <DropdownMenu>
@@ -93,6 +101,35 @@ export function ProfileDropdown({ user }: { user?: ProfileUser | null }) {
                 </DropdownMenuItem>
 
                 <DropdownMenuSeparator />
+
+                {/* Language picker — primarily for mobile where the top-bar
+                    segmented control is hidden. Two rows: TH + EN. Active
+                    row shows a check icon. */}
+                <div className="sm:hidden">
+                    <DropdownMenuItem
+                        onSelect={(event) => {
+                            event.preventDefault();
+                            switchLocale('th');
+                        }}
+                        className="cursor-pointer"
+                    >
+                        <Languages size={16} className="mr-2 text-slate-500" />
+                        <span className="flex-1">ภาษาไทย</span>
+                        {locale === 'th' && <Check size={14} className="text-indigo-600" />}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                        onSelect={(event) => {
+                            event.preventDefault();
+                            switchLocale('en');
+                        }}
+                        className="cursor-pointer"
+                    >
+                        <Languages size={16} className="mr-2 text-slate-500" />
+                        <span className="flex-1">English</span>
+                        {locale === 'en' && <Check size={14} className="text-indigo-600" />}
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                </div>
 
                 {/* Sign out sits inside SignOutDialog so clicking opens the confirm flow */}
                 <SignOutDialog>
