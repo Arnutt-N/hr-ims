@@ -38,6 +38,7 @@ import { useState, useEffect } from 'react';
 import { useI18n } from '@/lib/i18n/provider';
 import { SignOutDialog } from './sign-out-dialog';
 import { motion, AnimatePresence } from 'framer-motion';
+import { ADMIN_ROLES, SUPERADMIN_ONLY, userHasAnyRole } from '@/lib/role-access';
 
 interface SidebarItem {
     href: string;
@@ -172,6 +173,7 @@ export function Sidebar({ user }: { user?: any }) {
     const { t } = useI18n();
     const [isOpen, setIsOpen] = useState(false); // Mobile state
     const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({});
+    const isSuperadmin = userHasAnyRole(user, ...SUPERADMIN_ONLY);
 
     // Close sidebar on route change (mobile)
     useEffect(() => {
@@ -231,7 +233,7 @@ export function Sidebar({ user }: { user?: any }) {
                 <nav className="relative z-10 flex-1 px-4 py-6 space-y-1 overflow-y-auto sidebar-scrollbar">
                     {sidebarItems.map((item, idx) => {
                         // 1. Superadmin bypass
-                        if (user?.role === 'superadmin') {
+                        if (isSuperadmin) {
                             // Proceed to render
                         }
                         // 2. Common/Public Items (No restrictions defined) -> Always Show
@@ -246,8 +248,8 @@ export function Sidebar({ user }: { user?: any }) {
                         }
                         // 4. Fallback to Legacy Role check
                         else {
-                            if (item.allowedRoles && (!user?.role || !item.allowedRoles.includes(user.role))) return null;
-                            if (!item.allowedRoles && item.adminOnly && user?.role !== 'admin') return null;
+                            if (item.allowedRoles && !userHasAnyRole(user, ...item.allowedRoles)) return null;
+                            if (!item.allowedRoles && item.adminOnly && !userHasAnyRole(user, ...ADMIN_ROLES)) return null;
                         }
 
                         if (item.hasSubMenu) {
@@ -255,8 +257,8 @@ export function Sidebar({ user }: { user?: any }) {
                                 ? pathname === item.href || pathname.startsWith(`${item.href}/`)
                                 : false;
                             const visibleSubmenuItems = item.submenu?.filter((sub) => {
-                                if (!sub.allowedRoles) return true;
-                                return !!user?.role && sub.allowedRoles.includes(user.role);
+                                if (isSuperadmin || !sub.allowedRoles) return true;
+                                return userHasAnyRole(user, ...sub.allowedRoles);
                             }) ?? [];
                             const hasActiveSubmenu = visibleSubmenuItems.some((sub) => isHrefActive(sub.href, pathname, searchParams));
                             const isSubMenuOpen = openMenus[item.label] ?? (isActiveParent || hasActiveSubmenu);

@@ -29,10 +29,10 @@ interface UserFormProps {
     onSubmit: (data: any) => Promise<void>;
     initialData?: any;
     mode: 'create' | 'edit';
-    currentUserRole?: string;
+    canManageSuperadmins?: boolean;
 }
 
-export function UserFormDialog({ open, onOpenChange, onSubmit, initialData, mode, currentUserRole }: UserFormProps) {
+export function UserFormDialog({ open, onOpenChange, onSubmit, initialData, mode, canManageSuperadmins = false }: UserFormProps) {
     const { t } = useI18n();
     const [formData, setFormData] = useState({
         email: '',
@@ -213,7 +213,7 @@ export function UserFormDialog({ open, onOpenChange, onSubmit, initialData, mode
                                     <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    {currentUserRole === 'superadmin' && (
+                                    {canManageSuperadmins && (
                                         <SelectItem value="superadmin">Super Administrator</SelectItem>
                                     )}
                                     <SelectItem value="admin">Administrator</SelectItem>

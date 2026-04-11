@@ -1,6 +1,6 @@
 ﻿# 🤝 Cross-Agent Handoff Board
 
-> **Last Updated:** 2026-04-03 12:32 | **Updated By:** codex
+> **Last Updated:** 2026-04-11 23:18 | **Updated By:** codex
 >
 > ไฟล์นี้เป็น Dashboard กลาง ทุก Agent ต้องอ่านก่อนเริ่มงาน และอัพเดทเมื่อจบงาน
 
@@ -13,7 +13,7 @@
 | **antigravity** | 🟢 AVAILABLE | 2026-02-20 08:25 | Sync pending tasks | - |
 | **kilo** | ⚪ IDLE | 2026-01-30 | Codebase Analysis Report | [session_2026-01-30](../kilo/session_2026-01-30_185739.md) |
 | **claude_code** | ⚪ IDLE | - | - | - |
-| **codex** | 🟢 AVAILABLE | 2026-04-03 12:32 | Canonicalize `.agents` and handoff path | [session_2026-04-03](../codex/session_2026-04-03_agent-folder-rename.md) |
+| **codex** | 🟢 AVAILABLE | 2026-04-11 23:18 | Normalize superadmin RBAC across menu/page/action guards | [2026-04-11_superadmin-rbac-normalization](../codex/2026-04-11_superadmin-rbac-normalization.md) |
 | **gemini_cli** | ⚪ IDLE | - | - | - |
 | **open_code** | ⚪ IDLE | - | - | - |
 
@@ -48,10 +48,11 @@
 
 | # | From | To | Task | Priority | Handoff Log | Date |
 |---|------|----|------|----------|-------------|------|
-| 1 | codex | all | `.agents` cutover and canonical handoff path complete; update external tooling if needed | 🟡 Medium | [log](logs/2026-04-03_1232_codex_to_all.md) | 2026-04-03 |
-| 2 | antigravity | all | Sync pending tasks (Backend, Frontend, Release) | 🟡 Medium | [log](logs/2026-02-20_0825_antigravity_to_all.md) | 2026-02-20 |
-| 3 | antigravity | all | Git Release v1.5.0 ready; verify log | 🔴 High | [log](logs/2026-02-13_1215_antigravity_to_all.md) | 2026-02-13 |
-| 4 | codex | all | Cursor-pointer audit round 2 complete; remaining tooltip/build verify | 🟡 Medium | [log](logs/2026-02-11_1633_codex_to_all.md) | 2026-02-11 |
+| 1 | codex | all | Superadmin RBAC normalization complete; verify on deployed Vercel/TiDB environment | 🟡 Medium | [log](logs/2026-04-11_2318_codex_to_all.md) | 2026-04-11 |
+| 2 | codex | all | `.agents` cutover and canonical handoff path complete; update external tooling if needed | 🟡 Medium | [log](logs/2026-04-03_1232_codex_to_all.md) | 2026-04-03 |
+| 3 | antigravity | all | Sync pending tasks (Backend, Frontend, Release) | 🟡 Medium | [log](logs/2026-02-20_0825_antigravity_to_all.md) | 2026-02-20 |
+| 4 | antigravity | all | Git Release v1.5.0 ready; verify log | 🔴 High | [log](logs/2026-02-13_1215_antigravity_to_all.md) | 2026-02-13 |
+| 5 | codex | all | Cursor-pointer audit round 2 complete; remaining tooltip/build verify | 🟡 Medium | [log](logs/2026-02-11_1633_codex_to_all.md) | 2026-02-11 |
 
 ---
 
@@ -76,16 +77,16 @@
 
 | # | Date | Agent | Action | Details |
 |---|------|-------|--------|---------|
-| 1 | 2026-04-03 12:32 | codex | 📤 HANDOFF | Canonicalized `.agents` and handoff path to `project-log-md/handoff/logs/` |
-| 2 | 2026-02-20 08:25 | antigravity | 📤 HANDOFF | Status sync and pending task handoff |
-| 3 | 2026-02-13 12:15 | antigravity | 📤 HANDOFF | Sent v1.5.0 release preparation to all |
-| 4 | 2026-02-11 16:36 | codex | 📤 HANDOFF | Sent handoff: cursor-pointer audit round 2 + pending tasks |
-| 5 | 2026-02-11 16:24 | codex | ✅ COMPLETE | Completed cursor-pointer audit round 2 (scanner, dashboard, header) |
-| 6 | 2026-02-11 14:46 | codex | 📥 RECEIVE | Receive handoff: Deep Audit Cursor Pointer (Round 2) |
-| 7 | 2026-02-11 14:22 | antigravity | ✅ COMPLETE | แก้ไข cursor-pointer 15 จุด และรอ Deep Audit ต่อ |
-| 8 | 2026-02-11 13:00 | antigravity | 📤 HANDOFF | ส่งต่องาน: แก้ errors + ทดสอบ Dev Env → all |
-| 9 | 2026-02-11 12:48 | antigravity | 🛠️ SETUP | สร้าง Cross-Agent Handoff System |
-| 10 | 2026-02-11 09:56 | antigravity | 🔍 DIAGNOSE | พบ error Backend + Frontend |
+| 1 | 2026-04-11 23:18 | codex | 📤 HANDOFF | Normalized superadmin RBAC across menu/page/action guards |
+| 2 | 2026-04-03 12:32 | codex | 📤 HANDOFF | Canonicalized `.agents` and handoff path to `project-log-md/handoff/logs/` |
+| 3 | 2026-02-20 08:25 | antigravity | 📤 HANDOFF | Status sync and pending task handoff |
+| 4 | 2026-02-13 12:15 | antigravity | 📤 HANDOFF | Sent v1.5.0 release preparation to all |
+| 5 | 2026-02-11 16:36 | codex | 📤 HANDOFF | Sent handoff: cursor-pointer audit round 2 + pending tasks |
+| 6 | 2026-02-11 16:24 | codex | ✅ COMPLETE | Completed cursor-pointer audit round 2 (scanner, dashboard, header) |
+| 7 | 2026-02-11 14:46 | codex | 📥 RECEIVE | Receive handoff: Deep Audit Cursor Pointer (Round 2) |
+| 8 | 2026-02-11 14:22 | antigravity | ✅ COMPLETE | แก้ไข cursor-pointer 15 จุด และรอ Deep Audit ต่อ |
+| 9 | 2026-02-11 13:00 | antigravity | 📤 HANDOFF | ส่งต่องาน: แก้ errors + ทดสอบ Dev Env → all |
+| 10 | 2026-02-11 12:48 | antigravity | 🛠️ SETUP | สร้าง Cross-Agent Handoff System |
 
 ### Action Types
 - 📥 RECEIVE | 📤 HANDOFF | 🔵 START | ✅ COMPLETE | 🔍 DIAGNOSE | 🛠️ SETUP | 📊 ANALYSIS

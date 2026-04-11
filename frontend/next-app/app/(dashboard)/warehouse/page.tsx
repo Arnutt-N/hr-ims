@@ -6,6 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import StockTransferForm from '@/components/warehouse/StockTransferForm';
 import TransferApprovalList from '@/components/warehouse/TransferApprovalList';
 import { Package, ArrowLeftRight, CheckSquare } from 'lucide-react';
+import { APPROVER_ROLES } from '@/lib/role-access';
 
 export default function WarehouseManagementPage() {
     const [activeTab, setActiveTab] = useState('request');
@@ -16,8 +17,8 @@ export default function WarehouseManagementPage() {
 
     const handleTransferSuccess = () => {
         alert('ส่งคำขอโอนพัสดุเรียบร้อยแล้ว รอการอนุมัติ');
-        // Switch to approval tab if admin
-        if (userRole === 'admin' || userRole === 'approver') {
+        // Switch to approval tab if the user can approve transfers.
+        if (APPROVER_ROLES.includes(userRole)) {
             setActiveTab('approval');
         }
     };

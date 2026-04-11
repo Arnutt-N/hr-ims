@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Loader2, Mail, Send, CheckCircle, XCircle, RefreshCw } from 'lucide-react';
 import { useI18n } from '@/lib/i18n/provider';
 import { toast } from 'sonner';
+import { sessionHasAnyRole, SUPERADMIN_ONLY } from '@/lib/role-access';
 
 interface EmailSettings {
     emailVerificationEnabled: boolean;
@@ -52,9 +53,8 @@ export default function EmailSettingsPage() {
             try {
                 const sessionRes = await fetch('/api/auth/session');
                 const session = await sessionRes.json();
-                const role = session?.user?.role;
 
-                if (role !== 'superadmin') {
+                if (!sessionHasAnyRole(session, ...SUPERADMIN_ONLY)) {
                     router.replace('/dashboard');
                     return;
                 }
