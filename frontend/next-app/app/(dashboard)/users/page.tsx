@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { UserPlus, Edit, Trash2, Search, Users as UsersIcon } from 'lucide-react';
 import { UserFormDialog } from '@/components/dashboard/user-form-dialog';
+import { useI18n } from '@/lib/i18n/provider';
 import {
     Table,
     TableBody,
@@ -30,6 +31,7 @@ import {
 
 export default function UserManagementPage() {
     const { data: session } = useSession();
+    const { t } = useI18n();
     const [users, setUsers] = useState<any[]>([]);
     const [filteredUsers, setFilteredUsers] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
@@ -118,20 +120,20 @@ export default function UserManagementPage() {
         }
     };
 
-    if (loading) return <div className="p-8 text-center animate-pulse">Loading users...</div>;
+    if (loading) return <div className="p-8 text-center animate-pulse">{t('common.loading')}</div>;
 
     return (
         <div className="space-y-6 animate-fade-in-up max-w-7xl mx-auto">
             <div className="flex justify-between items-center">
                 <div>
-                    <h2 className="text-3xl font-bold text-slate-900">User Management</h2>
-                    <p className="text-slate-500 mt-1">Manage system access and user roles.</p>
+                    <h2 className="text-3xl font-bold text-slate-900">{t('users.title')}</h2>
+                    <p className="text-slate-500 mt-1">{t('users.subtitle')}</p>
                 </div>
                 <Button
                     onClick={handleCreate}
                     className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-200"
                 >
-                    <UserPlus size={16} className="mr-2" /> Add New User
+                    <UserPlus size={16} className="mr-2" /> {t('users.add-new')}
                 </Button>
             </div>
 
@@ -140,7 +142,7 @@ export default function UserManagementPage() {
                 <div className="relative max-w-md">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                     <Input
-                        placeholder="Search by name, email, or department..."
+                        placeholder={t('users.search-placeholder')}
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         className="pl-10"
@@ -161,11 +163,11 @@ export default function UserManagementPage() {
                         <Table>
                             <TableHeader className="bg-slate-50/50">
                                 <TableRow>
-                                    <TableHead>User Info</TableHead>
-                                    <TableHead>Role</TableHead>
-                                    <TableHead>Department</TableHead>
-                                    <TableHead>Status</TableHead>
-                                    <TableHead className="text-right">Actions</TableHead>
+                                    <TableHead>{t('users.table.user-info')}</TableHead>
+                                    <TableHead>{t('users.table.role')}</TableHead>
+                                    <TableHead>{t('users.table.department')}</TableHead>
+                                    <TableHead>{t('users.table.status')}</TableHead>
+                                    <TableHead className="text-right">{t('users.table.actions')}</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>

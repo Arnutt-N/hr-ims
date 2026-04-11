@@ -1,5 +1,7 @@
 'use client';
 
+import { useI18n } from '@/lib/i18n/provider';
+
 import { useState } from 'react';
 import { useActionState } from 'react';
 import { useFormStatus } from 'react-dom';
@@ -18,6 +20,7 @@ const DEMO_ACCOUNTS = [
 ];
 
 export default function LoginForm() {
+    const { t } = useI18n();
     const [errorMessage, dispatch] = useActionState(authenticate, undefined);
     const [showPassword, setShowPassword] = useState(false);
     const [email, setEmail] = useState('');
@@ -51,11 +54,11 @@ export default function LoginForm() {
                 </div>
 
                 <h1 className="text-2xl md:text-3xl font-bold text-white mb-2 tracking-tight">IMS.Pro</h1>
-                <p className="text-blue-200 mb-8 font-light text-sm md:text-base">Smart Inventory Management System</p>
+                <p className="text-blue-200 mb-8 font-light text-sm md:text-base">{t('login.subtitle')}</p>
 
                 <form action={dispatch} className="space-y-4 text-left">
                     <div className="space-y-2">
-                        <label className="text-sm font-medium text-blue-100 ml-1" htmlFor="email">Email Address</label>
+                        <label className="text-sm font-medium text-blue-100 ml-1" htmlFor="email">{t('login.field.email')}</label>
                         <div className="relative">
                             <User className="absolute left-4 top-1/2 transform -translate-y-1/2 text-blue-300" size={18} />
                             <input
@@ -72,7 +75,7 @@ export default function LoginForm() {
                     </div>
 
                     <div className="space-y-2">
-                        <label className="text-sm font-medium text-blue-100 ml-1" htmlFor="password">Password</label>
+                        <label className="text-sm font-medium text-blue-100 ml-1" htmlFor="password">{t('login.field.password')}</label>
                         <div className="relative">
                             <Lock className="absolute left-4 top-1/2 transform -translate-y-1/2 text-blue-300" size={18} />
                             <input
@@ -117,7 +120,7 @@ export default function LoginForm() {
                             </svg>
                         </div>
                         <span className="text-sm text-blue-200 group-hover:text-blue-100 transition-colors">
-                            จำฉันไว้ (Remember me)
+                            {t('login.remember-me')}
                         </span>
                     </label>
 
@@ -139,10 +142,10 @@ export default function LoginForm() {
 
                     <div className="flex items-center justify-between text-sm">
                         <Link href="/forgot-password" className="text-blue-300 hover:text-blue-200 transition-colors">
-                            Forgot Password?
+                            {t('login.link.forgot')}
                         </Link>
                         <Link href="/register" className="text-blue-300 hover:text-blue-200 transition-colors">
-                            Create Account
+                            {t('login.link.register')}
                         </Link>
                     </div>
                 </form>
@@ -151,7 +154,7 @@ export default function LoginForm() {
                 <div className="mt-8 pt-6 border-t border-white/10">
                     <div className="flex items-center justify-center gap-2 mb-4">
                         <Sparkles size={16} className="text-yellow-400" />
-                        <h3 className="text-sm font-semibold text-blue-200">Quick Demo Access</h3>
+                        <h3 className="text-sm font-semibold text-blue-200">{t('login.demo.title')}</h3>
                     </div>
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                         {DEMO_ACCOUNTS.map((account) => (
@@ -165,7 +168,7 @@ export default function LoginForm() {
                             </button>
                         ))}
                     </div>
-                    <p className="text-xs text-slate-400 mt-3">Click any role to auto-login</p>
+                    <p className="text-xs text-slate-400 mt-3">{t('login.demo.hint')}</p>
                 </div>
 
                 <div className="mt-8 pt-6 border-t border-white/10 text-xs text-slate-400">
@@ -178,6 +181,7 @@ export default function LoginForm() {
 
 function LoginButton() {
     const { pending } = useFormStatus();
+    const { t } = useI18n();
 
     return (
         <button
@@ -190,7 +194,7 @@ function LoginButton() {
             ) : (
                 <>
                     <Shield size={20} className="text-white/90" />
-                    <span>Sign In to Dashboard</span>
+                    <span>{t('login.button.sign-in')}</span>
                 </>
             )}
         </button>

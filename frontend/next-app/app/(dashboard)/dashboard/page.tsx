@@ -3,6 +3,7 @@ import { Package, AlertTriangle, FileText, Activity } from "lucide-react";
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { formatThaiDateTime, formatRelativeTime } from "@/lib/date-utils";
+import { getServerT } from "@/lib/i18n/server";
 
 export default async function DashboardPage() {
     const session = await auth();
@@ -10,39 +11,40 @@ export default async function DashboardPage() {
         redirect('/login');
     }
 
+    const { t } = await getServerT();
     const stats = await getDashboardStats();
 
-    if (!stats) return <div className="p-8 text-center text-slate-500">Loading dashboard data...</div>;
+    if (!stats) return <div className="p-8 text-center text-slate-500">{t('common.loading')}</div>;
 
     const statCards = [
         {
-            title: 'Total Assets',
+            title: t('dashboard.stat.total-assets'),
             val: stats.totalItems,
-            sub: 'items in system',
+            sub: t('dashboard.stat.total-assets.sub'),
             icon: <Package size={24} />,
             color: 'text-blue-600',
             bgColor: 'bg-blue-50'
         },
         {
-            title: 'Low Stock',
+            title: t('dashboard.stat.low-stock'),
             val: stats.lowStockItems,
-            sub: 'needs reordering',
+            sub: t('dashboard.stat.low-stock.sub'),
             icon: <AlertTriangle size={24} />,
             color: 'text-amber-600',
             bgColor: 'bg-amber-50'
         },
         {
-            title: 'Pending Requests',
+            title: t('dashboard.stat.pending-requests'),
             val: stats.pendingRequests,
-            sub: 'awaiting approval',
+            sub: t('dashboard.stat.pending-requests.sub'),
             icon: <FileText size={24} />,
             color: 'text-purple-600',
             bgColor: 'bg-purple-50'
         },
         {
-            title: 'Active Users',
+            title: t('dashboard.stat.active-users'),
             val: '+573', // Mock
-            sub: 'active this month',
+            sub: t('dashboard.stat.active-users.sub'),
             icon: <Activity size={24} />,
             color: 'text-emerald-600',
             bgColor: 'bg-emerald-50'
@@ -55,9 +57,9 @@ export default async function DashboardPage() {
             <div className="bg-gradient-to-r from-blue-600 to-indigo-700 rounded-3xl p-8 text-white shadow-xl relative overflow-hidden">
                 <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none"></div>
 
-                <h1 className="text-3xl font-bold mb-2 relative z-10">Welcome back, {session?.user?.name || 'Admin'}</h1>
+                <h1 className="text-3xl font-bold mb-2 relative z-10">{t('dashboard.welcome')}, {session?.user?.name || 'Admin'}</h1>
                 <p className="text-blue-100 relative z-10 max-w-xl">
-                    Here&apos;s what&apos;s happening with your inventory today. You have {stats.pendingRequests} pending requests and {stats.lowStockItems} items running low on stock.
+                    {t('dashboard.welcome.summary', { pending: stats.pendingRequests, lowStock: stats.lowStockItems })}
                 </p>
             </div>
 
@@ -85,12 +87,12 @@ export default async function DashboardPage() {
                         <div>
                             <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
                                 <AlertTriangle size={20} className="text-amber-500" />
-                                Low Stock Alerts
+                                {t('dashboard.widget.low-stock.title')}
                             </h2>
-                            <p className="text-sm text-slate-500">Items below minimum stock level</p>
+                            <p className="text-sm text-slate-500">{t('dashboard.widget.low-stock.subtitle')}</p>
                         </div>
                         <span className="bg-amber-100 text-amber-700 px-3 py-1 rounded-full text-xs font-bold">
-                            {stats.lowStockItems} Items
+                            {stats.lowStockItems} {t('dashboard.widget.low-stock.items-label')}
                         </span>
                     </div>
 
@@ -116,7 +118,7 @@ export default async function DashboardPage() {
                                                 {level.quantity} <span className="text-slate-400 font-normal">/ {level.minStock}</span>
                                             </div>
                                             <button className="text-xs text-blue-600 hover:text-blue-800 font-medium opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
-                                                Restock
+                                                {t('dashboard.widget.low-stock.restock')}
                                             </button>
                                         </div>
                                     </div>
@@ -126,14 +128,14 @@ export default async function DashboardPage() {
                                     <div className="w-12 h-12 bg-green-50 text-green-500 rounded-full flex items-center justify-center mb-2">
                                         <Package size={24} />
                                     </div>
-                                    <p>All stock levels are healthy.</p>
+                                    <p>{t('dashboard.widget.low-stock.healthy')}</p>
                                 </div>
                             )}
                         </div>
                     </div>
                     {stats.lowStockList && stats.lowStockList.length > 0 && (
                         <div className="p-3 bg-slate-50 border-t border-slate-100 text-center">
-                            <button className="text-sm text-slate-500 hover:text-slate-700 font-medium cursor-pointer">View All Alerts</button>
+                            <button className="text-sm text-slate-500 hover:text-slate-700 font-medium cursor-pointer">{t('dashboard.widget.low-stock.view-all')}</button>
                         </div>
                     )}
                 </div>
@@ -142,10 +144,10 @@ export default async function DashboardPage() {
                 <div className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden">
                     <div className="p-6 border-b border-slate-100 flex items-center justify-between">
                         <div>
-                            <h2 className="text-lg font-bold text-slate-800">Recent Activity</h2>
-                            <p className="text-sm text-slate-500">Latest transactions and updates</p>
+                            <h2 className="text-lg font-bold text-slate-800">{t('dashboard.widget.activity.title')}</h2>
+                            <p className="text-sm text-slate-500">{t('dashboard.widget.activity.subtitle')}</p>
                         </div>
-                        <button className="text-sm font-medium text-blue-600 hover:text-blue-700 cursor-pointer">View All</button>
+                        <button className="text-sm font-medium text-blue-600 hover:text-blue-700 cursor-pointer">{t('dashboard.widget.activity.view-all')}</button>
                     </div>
 
                     <div className="divide-y divide-slate-100">
@@ -175,7 +177,7 @@ export default async function DashboardPage() {
                             ))
                         ) : (
                             <div className="p-8 text-center text-slate-400">
-                                No recent activity found.
+                                {t('dashboard.widget.activity.empty')}
                             </div>
                         )}
                     </div>

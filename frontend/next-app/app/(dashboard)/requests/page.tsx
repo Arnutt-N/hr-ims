@@ -4,6 +4,7 @@ import { getRequests } from '@/lib/actions/requests';
 import { CheckOverdueButton } from '@/components/dashboard/check-overdue-button';
 import { auth } from '@/auth';
 import { APPROVER_ROLES, sessionHasAnyRole } from '@/lib/auth-guards';
+import { getServerT } from '@/lib/i18n/server';
 
 export const metadata = {
     title: 'Requests Management | HR-IMS',
@@ -11,7 +12,7 @@ export const metadata = {
 };
 
 export default async function RequestsPage() {
-    const [result, session] = await Promise.all([getRequests(), auth()]);
+    const [result, session, { t }] = await Promise.all([getRequests(), auth(), getServerT()]);
     const requests = result.success ? result.data : [];
     const canCheckOverdue = sessionHasAnyRole(session, ...APPROVER_ROLES);
 
@@ -19,15 +20,15 @@ export default async function RequestsPage() {
         <div className="space-y-8 animate-fade-in-up">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
-                    <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Requests</h1>
-                    <p className="text-slate-500 mt-1">Manage and approve inventory requests.</p>
+                    <h1 className="text-3xl font-bold text-slate-900 tracking-tight">{t('requests.title')}</h1>
+                    <p className="text-slate-500 mt-1">{t('requests.subtitle')}</p>
                 </div>
 
                 <div className="flex gap-2">
                     <div className="bg-white px-4 py-2 rounded-lg border border-slate-200 shadow-sm flex items-center gap-2">
                         <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
                         <span className="text-sm font-medium text-slate-700">
-                            Pending: {requests.filter(r => r.status === 'pending').length}
+                            {t('requests.pending-badge', { count: requests.filter(r => r.status === 'pending').length })}
                         </span>
                     </div>
                     {canCheckOverdue ? <CheckOverdueButton /> : null}

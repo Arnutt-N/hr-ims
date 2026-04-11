@@ -7,8 +7,10 @@ import { toast } from 'sonner';
 import { Package, CheckCircle, AlertTriangle, ArrowRightLeft, Clock } from 'lucide-react';
 import { formatThaiDateShort, formatRelativeTime } from '@/lib/date-utils';
 import { Badge } from '@/components/ui/badge';
+import { useI18n } from '@/lib/i18n/provider';
 
 export default function MyAssetsPage() {
+    const { t } = useI18n();
     const [assets, setAssets] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
 
@@ -58,14 +60,14 @@ export default function MyAssetsPage() {
         }
     };
 
-    if (loading) return <div className="p-8 text-center animate-pulse">Loading assets...</div>;
+    if (loading) return <div className="p-8 text-center animate-pulse">{t('common.loading')}</div>;
 
     return (
         <div className="space-y-8 animate-fade-in-up max-w-5xl mx-auto">
             <div className="flex justify-between items-center">
                 <div>
-                    <h1 className="text-3xl font-bold text-slate-900">My Active Assets</h1>
-                    <p className="text-slate-500 mt-1">Items currently held by you. Please verify status every 7 days.</p>
+                    <h1 className="text-3xl font-bold text-slate-900">{t('my-assets.title')}</h1>
+                    <p className="text-slate-500 mt-1">{t('my-assets.subtitle')}</p>
                 </div>
             </div>
 
@@ -74,8 +76,8 @@ export default function MyAssetsPage() {
                     <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-6">
                         <Package className="text-slate-300" size={40} />
                     </div>
-                    <h3 className="text-xl font-bold text-slate-700">No active assets</h3>
-                    <p className="text-slate-400 mb-8 mt-2">You don't have any borrowed items currently.</p>
+                    <h3 className="text-xl font-bold text-slate-700">{t('my-assets.empty.title')}</h3>
+                    <p className="text-slate-400 mb-8 mt-2">{t('my-assets.empty.hint')}</p>
                 </div>
             ) : (
                 <div className="grid grid-cols-1 gap-4">

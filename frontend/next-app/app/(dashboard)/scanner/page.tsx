@@ -8,10 +8,12 @@ import { toast } from 'sonner';
 import { ScanLine, QrCode, Package, AlertCircle, Wrench, ShoppingCart, Clock, Camera, X, AlertTriangle, RefreshCw } from 'lucide-react';
 import { formatThaiDateShort } from '@/lib/date-utils';
 import { Html5QrcodeScanner } from 'html5-qrcode';
+import { useI18n } from '@/lib/i18n/provider';
 
 type ScannerError = 'none' | 'permission' | 'not_supported' | 'init_failed' | 'https_required';
 
 export default function ScannerPage() {
+    const { t } = useI18n();
     const [code, setCode] = useState('');
     const [scanning, setScanning] = useState(false);
     const [scannedItem, setScannedItem] = useState<any>(null);
@@ -360,7 +362,7 @@ export default function ScannerPage() {
                         </div>
                     )}
 
-                    <h2 className="text-2xl md:text-3xl font-bold text-slate-800 mb-2">Device Scanner</h2>
+                    <h2 className="text-2xl md:text-3xl font-bold text-slate-800 mb-2">{t('scanner.title')}</h2>
                     <p className="text-sm md:text-base text-slate-500 mb-6 md:mb-10">
                         Use your handheld scanner,{' '}
                         <button
@@ -391,7 +393,7 @@ export default function ScannerPage() {
                             disabled={scanning || !code.trim()}
                             className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-2xl shadow-lg shadow-indigo-600/30 text-base md:text-lg min-h-[48px]"
                         >
-                            {scanning ? 'Processing...' : 'Process Scan'}
+                            {scanning ? t('common.loading') : t('scanner.button.process')}
                         </Button>
                     </form>
 
@@ -449,12 +451,12 @@ export default function ScannerPage() {
                     </div>
                 )}
 
-                {/* Recent Scans - Mobile Chips (below scanner) */}
+                {/* {t('scanner.recent-scans')} - Mobile Chips (below scanner) */}
                 {recentScans.length > 0 && (
                     <div className="mt-6 w-full max-w-lg lg:hidden">
                         <div className="flex items-center gap-2 mb-3 px-1">
                             <Clock size={18} className="text-slate-400" />
-                            <h3 className="font-semibold text-slate-700 text-sm">Recent Scans</h3>
+                            <h3 className="font-semibold text-slate-700 text-sm">{t('scanner.recent-scans')}</h3>
                         </div>
                         <div className="flex gap-2 overflow-x-auto pb-2 px-1 -mx-1">
                             {recentScans.map((scan) => (
@@ -472,17 +474,17 @@ export default function ScannerPage() {
                 )}
             </div>
 
-            {/* Recent Scans Sidebar - Desktop Only */}
+            {/* {t('scanner.recent-scans')} Sidebar - Desktop Only */}
             <div className="hidden lg:block lg:w-80 bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
                 <div className="flex items-center gap-2 mb-4">
                     <Clock size={20} className="text-slate-400" />
-                    <h3 className="font-bold text-slate-800">Recent Scans</h3>
+                    <h3 className="font-bold text-slate-800">{t('scanner.recent-scans')}</h3>
                 </div>
 
                 {recentScans.length === 0 ? (
                     <div className="text-center py-12 text-slate-400">
                         <Package size={40} className="mx-auto mb-3 opacity-30" />
-                        <p className="text-sm">No recent scans</p>
+                        <p className="text-sm">{t('scanner.no-recent-scans')}</p>
                     </div>
                 ) : (
                     <div className="space-y-2">

@@ -15,8 +15,10 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
+import { useI18n } from '@/lib/i18n/provider';
 
 export default function HistoryPage() {
+    const { t } = useI18n();
     const [history, setHistory] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [filters, setFilters] = useState({
@@ -64,8 +66,8 @@ export default function HistoryPage() {
     return (
         <div className="space-y-6 animate-fade-in-up max-w-7xl mx-auto">
             <div>
-                <h2 className="text-3xl font-bold text-slate-900">Transaction History</h2>
-                <p className="text-slate-500 mt-1">View all system activities and transactions.</p>
+                <h2 className="text-3xl font-bold text-slate-900">{t('history.title')}</h2>
+                <p className="text-slate-500 mt-1">{t('history.subtitle')}</p>
             </div>
 
             {/* Filters */}
@@ -94,7 +96,7 @@ export default function HistoryPage() {
                             onChange={(e) => setFilters({ ...filters, action: e.target.value })}
                             className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
                         >
-                            <option value="all">All Actions</option>
+                            <option value="all">{t('history.filter.all-actions')}</option>
                             <option value="borrow">Borrow</option>
                             <option value="withdraw">Withdraw</option>
                             <option value="return">Return</option>
@@ -129,10 +131,10 @@ export default function HistoryPage() {
                 {/* Filter Actions */}
                 <div className="flex gap-2 justify-end pt-2 border-t border-slate-100">
                     <Button variant="outline" size="sm" onClick={handleReset}>
-                        Clear Filters
+                        {t('history.clear-filters')}
                     </Button>
                     <Button size="sm" onClick={handleSearch} className="bg-indigo-600 hover:bg-indigo-700">
-                        <Filter size={16} className="mr-2" /> Apply Filters
+                        <Filter size={16} className="mr-2" /> {t('history.apply-filters')}
                     </Button>
                 </div>
             </div>

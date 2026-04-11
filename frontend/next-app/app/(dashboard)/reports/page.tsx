@@ -5,12 +5,14 @@ import { getReportStats } from '@/lib/actions/reports';
 import { Button } from '@/components/ui/button';
 import { Calendar, Download, TrendingUp } from 'lucide-react';
 import { PieChart, Pie, Cell, BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { useI18n } from '@/lib/i18n/provider';
 
 import '@/app/print.css'; // Add global print styles
 
 const COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6'];
 
 export default function ReportsPage() {
+    const { t } = useI18n();
     const [stats, setStats] = useState<any>(null);
     const [loading, setLoading] = useState(true);
 
@@ -89,15 +91,15 @@ export default function ReportsPage() {
 
             <div className="flex justify-between items-center no-print">
                 <div>
-                    <h2 className="text-3xl font-bold text-slate-900">Reports & Analytics</h2>
+                    <h2 className="text-3xl font-bold text-slate-900">{t('reports.title')}</h2>
                     <p className="text-slate-500">System usage summary and insights.</p>
                 </div>
                 <div className="flex gap-2">
                     <Button variant="outline" size="sm" onClick={() => loadStats()}>
-                        <Calendar size={16} className="mr-2" /> Refresh Data
+                        <Calendar size={16} className="mr-2" /> {t('reports.refresh')}
                     </Button>
                     <Button size="sm" onClick={handleExportCSV} className="bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-500">
-                        <Download size={16} className="mr-2" /> Export CSV
+                        <Download size={16} className="mr-2" /> {t('reports.export-csv')}
                     </Button>
                     {/* <Button size="sm" onClick={handleExport} className="bg-indigo-600 hover:bg-indigo-700">
                         <Download size={16} className="mr-2" /> Print PDF
@@ -111,7 +113,7 @@ export default function ReportsPage() {
                 <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
                     <h3 className="font-bold text-slate-700 mb-4 flex items-center gap-2">
                         <TrendingUp size={18} className="text-indigo-600" />
-                        Item Status Breakdown
+                        {t('reports.widget.status-breakdown')}
                     </h3>
                     <ResponsiveContainer width="100%" height={250}>
                         <PieChart>
@@ -136,7 +138,7 @@ export default function ReportsPage() {
 
                 {/* Top 10 Items */}
                 <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-                    <h3 className="font-bold text-slate-700 mb-4">Top 10 Most Borrowed Items</h3>
+                    <h3 className="font-bold text-slate-700 mb-4">{t('reports.widget.top-borrowed')}</h3>
                     <ResponsiveContainer width="100%" height={250}>
                         <BarChart data={topItemsData}>
                             <CartesianGrid strokeDasharray="3 3" />
@@ -150,7 +152,7 @@ export default function ReportsPage() {
 
                 {/* Department Usage */}
                 <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-                    <h3 className="font-bold text-slate-700 mb-4">Top Departments by Usage</h3>
+                    <h3 className="font-bold text-slate-700 mb-4">{t('reports.widget.top-departments')}</h3>
                     <ResponsiveContainer width="100%" height={250}>
                         <BarChart data={deptData} layout="vertical">
                             <CartesianGrid strokeDasharray="3 3" />
@@ -164,7 +166,7 @@ export default function ReportsPage() {
 
                 {/* Monthly Trend */}
                 <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-                    <h3 className="font-bold text-slate-700 mb-4">Monthly Usage Trend</h3>
+                    <h3 className="font-bold text-slate-700 mb-4">{t('reports.widget.monthly-trend')}</h3>
                     <ResponsiveContainer width="100%" height={250}>
                         <LineChart data={trendData}>
                             <CartesianGrid strokeDasharray="3 3" />

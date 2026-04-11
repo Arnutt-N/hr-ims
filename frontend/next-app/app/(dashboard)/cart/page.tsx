@@ -6,6 +6,7 @@ import { getMyMapping } from '@/lib/actions/departments';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { Trash2, ClipboardList, History, ArrowRight, MapPin } from 'lucide-react';
+import { useI18n } from '@/lib/i18n/provider';
 
 // Mock types for now, ideally imported from Prisma client
 type CartItem = {
@@ -22,6 +23,7 @@ type CartItem = {
 };
 
 export default function CartPage() {
+    const { t } = useI18n();
     const [cart, setCart] = useState<CartItem[]>([]);
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
@@ -72,14 +74,14 @@ export default function CartPage() {
     const consumables = cart.filter(i => i.item.type === 'consumable');
     const durables = cart.filter(i => i.item.type === 'durable');
 
-    if (loading) return <div className="p-8 text-center animate-pulse">Loading cart...</div>;
+    if (loading) return <div className="p-8 text-center animate-pulse">{t('common.loading')}</div>;
 
     return (
         <div className="max-w-4xl mx-auto space-y-8 animate-fade-in-up">
             <div className="flex items-center justify-between">
                 <div>
-                    <h1 className="text-3xl font-bold text-slate-900">Your Cart</h1>
-                    <p className="text-slate-500">Review items before requesting.</p>
+                    <h1 className="text-3xl font-bold text-slate-900">{t('cart.title')}</h1>
+                    <p className="text-slate-500">{t('cart.subtitle')}</p>
                 </div>
                 <div className="flex bg-slate-100 p-1 rounded-lg">
                     {targetWarehouse && (
@@ -99,10 +101,10 @@ export default function CartPage() {
                     <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-6">
                         <ClipboardList className="text-slate-300" size={40} />
                     </div>
-                    <h3 className="text-xl font-bold text-slate-700">Cart is empty</h3>
-                    <p className="text-slate-400 mb-8 mt-2">Browse inventory to add items.</p>
+                    <h3 className="text-xl font-bold text-slate-700">{t('cart.empty.title')}</h3>
+                    <p className="text-slate-400 mb-8 mt-2">{t('cart.empty.hint')}</p>
                     <Button variant="outline" onClick={() => window.location.href = '/inventory'}>
-                        Go to Inventory
+                        {t('cart.empty.go-to-inventory')}
                     </Button>
                 </div>
             ) : (

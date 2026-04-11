@@ -12,6 +12,7 @@ import { PlusCircle, LayoutGrid, List, Layers, Package, ClipboardList } from 'lu
 import Link from 'next/link';
 import { InventoryCard } from '@/components/ui/inventory-card';
 import { cn } from '@/lib/utils';
+import { getServerT } from '@/lib/i18n/server';
 
 import InventoryRemoteControls from '@/components/inventory/InventoryRemoteControls';
 import InventoryTableRow from './InventoryTableRow';
@@ -36,6 +37,7 @@ export default async function InventoryPage({
     const view = params?.view || 'grid';
     const warehouseId = params?.warehouse ? Number(params.warehouse) : undefined;
 
+    const { t } = await getServerT();
     const totalPages = await fetchInventoryPages(query, type);
     const items = await fetchInventoryItems(query, currentPage, type, warehouseId);
 
@@ -45,14 +47,14 @@ export default async function InventoryPage({
         <div className="w-full space-y-6">
             <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
                 <div>
-                    <h2 className="text-3xl font-bold tracking-tight text-slate-800">Inventory</h2>
-                    <p className="text-slate-500">Manage your assets and stock items ({warehouseId ? 'Filtered' : 'All Warehouses'})</p>
+                    <h2 className="text-3xl font-bold tracking-tight text-slate-800">{t('inventory.title')}</h2>
+                    <p className="text-slate-500">{t('inventory.subtitle')} ({warehouseId ? t('inventory.subtitle.filtered') : t('inventory.subtitle.all-warehouses')})</p>
                 </div>
                 <div className="flex items-center gap-2">
                     <ImportItemsDialog />
                     <Link href="/inventory/create">
                         <Button className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-200">
-                            <PlusCircle className="mr-2 h-4 w-4" /> Add Item
+                            <PlusCircle className="mr-2 h-4 w-4" /> {t('inventory.add-item')}
                         </Button>
                     </Link>
                 </div>
@@ -68,9 +70,9 @@ export default async function InventoryPage({
                     {/* Type Tabs */}
                     <div className="flex bg-slate-100 p-1 rounded-xl">
                         {[
-                            { id: 'all', label: 'All', icon: Layers },
-                            { id: 'durable', label: 'Borrow', icon: Package },
-                            { id: 'consumable', label: 'Withdraw', icon: ClipboardList }
+                            { id: 'all', label: t('inventory.tab.all'), icon: Layers },
+                            { id: 'durable', label: t('inventory.tab.borrow'), icon: Package },
+                            { id: 'consumable', label: t('inventory.tab.withdraw'), icon: ClipboardList }
                         ].map(tab => (
                             <Link
                                 key={tab.id}

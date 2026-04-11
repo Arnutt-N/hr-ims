@@ -15,8 +15,10 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
+import { useI18n } from '@/lib/i18n/provider';
 
 export default function MaintenancePage() {
+    const { t } = useI18n();
     const [items, setItems] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [selectedItem, setSelectedItem] = useState<any>(null);
@@ -57,14 +59,14 @@ export default function MaintenancePage() {
         }
     };
 
-    if (loading) return <div className="p-8 text-center animate-pulse">Loading maintenance items...</div>;
+    if (loading) return <div className="p-8 text-center animate-pulse">{t('common.loading')}</div>;
 
     return (
         <div className="space-y-6 animate-fade-in-up max-w-7xl mx-auto">
             <div className="flex justify-between items-center">
                 <div>
-                    <h2 className="text-3xl font-bold text-slate-900">Maintenance & Repairs</h2>
-                    <p className="text-slate-500 mt-1">Manage items requiring repair or maintenance.</p>
+                    <h2 className="text-3xl font-bold text-slate-900">{t('maintenance.title')}</h2>
+                    <p className="text-slate-500 mt-1">{t('maintenance.subtitle')}</p>
                 </div>
                 <div className="bg-slate-100 px-4 py-2 rounded-full font-bold text-slate-600">
                     {items.length} Item{items.length !== 1 ? 's' : ''}
@@ -116,7 +118,7 @@ export default function MaintenancePage() {
                                         className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
                                         onClick={() => setSelectedItem(item)}
                                     >
-                                        <CheckCircle size={16} className="mr-2" /> Mark as Repaired
+                                        <CheckCircle size={16} className="mr-2" /> {t('maintenance.action.mark-repaired')}
                                     </Button>
                                 </div>
                             </div>
