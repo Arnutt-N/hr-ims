@@ -1,7 +1,6 @@
 'use client';
 
 import { Languages } from 'lucide-react';
-import { useRouter } from 'next/navigation';
 import { useI18n } from '@/lib/i18n/provider';
 
 /**
@@ -11,22 +10,28 @@ import { useI18n } from '@/lib/i18n/provider';
  * re-render immediately.
  *
  * Server components that call getServerT() read the locale from the
- * cookie at render time, so we also call router.refresh() after toggling
- * — that tells Next.js to re-fetch the current route's server components,
- * picking up the new cookie value. Without it, clicking the toggle would
- * translate the sidebar and header instantly but leave the main content
- * (rendered on the server) stuck in the previous locale until the user
- * navigated somewhere else.
+ * cookie at render time, so after writing the cookie we trigger a full
+ * window reload. A lighter-weight router.refresh() would be preferable,
+ * but Next.js 16's RSC caching does not always include the cookie as
+ * part of the cache key, so the refreshed payload can come back
+ * identical to the previous render — the user sees the sidebar and
+ * header flip but the main page content stays in the old locale.
+ * A hard reload guarantees every server component re-runs against the
+ * fresh cookie value. Losing client state is acceptable here because
+ * the user explicitly asked for a global language change.
  */
 export function LocaleToggle() {
-    const router = useRouter();
     const { locale, setLocale, t } = useI18n();
     const next = locale === 'th' ? 'en' : 'th';
 
     const handleClick = () => {
         setLocale(next);
-        // Re-fetch the current route's server components with the new cookie.
-        router.refresh();
+        // Nuclear option: full reload so every server component re-runs
+        // with the freshly-written cookie. See header comment for why
+        // router.refresh() is not enough.
+        if (typeof window !== 'undefined') {
+            window.location.reload();
+        }
     };
 
     return (
