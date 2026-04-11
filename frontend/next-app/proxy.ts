@@ -60,8 +60,15 @@ export default NextAuth(authConfig).auth(async (req) => {
     }
 
     // Dynamic RBAC Check
-    // 1. Superadmin bypass (Check if ANY role is superadmin)
-    if (userRoles.includes('superadmin')) {
+    // 1. Superadmin bypass. Check the normalized roles list AND the legacy
+    // `token.role` field as a belt-and-suspenders — an older cookie issued
+    // before the jwt-callback refactor may still carry the promoted role
+    // string without the `roles` array, and we don't want to lock the user
+    // out of a dashboard-visit that would itself refresh the cookie.
+    const legacyTokenRole = typeof token?.role === 'string' ? token.role : null;
+    const isSuperadmin =
+        userRoles.includes('superadmin') || legacyTokenRole === 'superadmin';
+    if (isSuperadmin) {
         return NextResponse.next();
     }
 
@@ -74,19 +81,41 @@ export default NextAuth(authConfig).auth(async (req) => {
     const isProtected = protectedModules.some(path => nextUrl.pathname.startsWith(path));
 
     if (isProtected) {
-        // Check if user has permission for this path (Union of permissions from ALL roles)
-        const hasAccess = userPermissions.some((allowedPath: string) => nextUrl.pathname.startsWith(allowedPath));
+        // Path-based permission match. Allow when the current path is the
+        // permitted path, a descendant of it, or a parent section whose
+        // children the user has rights to. The parent-section case is
+        // necessary so that e.g. /settings loads for an admin who only
+        // has /settings/categories — otherwise the shared settings
+        // layout would never render for that user.
+        const hasPermission = userPermissions.some((allowedPath: string) => {
+            if (nextUrl.pathname === allowedPath) return true;
+            if (nextUrl.pathname.startsWith(`${allowedPath}/`)) return true;
+            if (allowedPath.startsWith(`${nextUrl.pathname}/`)) return true;
+            return false;
+        });
 
-        if (!hasAccess) {
-            console.log(`[Proxy Middleware] Access Denied for roles [${userRoles.join(',')}] to ${nextUrl.pathname}`);
-            if (!userPermissions.length) {
-                const matchingLegacyRule = legacyRoleRules.find((rule) => nextUrl.pathname.startsWith(rule.prefix));
+        // Legacy role fallback. Even when the JWT carries permissions, if
+        // they don't cover the requested path we fall back to the
+        // hard-coded role rules. This was previously gated on an empty
+        // permissions array, which meant a stale/partial permission list
+        // could lock a legitimate admin out. Running the legacy check
+        // unconditionally keeps /settings, /users, etc. reachable for
+        // anyone the role table says should see them.
+        const matchingLegacyRule = legacyRoleRules.find((rule) =>
+            nextUrl.pathname.startsWith(rule.prefix)
+        );
+        const legacyRoleCheckNames: readonly string[] = matchingLegacyRule?.roles ?? [];
+        const legacyTokenRoleAllowed =
+            legacyTokenRole !== null && legacyRoleCheckNames.includes(legacyTokenRole);
+        const hasLegacyAccess =
+            !matchingLegacyRule ||
+            matchingLegacyRule.roles.some((role) => userRoles.includes(role)) ||
+            legacyTokenRoleAllowed;
 
-                if (!matchingLegacyRule || matchingLegacyRule.roles.some((role) => userRoles.includes(role))) {
-                    return NextResponse.next();
-                }
-            }
-
+        if (!hasPermission && !hasLegacyAccess) {
+            console.log(
+                `[Proxy Middleware] Access Denied for roles [${userRoles.join(',')}] (legacy role: ${legacyTokenRole ?? 'none'}) to ${nextUrl.pathname}`,
+            );
             return NextResponse.redirect(new URL('/dashboard?error=access_denied', nextUrl.origin));
         }
     }
