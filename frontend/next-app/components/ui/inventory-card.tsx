@@ -18,6 +18,7 @@ interface InventoryItem {
 
 import { addToCart } from '@/lib/actions/cart';
 import { getSafeImageSrc } from '@/lib/safe-image';
+import { useI18n } from '@/lib/i18n/provider';
 import { toast } from 'sonner';
 import { useState } from 'react';
 
@@ -29,6 +30,7 @@ interface InventoryCardProps {
 }
 
 export function InventoryCard({ item, onAction }: InventoryCardProps) {
+    const { t } = useI18n();
     const [loading, setLoading] = useState(false);
     const isAvailable = item.status === 'available' || item.stock > 0;
     const isConsumable = item.type === 'consumable';
@@ -73,7 +75,7 @@ export function InventoryCard({ item, onAction }: InventoryCardProps) {
                                     ? 'bg-blue-50 text-blue-600 border-blue-100'
                                     : 'bg-purple-50 text-purple-600 border-purple-100'}`}
                             >
-                                {isConsumable ? 'เบิก (withdraw)' : 'ยืม (borrow)'}
+                                {isConsumable ? t('type.consumable') : t('type.durable')}
                             </span>
                         </div>
                     </div>
@@ -104,7 +106,7 @@ export function InventoryCard({ item, onAction }: InventoryCardProps) {
                         <div className="flex items-center gap-2 mb-4 text-xs font-medium text-slate-500">
                             {item.status === 'available' ? (
                                 <span className="flex items-center gap-1.5 text-emerald-600 bg-emerald-50 px-2 py-1 rounded-md">
-                                    <CheckCircle2 size={14} /> Available
+                                    <CheckCircle2 size={14} /> {t('status.available')}
                                 </span>
                             ) : (
                                 <span className="flex items-center gap-1.5 text-amber-600 bg-amber-50 px-2 py-1 rounded-md">
@@ -130,7 +132,7 @@ export function InventoryCard({ item, onAction }: InventoryCardProps) {
                             {loading ? 'Adding...' : (
                                 <>
                                     {isConsumable ? <ShoppingCart size={16} /> : <CheckCircle2 size={16} />}
-                                    {isConsumable ? 'Add to Cart' : 'Request Borrow'}
+                                    {isConsumable ? t('inventory.action.add-to-cart') : t('inventory.action.request-borrow')}
                                 </>
                             )}
                         </button>

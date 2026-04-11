@@ -9,8 +9,10 @@ import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { formatRelativeTime } from '@/lib/date-utils';
+import { useI18n } from '@/lib/i18n/provider';
 
 export function NotificationBell({ canTriggerLowStockCheck = false }: { canTriggerLowStockCheck?: boolean }) {
+    const { t } = useI18n();
     const [notifications, setNotifications] = useState<any[]>([]);
     const [unreadCount, setUnreadCount] = useState(0);
     const [open, setOpen] = useState(false);
@@ -93,7 +95,7 @@ export function NotificationBell({ canTriggerLowStockCheck = false }: { canTrigg
                 <div className="absolute right-0 mt-2 w-[350px] bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden z-50 animate-in fade-in zoom-in-95 duration-200 origin-top-right">
                     <div className="p-4 flex items-center justify-between border-b border-slate-100 bg-slate-50/50">
                         <div className="flex items-center gap-2">
-                            <h4 className="font-bold text-sm text-slate-800">Notifications</h4>
+                            <h4 className="font-bold text-sm text-slate-800">{t('notifications.title')}</h4>
                             {unreadCount > 0 && (
                                 <Badge variant="secondary" className="bg-indigo-100 text-indigo-700 hover:bg-indigo-100 border-none px-1.5 h-5 text-[10px]">
                                     {unreadCount}
@@ -158,7 +160,7 @@ export function NotificationBell({ canTriggerLowStockCheck = false }: { canTrigg
                     {notifications.length > 0 && (
                         <div className="p-3 bg-slate-50 border-t border-slate-100 text-center">
                             <button className="text-xs font-semibold text-slate-500 hover:text-indigo-600 transition-colors cursor-pointer">
-                                View all notification history
+                                {t('notifications.view-all')}
                             </button>
                         </div>
                     )}

@@ -11,6 +11,7 @@ import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { toast } from "sonner";
 import { Save, Loader2, Database, Download, RotateCcw } from "lucide-react";
+import { useI18n } from "@/lib/i18n/provider";
 
 const backupSettingsSchema = z.object({
     backupEnabled: z.boolean(),
@@ -23,6 +24,7 @@ const backupSettingsSchema = z.object({
 type BackupSettingsFormData = z.infer<typeof backupSettingsSchema>;
 
 export function BackupSettingsForm() {
+    const { t } = useI18n();
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
     const [isBackingUp, setIsBackingUp] = useState(false);
@@ -221,7 +223,7 @@ export function BackupSettingsForm() {
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
                 <Card>
                     <CardHeader>
-                        <CardTitle>Backup Configuration</CardTitle>
+                        <CardTitle>{t('settings.backup.form.config')}</CardTitle>
                         <CardDescription>ตั้งค่าการสำรองข้อมูลอัตโนมัติ</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
@@ -325,7 +327,7 @@ export function BackupSettingsForm() {
 
             <Card>
                 <CardHeader>
-                    <CardTitle>Backup History</CardTitle>
+                    <CardTitle>{t('settings.backup.form.history')}</CardTitle>
                     <CardDescription>รายการสำรองข้อมูลล่าสุด</CardDescription>
                 </CardHeader>
                 <CardContent>

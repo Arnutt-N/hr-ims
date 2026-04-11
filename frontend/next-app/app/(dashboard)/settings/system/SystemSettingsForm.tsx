@@ -11,6 +11,7 @@ import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { toast } from "sonner";
 import { Save, Loader2 } from "lucide-react";
+import { useI18n } from "@/lib/i18n/provider";
 
 const systemSettingsSchema = z.object({
     orgName: z.string().min(1, "Organization name is required"),
@@ -24,6 +25,7 @@ const systemSettingsSchema = z.object({
 type SystemSettingsFormData = z.infer<typeof systemSettingsSchema>;
 
 export function SystemSettingsForm() {
+    const { t } = useI18n();
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
 
@@ -108,12 +110,12 @@ export function SystemSettingsForm() {
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
             <Card>
                 <CardHeader>
-                    <CardTitle>General Settings</CardTitle>
+                    <CardTitle>{t('settings.form.general')}</CardTitle>
                     <CardDescription>ตั้งค่าทั่วไปของระบบ</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <div className="grid gap-2">
-                        <Label htmlFor="orgName">Organization Name</Label>
+                        <Label htmlFor="orgName">{t('settings.form.general.org-name')}</Label>
                         <Input
                             id="orgName"
                             {...register("orgName")}
@@ -137,12 +139,12 @@ export function SystemSettingsForm() {
 
             <Card>
                 <CardHeader>
-                    <CardTitle>Borrow Settings</CardTitle>
+                    <CardTitle>{t('settings.form.borrow')}</CardTitle>
                     <CardDescription>ตั้งค่าการยืมพัสดุ</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <div className="grid gap-2">
-                        <Label htmlFor="borrowLimit">Borrow Limit (Days)</Label>
+                        <Label htmlFor="borrowLimit">{t('settings.form.borrow.limit-days')}</Label>
                         <Input
                             id="borrowLimit"
                             type="number"
@@ -169,7 +171,7 @@ export function SystemSettingsForm() {
 
             <Card>
                 <CardHeader>
-                    <CardTitle>System Features</CardTitle>
+                    <CardTitle>{t('settings.form.features')}</CardTitle>
                     <CardDescription>เปิด/ปิดฟีเจอร์ต่างๆ</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">

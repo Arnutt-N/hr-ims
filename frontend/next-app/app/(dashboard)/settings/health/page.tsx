@@ -294,7 +294,7 @@ export default function HealthPage() {
             {adminMode && health.services.database.stats && (
                 <Card>
                     <CardHeader>
-                        <CardTitle>Database Statistics</CardTitle>
+                        <CardTitle>{t('settings.health.database')}</CardTitle>
                     </CardHeader>
                     <CardContent>
                         <div className="grid grid-cols-4 gap-4">

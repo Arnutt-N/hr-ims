@@ -21,6 +21,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { useI18n } from '@/lib/i18n/provider';
 
 interface UserFormProps {
     open: boolean;
@@ -32,6 +33,7 @@ interface UserFormProps {
 }
 
 export function UserFormDialog({ open, onOpenChange, onSubmit, initialData, mode, currentUserRole }: UserFormProps) {
+    const { t } = useI18n();
     const [formData, setFormData] = useState({
         email: '',
         password: '',
@@ -134,7 +136,7 @@ export function UserFormDialog({ open, onOpenChange, onSubmit, initialData, mode
             <DialogContent className="sm:max-w-[500px]">
                 <form onSubmit={handleSubmit}>
                     <DialogHeader>
-                        <DialogTitle>{mode === 'create' ? 'Add New User' : 'Edit User'}</DialogTitle>
+                        <DialogTitle>{mode === 'create' ? t('dialog.user.title.create') : t('dialog.user.title.edit')}</DialogTitle>
                         <DialogDescription>
                             {mode === 'create'
                                 ? 'Create a new user account with appropriate access level.'
@@ -180,7 +182,7 @@ export function UserFormDialog({ open, onOpenChange, onSubmit, initialData, mode
 
                         {/* Name */}
                         <div className="grid gap-2">
-                            <Label htmlFor="name">Full Name *</Label>
+                            <Label htmlFor="name">{t('dialog.user.field.name')} *</Label>
                             <Input
                                 id="name"
                                 value={formData.name}
@@ -258,7 +260,7 @@ export function UserFormDialog({ open, onOpenChange, onSubmit, initialData, mode
                                 Cancel
                             </Button>
                             <Button type="submit" disabled={submitting} className="bg-indigo-600 hover:bg-indigo-700">
-                                {submitting ? 'Saving...' : (mode === 'create' ? 'Create User' : 'Update User')}
+                                {submitting ? t('common.loading') : (mode === 'create' ? t('dialog.user.button.create') : t('dialog.user.button.update'))}
                             </Button>
                         </div>
                     </DialogFooter>

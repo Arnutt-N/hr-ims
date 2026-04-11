@@ -19,8 +19,10 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { useI18n } from "@/lib/i18n/provider";
 
 export default function RequestsTable({ initialRequests }: { initialRequests: any[] }) {
+    const { t } = useI18n();
     const [requests, setRequests] = useState(initialRequests);
     const [loadingId, setLoadingId] = useState<number | null>(null);
 
@@ -237,12 +239,12 @@ export default function RequestsTable({ initialRequests }: { initialRequests: an
                 <Table>
                     <TableHeader className="bg-slate-50">
                         <TableRow>
-                            <TableHead>Date</TableHead>
-                            <TableHead>User</TableHead>
-                            <TableHead>Type</TableHead>
-                            <TableHead>Items</TableHead>
-                            <TableHead className="text-center">Status</TableHead>
-                            <TableHead className="text-right">Action</TableHead>
+                            <TableHead>{t('requests.table.header.date')}</TableHead>
+                            <TableHead>{t('requests.table.header.user')}</TableHead>
+                            <TableHead>{t('requests.table.header.type')}</TableHead>
+                            <TableHead>{t('requests.table.header.items')}</TableHead>
+                            <TableHead className="text-center">{t('requests.table.header.status')}</TableHead>
+                            <TableHead className="text-right">{t('requests.table.header.actions')}</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>

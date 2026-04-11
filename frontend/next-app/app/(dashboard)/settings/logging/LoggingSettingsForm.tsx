@@ -11,6 +11,7 @@ import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { toast } from "sonner";
 import { Save, Loader2, FileText } from "lucide-react";
+import { useI18n } from "@/lib/i18n/provider";
 
 const loggingSettingsSchema = z.object({
     loggingEnabled: z.boolean(),
@@ -22,6 +23,7 @@ const loggingSettingsSchema = z.object({
 type LoggingSettingsFormData = z.infer<typeof loggingSettingsSchema>;
 
 export function LoggingSettingsForm() {
+    const { t } = useI18n();
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
 
@@ -112,7 +114,7 @@ export function LoggingSettingsForm() {
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
                 <Card>
                     <CardHeader>
-                        <CardTitle>Logging Configuration</CardTitle>
+                        <CardTitle>{t('settings.logging.form.config')}</CardTitle>
                         <CardDescription>ตั้งค่าการบันทึก Log</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
@@ -185,7 +187,7 @@ export function LoggingSettingsForm() {
 
             <Card>
                 <CardHeader>
-                    <CardTitle>Log Viewer</CardTitle>
+                    <CardTitle>{t('settings.logging.form.viewer')}</CardTitle>
                     <CardDescription>ดู Log ล่าสุด (Coming Soon)</CardDescription>
                 </CardHeader>
                 <CardContent>

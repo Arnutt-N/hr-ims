@@ -265,7 +265,7 @@ export default function EmailSettingsPage() {
             {/* SMTP Configuration */}
             <Card>
                 <CardHeader>
-                    <CardTitle>SMTP Configuration</CardTitle>
+                    <CardTitle>{t('settings.email.form.smtp')}</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <div className="grid grid-cols-2 gap-4">
@@ -378,7 +378,7 @@ export default function EmailSettingsPage() {
             {/* Feature Toggle */}
             <Card>
                 <CardHeader>
-                    <CardTitle>Features</CardTitle>
+                    <CardTitle>{t('settings.email.form.features')}</CardTitle>
                 </CardHeader>
                 <CardContent>
                     <div className="flex items-center justify-between">
