@@ -13,10 +13,12 @@ import {
 } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { Upload, AlertCircle, CheckCircle, Loader2 } from 'lucide-react';
+import { useI18n } from '@/lib/i18n/provider';
 import { importInventoryItems } from '@/lib/actions/inventory';
 import { toast } from 'sonner';
 
 export default function ImportItemsDialog() {
+    const { t } = useI18n();
     const [open, setOpen] = useState(false);
     const [csvData, setCsvData] = useState('');
     const [isLoading, setIsLoading] = useState(false);
@@ -98,12 +100,12 @@ export default function ImportItemsDialog() {
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
                 <Button variant="outline" className="gap-2">
-                    <Upload size={16} /> Import CSV
+                    <Upload size={16} /> {t('inventory.import-csv')}
                 </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-[600px]">
                 <DialogHeader>
-                    <DialogTitle>Bulk Import Items</DialogTitle>
+                    <DialogTitle>{t('dialog.import.title')}</DialogTitle>
                     <DialogDescription>
                         Copy and paste your CSV data below. First row must be headers.
                     </DialogDescription>
@@ -138,7 +140,7 @@ export default function ImportItemsDialog() {
                     <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
                     <Button onClick={handleImport} disabled={isLoading || !csvData}>
                         {isLoading ? <Loader2 className="animate-spin mr-2" size={16} /> : <CheckCircle className="mr-2" size={16} />}
-                        Import Items
+                        {t('dialog.import.button.upload')}
                     </Button>
                 </DialogFooter>
             </DialogContent>

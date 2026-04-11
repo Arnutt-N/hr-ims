@@ -1,6 +1,6 @@
 'use client';
 
-import { User as UserIcon, ChevronDown, LogOut, Settings as SettingsIcon, UserCircle, Languages, Check } from 'lucide-react';
+import { User as UserIcon, LogOut, Settings as SettingsIcon, UserCircle, Languages, Check } from 'lucide-react';
 import Link from 'next/link';
 import {
     DropdownMenu,
@@ -44,24 +44,21 @@ export function ProfileDropdown({ user }: { user?: ProfileUser | null }) {
                 <button
                     type="button"
                     aria-label={name}
-                    className="flex items-center gap-1.5 rounded-full p-0.5 bg-gradient-to-tr from-blue-500 to-indigo-600 shadow-lg shadow-blue-500/20 hover:shadow-blue-500/40 transition-all cursor-pointer group"
+                    title={name}
+                    className="relative h-10 w-10 rounded-full overflow-hidden ring-2 ring-slate-200 hover:ring-indigo-400 focus-visible:ring-indigo-500 focus-visible:outline-none transition-all cursor-pointer shadow-sm hover:shadow-md data-[state=open]:ring-indigo-500 data-[state=open]:ring-offset-2"
                 >
-                    <div className="w-9 h-9 rounded-full bg-white flex items-center justify-center overflow-hidden">
-                        {user?.image ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img
-                                src={user.image}
-                                alt={name}
-                                className="w-full h-full object-cover"
-                            />
-                        ) : (
-                            <UserIcon size={18} className="text-indigo-500" />
-                        )}
-                    </div>
-                    <ChevronDown
-                        size={14}
-                        className="text-white/80 mr-1 group-data-[state=open]:rotate-180 transition-transform"
-                    />
+                    {user?.image ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                            src={user.image}
+                            alt={name}
+                            className="absolute inset-0 h-full w-full object-cover"
+                        />
+                    ) : (
+                        <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-tr from-blue-500 to-indigo-600">
+                            <UserIcon size={20} className="text-white" />
+                        </div>
+                    )}
                 </button>
             </DropdownMenuTrigger>
 

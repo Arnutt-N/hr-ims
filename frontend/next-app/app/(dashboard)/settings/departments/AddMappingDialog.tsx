@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { useI18n } from '@/lib/i18n/provider';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
@@ -16,6 +17,7 @@ interface AddMappingDialogProps {
 }
 
 export default function AddMappingDialog({ uniqueDepartments, warehouses }: AddMappingDialogProps) {
+    const { t } = useI18n();
     const [open, setOpen] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [selectedDept, setSelectedDept] = useState('');
@@ -61,13 +63,13 @@ export default function AddMappingDialog({ uniqueDepartments, warehouses }: AddM
         <>
             <Button className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-200" onClick={() => setOpen(true)}>
                 <Plus className="mr-2 h-4 w-4" />
-                Add Mapping
+                {t('settings.departments.add')}
             </Button>
 
             <Dialog open={open} onOpenChange={setOpen}>
                 <DialogContent className="sm:max-w-[425px]">
                     <DialogHeader>
-                        <DialogTitle>Map Department to Warehouse</DialogTitle>
+                        <DialogTitle>{t('settings.departments.dialog.add')}</DialogTitle>
                         <DialogDescription>
                             Select a department and the default warehouse for its users.
                         </DialogDescription>
@@ -75,7 +77,7 @@ export default function AddMappingDialog({ uniqueDepartments, warehouses }: AddM
                     <form onSubmit={handleSubmit}>
                         <div className="grid gap-4 py-4">
                             <div className="grid gap-2">
-                                <Label htmlFor="department">Department</Label>
+                                <Label htmlFor="department">{t('dialog.user.field.department')}</Label>
                                 <Select value={selectedDept} onValueChange={setSelectedDept}>
                                     <SelectTrigger>
                                         <SelectValue placeholder="Select department" />
@@ -107,11 +109,11 @@ export default function AddMappingDialog({ uniqueDepartments, warehouses }: AddM
                         </div>
                         <DialogFooter>
                             <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-                                Cancel
+                                {t('common.cancel')}
                             </Button>
                             <Button type="submit" disabled={isSubmitting || !selectedDept || !selectedWarehouse}>
                                 {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                Save Mapping
+                                {t('common.save')}
                             </Button>
                         </DialogFooter>
                     </form>

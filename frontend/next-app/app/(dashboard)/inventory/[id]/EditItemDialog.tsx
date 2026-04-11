@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { useI18n } from '@/lib/i18n/provider';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -30,6 +31,7 @@ interface EditItemDialogProps {
 }
 
 export default function EditItemDialog({ open, onOpenChange, item }: EditItemDialogProps) {
+    const { t } = useI18n();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [categories, setCategories] = useState<any[]>([]);
     const router = useRouter();
@@ -104,7 +106,7 @@ export default function EditItemDialog({ open, onOpenChange, item }: EditItemDia
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="sm:max-w-[600px]">
                 <DialogHeader>
-                    <DialogTitle>Edit Item Information</DialogTitle>
+                    <DialogTitle>{t('dialog.inventory.title.edit')}</DialogTitle>
                     <DialogDescription>
                         Update item details. Required fields are marked with *
                     </DialogDescription>
@@ -114,7 +116,7 @@ export default function EditItemDialog({ open, onOpenChange, item }: EditItemDia
                     <div className="space-y-4 py-4">
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
-                                <Label htmlFor="name">Name *</Label>
+                                <Label htmlFor="name">{t('dialog.inventory.field.name')} *</Label>
                                 <Input
                                     id="name"
                                     value={formData.name}
@@ -124,7 +126,7 @@ export default function EditItemDialog({ open, onOpenChange, item }: EditItemDia
                             </div>
 
                             <div className="space-y-2">
-                                <Label htmlFor="category">Category *</Label>
+                                <Label htmlFor="category">{t('dialog.inventory.field.category')} *</Label>
                                 <Select
                                     value={formData.category} // Use category name as value for now since schema expects string
                                     onValueChange={(value) => setFormData({ ...formData, category: value })}
@@ -165,7 +167,7 @@ export default function EditItemDialog({ open, onOpenChange, item }: EditItemDia
                             </div>
 
                             <div className="space-y-2">
-                                <Label htmlFor="status">Status *</Label>
+                                <Label htmlFor="status">{t('dialog.inventory.field.status')} *</Label>
                                 <Select
                                     value={formData.status}
                                     onValueChange={(value) => setFormData({ ...formData, status: value })}
@@ -183,7 +185,7 @@ export default function EditItemDialog({ open, onOpenChange, item }: EditItemDia
                         </div>
 
                         <div className="space-y-2">
-                            <Label htmlFor="serial">Serial Number</Label>
+                            <Label htmlFor="serial">{t('dialog.inventory.field.serial')}</Label>
                             <Input
                                 id="serial"
                                 value={formData.serial}
@@ -225,7 +227,7 @@ export default function EditItemDialog({ open, onOpenChange, item }: EditItemDia
                                     Saving...
                                 </>
                             ) : (
-                                'Save Changes'
+                                t('dialog.inventory.button.save')
                             )}
                         </Button>
                     </DialogFooter>

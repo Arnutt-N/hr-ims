@@ -147,7 +147,7 @@ export function UserFormDialog({ open, onOpenChange, onSubmit, initialData, mode
                     <div className="grid gap-4 py-4">
                         {/* Email */}
                         <div className="grid gap-2">
-                            <Label htmlFor="email">Email Address *</Label>
+                            <Label htmlFor="email">{t('dialog.user.field.email')} *</Label>
                             <Input
                                 id="email"
                                 type="email"
@@ -194,7 +194,7 @@ export function UserFormDialog({ open, onOpenChange, onSubmit, initialData, mode
 
                         {/* Department */}
                         <div className="grid gap-2">
-                            <Label htmlFor="department">Department *</Label>
+                            <Label htmlFor="department">{t('dialog.user.field.department')} *</Label>
                             <Input
                                 id="department"
                                 value={formData.department}
@@ -207,7 +207,7 @@ export function UserFormDialog({ open, onOpenChange, onSubmit, initialData, mode
 
                         {/* Role */}
                         <div className="grid gap-2">
-                            <Label htmlFor="role">Role *</Label>
+                            <Label htmlFor="role">{t('dialog.user.field.role')} *</Label>
                             <Select value={formData.role} onValueChange={(val: string) => setFormData({ ...formData, role: val })}>
                                 <SelectTrigger>
                                     <SelectValue />
@@ -227,7 +227,7 @@ export function UserFormDialog({ open, onOpenChange, onSubmit, initialData, mode
 
                         {/* Status */}
                         <div className="grid gap-2">
-                            <Label htmlFor="status">Status *</Label>
+                            <Label htmlFor="status">{t('dialog.user.field.status')} *</Label>
                             <Select value={formData.status} onValueChange={(val: string) => setFormData({ ...formData, status: val })}>
                                 <SelectTrigger>
                                     <SelectValue />

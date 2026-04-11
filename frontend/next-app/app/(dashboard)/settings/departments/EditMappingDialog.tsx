@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/components/ui/use-toast';
 import { Loader2, Edit } from 'lucide-react';
+import { useI18n } from '@/lib/i18n/provider';
 import { saveDepartmentMapping } from '@/lib/actions/departments';
 import { useRouter } from 'next/navigation';
 
@@ -17,6 +18,7 @@ interface EditMappingDialogProps {
 }
 
 export default function EditMappingDialog({ department, initialWarehouseId, warehouses }: EditMappingDialogProps) {
+    const { t } = useI18n();
     const [open, setOpen] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [selectedWarehouse, setSelectedWarehouse] = useState(initialWarehouseId.toString());
@@ -60,12 +62,12 @@ export default function EditMappingDialog({ department, initialWarehouseId, ware
             <DialogTrigger asChild>
                 <Button variant="ghost" size="icon" className="text-slate-400 hover:text-indigo-600 hover:bg-indigo-50">
                     <Edit size={16} />
-                    <span className="sr-only">Edit</span>
+                    <span className="sr-only">{t('common.edit')}</span>
                 </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-[425px]">
                 <DialogHeader>
-                    <DialogTitle>Edit Department Mapping</DialogTitle>
+                    <DialogTitle>{t('settings.departments.dialog.edit')}</DialogTitle>
                     <DialogDescription>
                         Change the default warehouse for <strong>{department}</strong>.
                     </DialogDescription>
@@ -96,11 +98,11 @@ export default function EditMappingDialog({ department, initialWarehouseId, ware
                     </div>
                     <DialogFooter>
                         <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-                            Cancel
+                            {t('common.cancel')}
                         </Button>
                         <Button type="submit" disabled={isSubmitting || !selectedWarehouse || selectedWarehouse === initialWarehouseId.toString()}>
                             {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                            Save Changes
+                            {t('common.save')}
                         </Button>
                     </DialogFooter>
                 </form>
