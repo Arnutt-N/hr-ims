@@ -56,6 +56,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     ],
     secret: process.env.AUTH_SECRET,
     callbacks: {
+        // Spread first so jwt/session below override any same-named callbacks,
+        // while preserving `authorized` (only defined in authConfig).
+        ...authConfig.callbacks,
         async jwt({ token, user }) {
             if (user) {
                 token.id = user.id?.toString() || "";
@@ -125,11 +128,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                 });
 
                 // 2. Fetch Permissions for ALL assigned roles
+                const roleSlugs = token.roles as string[];
                 const permissions = await prisma.rolePermission.findMany({
                     where: {
                         OR: [
-                            { role: { in: token.roles } }, // Legacy string-based match
-                            { roleRef: { slug: { in: token.roles } } } // Relation-based match
+                            { role: { in: roleSlugs } },
+                            { roleRef: { slug: { in: roleSlugs } } }
                         ],
                         canView: true
                     }
