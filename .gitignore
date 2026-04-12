@@ -61,6 +61,11 @@ cypress/videos
 cypress/screenshots
 .jest.test_results
 test-results/
+playwright-report/
+**/tests/e2e/.auth-*.json
+
+# Stack dumps
+*.stackdump
 
 # Editor / IDE
 .vscode/
