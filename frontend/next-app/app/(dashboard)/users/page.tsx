@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { UserPlus, Edit, Trash2, Search, Users as UsersIcon } from 'lucide-react';
 import { UserFormDialog } from '@/components/dashboard/user-form-dialog';
+import { PageLoader } from '@/components/ui/page-loader';
 import { useI18n } from '@/lib/i18n/provider';
 import { sessionHasAnyRole, SUPERADMIN_ONLY } from '@/lib/role-access';
 import {
@@ -122,7 +123,7 @@ export default function UserManagementPage() {
         }
     };
 
-    if (loading) return <div className="p-8 text-center animate-pulse">{t('common.loading')}</div>;
+    if (loading) return <PageLoader />;
 
     return (
         <div className="space-y-6 animate-fade-in-up max-w-7xl mx-auto">

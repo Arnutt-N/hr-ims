@@ -9,6 +9,7 @@ import { toast } from 'sonner';
 import { Save, Settings as SettingsIcon, Shield } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { TestEmailButton } from '@/components/settings/test-email-button';
+import { PageLoader } from '@/components/ui/page-loader';
 
 export default function SettingsPage() {
     const [settings, setSettings] = useState<any>(null);
@@ -90,7 +91,7 @@ export default function SettingsPage() {
         }
     };
 
-    if (loading) return <div className="p-8 text-center animate-pulse">Loading settings...</div>;
+    if (loading) return <PageLoader />;
 
     return (
         <div className="space-y-6 animate-fade-in-up max-w-4xl mx-auto">

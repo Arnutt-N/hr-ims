@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Calendar, Download, TrendingUp } from 'lucide-react';
 import { PieChart, Pie, Cell, BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { useI18n } from '@/lib/i18n/provider';
+import { PageLoader } from '@/components/ui/page-loader';
 
 import '@/app/print.css'; // Add global print styles
 
@@ -63,7 +64,7 @@ export default function ReportsPage() {
         document.body.removeChild(a);
     };
 
-    if (loading) return <div className="p-8 text-center animate-pulse">Loading reports...</div>;
+    if (loading) return <PageLoader />;
     if (!stats) return <div className="p-8 text-center text-slate-500">No data available</div>;
 
     // Prepare data for charts
