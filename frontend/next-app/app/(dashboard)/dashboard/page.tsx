@@ -15,7 +15,7 @@ export default async function DashboardPage() {
     const { t } = await getServerT();
     const stats = await getDashboardStats();
 
-    if (!stats) return <PageLoader />;
+    if (!stats) return <PageLoader label={t('common.loading')} />;
 
     const statCards = [
         {

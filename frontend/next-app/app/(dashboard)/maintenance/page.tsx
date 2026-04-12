@@ -60,7 +60,7 @@ export default function MaintenancePage() {
         }
     };
 
-    if (loading) return <PageLoader />;
+    if (loading) return <PageLoader label={t('common.loading')} />;
 
     return (
         <div className="space-y-6 animate-fade-in-up max-w-7xl mx-auto">

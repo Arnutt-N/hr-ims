@@ -61,7 +61,7 @@ export default function MyAssetsPage() {
         }
     };
 
-    if (loading) return <PageLoader />;
+    if (loading) return <PageLoader label={t('common.loading')} />;
 
     return (
         <div className="space-y-8 animate-fade-in-up max-w-5xl mx-auto">
