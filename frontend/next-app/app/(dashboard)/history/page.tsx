@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Calendar, Search, Filter } from 'lucide-react';
+import { PageLoader } from '@/components/ui/page-loader';
 import { formatThaiDateShort } from '@/lib/date-utils';
 import {
     Table,
@@ -61,7 +62,7 @@ export default function HistoryPage() {
         'reject': 'bg-slate-100 text-slate-700'
     };
 
-    if (loading) return <div className="p-8 text-center animate-pulse">Loading history...</div>;
+    if (loading) return <PageLoader label={t('common.loading')} />;
 
     return (
         <div className="space-y-6 animate-fade-in-up max-w-7xl mx-auto">

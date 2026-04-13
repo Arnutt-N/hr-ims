@@ -14,7 +14,7 @@ export default async function DashboardPage() {
     const { t } = await getServerT();
     const stats = await getDashboardStats();
 
-    if (!stats) return <div className="p-8 text-center text-slate-500">{t('common.loading')}</div>;
+    if (!stats) return <div className="p-8 text-center text-slate-500">{t('common.no-data')}</div>;
 
     const statCards = [
         {

@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { CheckCircle } from 'lucide-react';
+import { PageLoader } from '@/components/ui/page-loader';
 import {
     Dialog,
     DialogContent,
@@ -59,7 +60,7 @@ export default function MaintenancePage() {
         }
     };
 
-    if (loading) return <div className="p-8 text-center animate-pulse">{t('common.loading')}</div>;
+    if (loading) return <PageLoader label={t('common.loading')} />;
 
     return (
         <div className="space-y-6 animate-fade-in-up max-w-7xl mx-auto">

@@ -8,6 +8,7 @@ import { Package, CheckCircle, AlertTriangle, ArrowRightLeft, Clock } from 'luci
 import { formatThaiDateShort, formatRelativeTime } from '@/lib/date-utils';
 import { Badge } from '@/components/ui/badge';
 import { useI18n } from '@/lib/i18n/provider';
+import { PageLoader } from '@/components/ui/page-loader';
 
 export default function MyAssetsPage() {
     const { t } = useI18n();
@@ -60,7 +61,7 @@ export default function MyAssetsPage() {
         }
     };
 
-    if (loading) return <div className="p-8 text-center animate-pulse">{t('common.loading')}</div>;
+    if (loading) return <PageLoader label={t('common.loading')} />;
 
     return (
         <div className="space-y-8 animate-fade-in-up max-w-5xl mx-auto">

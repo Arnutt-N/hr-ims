@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { Trash2, ClipboardList, History, ArrowRight, MapPin } from 'lucide-react';
 import { useI18n } from '@/lib/i18n/provider';
+import { PageLoader } from '@/components/ui/page-loader';
 
 // Mock types for now, ideally imported from Prisma client
 type CartItem = {
@@ -74,7 +75,7 @@ export default function CartPage() {
     const consumables = cart.filter(i => i.item.type === 'consumable');
     const durables = cart.filter(i => i.item.type === 'durable');
 
-    if (loading) return <div className="p-8 text-center animate-pulse">{t('common.loading')}</div>;
+    if (loading) return <PageLoader label={t('common.loading')} />;
 
     return (
         <div className="max-w-4xl mx-auto space-y-8 animate-fade-in-up">
