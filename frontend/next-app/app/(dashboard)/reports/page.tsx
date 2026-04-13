@@ -65,7 +65,7 @@ export default function ReportsPage() {
     };
 
     if (loading) return <PageLoader label={t('common.loading')} />;
-    if (!stats) return <div className="p-8 text-center text-slate-500">No data available</div>;
+    if (!stats) return <div className="p-8 text-center text-slate-500">{t('common.no-data')}</div>;
 
     // Prepare data for charts
     const statusData = stats.statusBreakdown.map((item: any) => ({

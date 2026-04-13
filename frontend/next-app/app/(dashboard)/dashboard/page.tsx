@@ -4,7 +4,6 @@ import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { formatThaiDateTime, formatRelativeTime } from "@/lib/date-utils";
 import { getServerT } from "@/lib/i18n/server";
-import { PageLoader } from "@/components/ui/page-loader";
 
 export default async function DashboardPage() {
     const session = await auth();
@@ -15,7 +14,7 @@ export default async function DashboardPage() {
     const { t } = await getServerT();
     const stats = await getDashboardStats();
 
-    if (!stats) return <PageLoader label={t('common.loading')} />;
+    if (!stats) return <div className="p-8 text-center text-slate-500">{t('common.no-data')}</div>;
 
     const statCards = [
         {

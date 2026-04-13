@@ -10,8 +10,10 @@ import { Save, Settings as SettingsIcon, Shield } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { TestEmailButton } from '@/components/settings/test-email-button';
 import { PageLoader } from '@/components/ui/page-loader';
+import { useI18n } from '@/lib/i18n/provider';
 
 export default function SettingsPage() {
+    const { t } = useI18n();
     const [settings, setSettings] = useState<any>(null);
     const [formData, setFormData] = useState({
         orgName: '',
@@ -91,7 +93,7 @@ export default function SettingsPage() {
         }
     };
 
-    if (loading) return <PageLoader />;
+    if (loading) return <PageLoader label={t('common.loading')} />;
 
     return (
         <div className="space-y-6 animate-fade-in-up max-w-4xl mx-auto">

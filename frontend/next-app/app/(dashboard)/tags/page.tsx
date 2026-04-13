@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { CheckCircle, QrCode, Printer, Download, Barcode, Layers, Package } from 'lucide-react';
 import { PageLoader } from '@/components/ui/page-loader';
+import { useI18n } from '@/lib/i18n/provider';
 import QRCode from 'react-qr-code';
 import JsBarcode from 'jsbarcode';
 import html2canvas from 'html2canvas';
@@ -67,6 +68,7 @@ const BarcodeGenerator = ({ value, width = 2 }: { value: string; width?: number 
 };
 
 export default function TagGeneratorPage() {
+    const { t } = useI18n();
     const [items, setItems] = useState<any[]>([]);
     const [filteredItems, setFilteredItems] = useState<any[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
@@ -345,7 +347,7 @@ export default function TagGeneratorPage() {
         );
     };
 
-    if (loading) return <PageLoader />;
+    if (loading) return <PageLoader label={t('common.loading')} />;
 
     return (
         <>
