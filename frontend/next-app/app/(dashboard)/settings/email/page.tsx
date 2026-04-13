@@ -10,6 +10,7 @@ import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, Mail, Send, CheckCircle, XCircle, RefreshCw } from 'lucide-react';
 import { useI18n } from '@/lib/i18n/provider';
+import { PageLoader } from '@/components/ui/page-loader';
 import { toast } from 'sonner';
 import { sessionHasAnyRole, SUPERADMIN_ONLY } from '@/lib/role-access';
 
@@ -194,7 +195,7 @@ export default function EmailSettingsPage() {
     };
 
     if (!accessChecked) {
-        return <div className="p-8 text-center animate-pulse">Checking access...</div>;
+        return <PageLoader />;
     }
 
     return (

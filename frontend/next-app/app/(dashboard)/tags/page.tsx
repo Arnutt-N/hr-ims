@@ -347,7 +347,7 @@ export default function TagGeneratorPage() {
         );
     };
 
-    if (loading) return <PageLoader label={t('common.loading')} />;
+    if (loading) return <PageLoader />;
 
     return (
         <>

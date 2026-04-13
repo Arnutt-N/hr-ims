@@ -62,7 +62,7 @@ export default function HistoryPage() {
         'reject': 'bg-slate-100 text-slate-700'
     };
 
-    if (loading) return <PageLoader label={t('common.loading')} />;
+    if (loading) return <PageLoader />;
 
     return (
         <div className="space-y-6 animate-fade-in-up max-w-7xl mx-auto">
