@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { PageLoader } from '@/components/ui/page-loader';
 import {
     Loader2,
     RefreshCw,
@@ -73,7 +74,9 @@ export default function HealthPage() {
     const [loading, setLoading] = useState(false);
     const [adminMode, setAdminMode] = useState(false);
 
-    const fetchHealth = async (admin = false) => {
+    const [fetchError, setFetchError] = useState<string | null>(null);
+
+    const fetchHealth = async (admin = false, silent = false) => {
         setLoading(true);
         try {
             const endpoint = admin ? '/api/health/admin' : '/api/health/detailed';
@@ -83,6 +86,7 @@ export default function HealthPage() {
                 const data = await res.json();
                 setHealth(data);
                 setAdminMode(admin);
+                setFetchError(null);
             } else if (res.status === 403) {
                 // Fallback to basic health if not admin
                 const basicRes = await fetch('/api/health/detailed');
@@ -90,12 +94,14 @@ export default function HealthPage() {
                     const data = await basicRes.json();
                     setHealth(data);
                     setAdminMode(false);
+                    setFetchError(null);
                 }
             } else {
                 throw new Error('Failed to fetch health status');
             }
         } catch {
-            toast.error('Failed to fetch health status');
+            setFetchError('Failed to fetch health status — backend API unavailable');
+            if (!silent) toast.error('Failed to fetch health status');
             // Try basic health endpoint
             try {
                 const res = await fetch('/api/health');
@@ -127,10 +133,15 @@ export default function HealthPage() {
 
     useEffect(() => {
         fetchHealth();
-        // Auto refresh every 30 seconds
-        const interval = setInterval(() => fetchHealth(adminMode), 30000);
+    }, []);
+
+    // Auto-refresh every 30s, but stop as soon as we hit an error so the user
+    // isn't spammed with toasts when the backend is down.
+    useEffect(() => {
+        if (fetchError) return;
+        const interval = setInterval(() => fetchHealth(adminMode, true), 30000);
         return () => clearInterval(interval);
-    }, [adminMode]);
+    }, [adminMode, fetchError]);
 
     const formatUptime = (seconds: number) => {
         const days = Math.floor(seconds / 86400);
@@ -143,11 +154,14 @@ export default function HealthPage() {
     };
 
     if (!health) {
-        return (
-            <div className="flex items-center justify-center h-64">
-                <Loader2 className="h-8 w-8 animate-spin" />
-            </div>
-        );
+        if (fetchError) {
+            return (
+                <div className="p-8 text-center text-slate-500">
+                    {fetchError}
+                </div>
+            );
+        }
+        return <PageLoader />;
     }
 
     return (

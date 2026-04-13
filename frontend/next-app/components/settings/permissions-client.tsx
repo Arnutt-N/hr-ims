@@ -15,6 +15,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Checkbox } from '@/components/ui/checkbox';
 import { Loader2, Shield } from 'lucide-react';
 import { toast } from 'sonner';
+import { PageLoader } from '@/components/ui/page-loader';
 
 const ROLES = ['user', 'technician', 'approver', 'auditor', 'admin']; // Superadmin always has full access
 const MENUS = [
@@ -91,7 +92,7 @@ export function PermissionsClient() {
     };
 
     if (loading) {
-        return <div className="flex justify-center p-8"><Loader2 className="animate-spin h-8 w-8 text-blue-600" /></div>;
+        return <PageLoader />;
     }
 
     return (
