@@ -12,6 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { toast } from "sonner";
 import { Save, Loader2, FileText } from "lucide-react";
 import { useI18n } from "@/lib/i18n/provider";
+import { PageLoader } from "@/components/ui/page-loader";
 
 const loggingSettingsSchema = z.object({
     loggingEnabled: z.boolean(),
@@ -98,15 +99,7 @@ export function LoggingSettingsForm() {
     };
 
     if (isLoading) {
-        return (
-            <Card>
-                <CardContent className="p-8">
-                    <div className="flex items-center justify-center">
-                        <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
-                    </div>
-                </CardContent>
-            </Card>
-        );
+        return <PageLoader />;
     }
 
     return (

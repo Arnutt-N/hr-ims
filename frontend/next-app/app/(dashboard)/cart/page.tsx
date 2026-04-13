@@ -75,7 +75,7 @@ export default function CartPage() {
     const consumables = cart.filter(i => i.item.type === 'consumable');
     const durables = cart.filter(i => i.item.type === 'durable');
 
-    if (loading) return <PageLoader label={t('common.loading')} />;
+    if (loading) return <PageLoader />;
 
     return (
         <div className="max-w-4xl mx-auto space-y-8 animate-fade-in-up">

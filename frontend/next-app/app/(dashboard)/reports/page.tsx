@@ -64,7 +64,7 @@ export default function ReportsPage() {
         document.body.removeChild(a);
     };
 
-    if (loading) return <PageLoader label={t('common.loading')} />;
+    if (loading) return <PageLoader />;
     if (!stats) return <div className="p-8 text-center text-slate-500">{t('common.no-data')}</div>;
 
     // Prepare data for charts
