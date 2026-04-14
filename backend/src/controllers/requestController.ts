@@ -97,7 +97,7 @@ export const createRequest = async (req: AuthRequest, res: Response) => {
             select: { name: true, email: true, department: true },
         });
 
-        // 2. Validate & Deduct Stock (Transaction)
+        // 2. Create Request and RequestItems (Transaction)
         const result = await prisma.$transaction(async (tx) => {
             // Create Request
             const newRequest = await tx.request.create({
@@ -115,42 +115,21 @@ export const createRequest = async (req: AuthRequest, res: Response) => {
             for (const item of requestItems) {
                 const { id: itemId, quantity } = item;
 
-                // Check StockLevel
-                const stockLevel = await tx.stockLevel.findUnique({
-                    where: {
-                        warehouseId_itemId: {
-                            warehouseId: warehouse.id,
-                            itemId: parseInt(itemId),
-                        },
-                    },
-                    include: { item: true },
+                const inventoryItem = await tx.inventoryItem.findUnique({
+                    where: { id: parseInt(itemId) },
                 });
 
-                if (!stockLevel || stockLevel.quantity < quantity) {
-                    throw new Error(`Insufficient stock for item ${itemId} in ${warehouse.name}`);
+                if (!inventoryItem) {
+                    throw new Error(`Item ${itemId} not found`);
                 }
 
                 processedItems.push({
                     id: parseInt(itemId),
-                    name: stockLevel.item.name,
+                    name: inventoryItem.name,
                     quantity,
                 });
 
-                // Deduct Stock
-                await tx.stockLevel.update({
-                    where: {
-                        warehouseId_itemId: {
-                            warehouseId: warehouse.id,
-                            itemId: parseInt(itemId),
-                        },
-                    },
-                    data: {
-                        quantity: { decrement: quantity },
-                    },
-                });
-
-                // Create RequestItem (if you haven't linked it yet, though schema has it)
-                // Assuming RequestItem model exists and is linked
+                // Create RequestItem
                 await tx.requestItem.create({
                     data: {
                         requestId: newRequest.id,
@@ -197,13 +176,6 @@ export const createRequest = async (req: AuthRequest, res: Response) => {
                 })
             ).catch((err) => console.error('Telegram send failed:', err));
 
-            // 3. Check Low Stock for each item
-            for (const item of processedItems) {
-                checkAndAlertLowStock(item.id, warehouse.id, tx).catch((err) =>
-                    console.error('Low stock check failed:', err)
-                );
-            }
-
             return newRequest;
         });
 
@@ -219,23 +191,114 @@ export const updateRequestStatus = async (req: Request, res: Response) => {
         const { id } = req.params;
         const { status, statusMessage } = req.body;
 
-        // Fetch request with user info before update
-        const existingRequest = await prisma.request.findUnique({
-            where: { id: parseInt(id) },
-            include: {
-                user: { select: { name: true, email: true } },
-                requestItems: { include: { item: true } },
-            },
+        const requestIdNum = parseInt(id);
+
+        const result = await prisma.$transaction(async (tx) => {
+            // Fetch request with items and user info
+            const existingRequest = await tx.request.findUnique({
+                where: { id: requestIdNum },
+                include: {
+                    user: { select: { name: true, email: true } },
+                    requestItems: { include: { item: true } },
+                },
+            });
+
+            if (!existingRequest) {
+                throw new Error('Request not found');
+            }
+
+            if (status === 'approved') {
+                for (const ri of existingRequest.requestItems) {
+                    const stockLevel = await tx.stockLevel.findUnique({
+                        where: {
+                            warehouseId_itemId: {
+                                warehouseId: existingRequest.warehouseId,
+                                itemId: ri.itemId,
+                            },
+                        },
+                    });
+
+                    if (!stockLevel || stockLevel.quantity < ri.quantity) {
+                        throw new Error(`Insufficient stock for item ${ri.itemId} in warehouse ${existingRequest.warehouseId}`);
+                    }
+
+                    // Decrement stockLevel and inventoryItem stock
+                    await tx.stockLevel.update({
+                        where: {
+                            warehouseId_itemId: {
+                                warehouseId: existingRequest.warehouseId,
+                                itemId: ri.itemId,
+                            },
+                        },
+                        data: {
+                            quantity: { decrement: ri.quantity },
+                        },
+                    });
+
+                    await tx.inventoryItem.update({
+                        where: { id: ri.itemId },
+                        data: {
+                            stock: { decrement: ri.quantity },
+                        },
+                    });
+
+                    // Create history record
+                    await tx.history.create({
+                        data: {
+                            itemId: ri.itemId,
+                            warehouseId: existingRequest.warehouseId,
+                            action: existingRequest.type,
+                            status: 'approved',
+                            quantity: ri.quantity,
+                            userId: existingRequest.userId,
+                        },
+                    });
+                }
+            } else if (status === 'rejected') {
+                for (const ri of existingRequest.requestItems) {
+                    // Increment stockLevel and inventoryItem stock
+                    await tx.stockLevel.update({
+                        where: {
+                            warehouseId_itemId: {
+                                warehouseId: existingRequest.warehouseId,
+                                itemId: ri.itemId,
+                            },
+                        },
+                        data: {
+                            quantity: { increment: ri.quantity },
+                        },
+                    });
+
+                    await tx.inventoryItem.update({
+                        where: { id: ri.itemId },
+                        data: {
+                            stock: { increment: ri.quantity },
+                        },
+                    });
+
+                    // Create history record
+                    await tx.history.create({
+                        data: {
+                            itemId: ri.itemId,
+                            warehouseId: existingRequest.warehouseId,
+                            action: existingRequest.type,
+                            status: 'rejected',
+                            quantity: ri.quantity,
+                            userId: existingRequest.userId,
+                        },
+                    });
+                }
+            }
+
+            const updatedRequest = await tx.request.update({
+                where: { id: requestIdNum },
+                data: { status },
+            });
+
+            return { updatedRequest, existingRequest };
         });
 
-        if (!existingRequest) {
-            return res.status(404).json({ message: 'Request not found' });
-        }
-
-        const request = await prisma.request.update({
-            where: { id: parseInt(id) },
-            data: { status },
-        });
+        const { updatedRequest, existingRequest } = result;
 
         // ===== SEND NOTIFICATION ON STATUS CHANGE =====
         if (existingRequest.user?.email) {
@@ -245,8 +308,8 @@ export const updateRequestStatus = async (req: Request, res: Response) => {
 
             const emailHtml = emailTemplates.requestStatusChanged({
                 userName: existingRequest.user.name || 'ผู้ใช้งาน',
-                requestId: request.id,
-                requestType: formatRequestType(request.type),
+                requestId: updatedRequest.id,
+                requestType: formatRequestType(updatedRequest.type),
                 items: itemsDisplay || existingRequest.items || 'ไม่ระบุ',
                 status: status as 'approved' | 'rejected' | 'pending',
                 statusMessage,
@@ -257,13 +320,14 @@ export const updateRequestStatus = async (req: Request, res: Response) => {
 
             sendEmail(
                 existingRequest.user.email,
-                `[HR-IMS] คำขอ #${request.id} ${statusText}`,
+                `[HR-IMS] คำขอ #${updatedRequest.id} ${statusText}`,
                 emailHtml
             ).catch((err) => console.error('Email send failed:', err));
         }
 
-        res.json(request);
-    } catch (error) {
-        res.status(400).json({ message: 'Error updating request', error });
+        res.json(updatedRequest);
+    } catch (error: any) {
+        console.error('Update Request Status Error:', error);
+        res.status(400).json({ message: error.message || 'Error updating request', error });
     }
 };

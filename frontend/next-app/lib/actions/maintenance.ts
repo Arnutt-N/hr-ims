@@ -6,7 +6,7 @@ import { auth } from '@/auth';
 import { requireRole, ADMIN_ROLES } from '@/lib/auth-guards';
 
 export async function getMaintenanceItems() {
-    const session = await auth();
+    const session = await requireRole(...ADMIN_ROLES, 'technician');
     if (!session?.user?.email) return { error: 'Unauthorized' };
 
     try {

@@ -14,7 +14,7 @@ const settingsSchema = z.object({
 });
 
 const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:3001';
-const INTERNAL_API_KEY = process.env.INTERNAL_API_KEY || 'test-internal-key';
+const INTERNAL_API_KEY = process.env.INTERNAL_API_KEY;
 type SettingsPayload = z.infer<typeof settingsSchema>;
 type AuthorizedSession = {
     user: {
