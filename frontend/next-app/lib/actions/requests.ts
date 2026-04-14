@@ -75,31 +75,32 @@ export async function updateRequestStatus(id: number, status: 'approved' | 'reje
                                 where: { itemId: reqItem.itemId, warehouseId: warehouseId }
                             });
 
-                            if (stockLevel) {
-                                // Check stock sufficiency
-                                if (stockLevel.quantity < reqItem.quantity) {
-                                    throw new Error(`Not enough stock for ${reqItem.item.name} in selected warehouse`);
+                            if (!stockLevel) {
+                                throw new Error(`Stock level not found for ${reqItem.item.name} in selected warehouse`);
+                            }
+
+                            // Convert reservation to actual deduction
+                            await tx.stockLevel.update({
+                                where: { id: stockLevel.id },
+                                data: {
+                                    quantity: { decrement: reqItem.quantity },
+                                    reserved: { decrement: reqItem.quantity }
                                 }
+                            });
 
-                                const newQty = stockLevel.quantity - reqItem.quantity;
-                                await tx.stockLevel.update({
-                                    where: { id: stockLevel.id },
-                                    data: { quantity: newQty }
-                                });
-
-                                // Check Low Stock Notification
-                                const minStock = stockLevel.minStock ?? 0;
-                                if (newQty <= minStock) {
-                                    // Notify Approver
-                                    await tx.notification.create({
-                                        data: {
-                                            userId: parseInt(session.user.id),
-                                            text: `⚠️ Low Stock Alert: ${reqItem.item.name} is down to ${newQty} items.`,
+                            const newQty = stockLevel.quantity - reqItem.quantity;
+                            // Check Low Stock Notification
+                            const minStock = stockLevel.minStock ?? 0;
+                            if (newQty <= minStock) {
+                                // Notify Approver
+                                await tx.notification.create({
+                                    data: {
+                                        userId: parseInt(session.user.id),
+                                        text: `⚠️ Low Stock Alert: ${reqItem.item.name} is down to ${newQty} items.`,
                                             read: false
                                         }
                                     });
                                 }
-                            }
                         }
 
                         // Also update legacy stock for backward compatibility (optional but safe)
@@ -160,10 +161,26 @@ export async function updateRequestStatus(id: number, status: 'approved' | 'reje
             });
 
         } else {
-            // Rejected: just update status
-            await prisma.request.update({
-                where: { id },
-                data: { status }
+            // Rejected: release reservation
+            await prisma.$transaction(async (tx: any) => {
+                const warehouseId = (request as any).warehouseId;
+                for (const reqItem of request.requestItems) {
+                    if (warehouseId) {
+                        const stockLevel = await tx.stockLevel.findFirst({
+                            where: { itemId: reqItem.itemId, warehouseId: warehouseId }
+                        });
+                        if (stockLevel) {
+                            await tx.stockLevel.update({
+                                where: { id: stockLevel.id },
+                                data: { reserved: { decrement: reqItem.quantity } }
+                            });
+                        }
+                    }
+                }
+                await tx.request.update({
+                    where: { id },
+                    data: { status }
+                });
             });
         }
 

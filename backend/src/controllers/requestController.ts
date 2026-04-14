@@ -97,7 +97,7 @@ export const createRequest = async (req: AuthRequest, res: Response) => {
             select: { name: true, email: true, department: true },
         });
 
-        // 2. Create Request and RequestItems (Transaction)
+        // 2. Validate and Reserve Stock
         const result = await prisma.$transaction(async (tx) => {
             // Create Request
             const newRequest = await tx.request.create({
@@ -114,17 +114,60 @@ export const createRequest = async (req: AuthRequest, res: Response) => {
 
             for (const item of requestItems) {
                 const { id: itemId, quantity } = item;
+                const parsedItemId = parseInt(itemId);
 
                 const inventoryItem = await tx.inventoryItem.findUnique({
-                    where: { id: parseInt(itemId) },
+                    where: { id: parsedItemId },
                 });
 
                 if (!inventoryItem) {
                     throw new Error(`Item ${itemId} not found`);
                 }
 
+                // Check available stock (quantity - reserved)
+                const stockLevel = await tx.stockLevel.findUnique({
+                    where: {
+                        warehouseId_itemId: {
+                            warehouseId: warehouse.id,
+                            itemId: parsedItemId,
+                        },
+                    },
+                });
+
+                const available = (stockLevel?.quantity ?? 0) - (stockLevel?.reserved ?? 0);
+                if (available < quantity) {
+                    throw new Error(
+                        `Insufficient available stock for item ${inventoryItem.name}. Available: ${available}, Requested: ${quantity}`
+                    );
+                }
+
+                // Reserve stock
+                if (stockLevel) {
+                    await tx.stockLevel.update({
+                        where: {
+                            warehouseId_itemId: {
+                                warehouseId: warehouse.id,
+                                itemId: parsedItemId,
+                            },
+                        },
+                        data: {
+                            reserved: { increment: quantity },
+                        },
+                    });
+                } else {
+                    // If no stock level exists, create one with negative available (shouldn't normally happen)
+                    await tx.stockLevel.create({
+                        data: {
+                            warehouseId: warehouse.id,
+                            itemId: parsedItemId,
+                            quantity: 0,
+                            reserved: quantity,
+                        },
+                    });
+                }
+
                 processedItems.push({
-                    id: parseInt(itemId),
+                    id: parsedItemId,
                     name: inventoryItem.name,
                     quantity,
                 });
@@ -133,7 +176,7 @@ export const createRequest = async (req: AuthRequest, res: Response) => {
                 await tx.requestItem.create({
                     data: {
                         requestId: newRequest.id,
-                        itemId: parseInt(itemId),
+                        itemId: parsedItemId,
                         quantity: quantity,
                     }
                 });
@@ -221,11 +264,13 @@ export const updateRequestStatus = async (req: Request, res: Response) => {
                         },
                     });
 
-                    if (!stockLevel || stockLevel.quantity < ri.quantity) {
-                        throw new Error(`Insufficient stock for item ${ri.itemId} in warehouse ${existingRequest.warehouseId}`);
+                    // With reservation system, quantity should already be reserved.
+                    // We just need to ensure stockLevel exists.
+                    if (!stockLevel) {
+                        throw new Error(`Stock level not found for item ${ri.itemId} in warehouse ${existingRequest.warehouseId}`);
                     }
 
-                    // Decrement stockLevel and inventoryItem stock
+                    // Convert reservation to actual deduction
                     await tx.stockLevel.update({
                         where: {
                             warehouseId_itemId: {
@@ -235,6 +280,7 @@ export const updateRequestStatus = async (req: Request, res: Response) => {
                         },
                         data: {
                             quantity: { decrement: ri.quantity },
+                            reserved: { decrement: ri.quantity },
                         },
                     });
 
@@ -265,7 +311,7 @@ export const updateRequestStatus = async (req: Request, res: Response) => {
                     throw new Error('Request warehouse not found');
                 }
                 for (const ri of existingRequest.requestItems) {
-                    // Increment stockLevel and inventoryItem stock
+                    // Release reservation only (do not touch actual quantity)
                     await tx.stockLevel.update({
                         where: {
                             warehouseId_itemId: {
@@ -274,14 +320,7 @@ export const updateRequestStatus = async (req: Request, res: Response) => {
                             },
                         },
                         data: {
-                            quantity: { increment: ri.quantity },
-                        },
-                    });
-
-                    await tx.inventoryItem.update({
-                        where: { id: ri.itemId },
-                        data: {
-                            stock: { increment: ri.quantity },
+                            reserved: { decrement: ri.quantity },
                         },
                     });
 

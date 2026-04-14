@@ -44,7 +44,7 @@ describe('updateRequestStatus', () => {
         jest.clearAllMocks();
     });
 
-    it('should deduct stock on approved', async () => {
+    it('should convert reservation to actual deduction on approved', async () => {
         const txMock = {
             request: {
                 findUnique: jest.fn().mockResolvedValue({
@@ -60,7 +60,7 @@ describe('updateRequestStatus', () => {
                 update: jest.fn().mockResolvedValue({ id: 1, status: 'approved' }),
             },
             stockLevel: {
-                findUnique: jest.fn().mockResolvedValue({ quantity: 100 }),
+                findUnique: jest.fn().mockResolvedValue({ quantity: 100, reserved: 5 }),
                 update: jest.fn().mockResolvedValue({}),
             },
             inventoryItem: {
@@ -80,7 +80,7 @@ describe('updateRequestStatus', () => {
 
         expect(txMock.stockLevel.update).toHaveBeenCalledWith(
             expect.objectContaining({
-                data: { quantity: { decrement: 5 } },
+                data: { quantity: { decrement: 5 }, reserved: { decrement: 5 } },
             })
         );
         expect(txMock.inventoryItem.update).toHaveBeenCalledWith(
@@ -97,7 +97,7 @@ describe('updateRequestStatus', () => {
         expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ status: 'approved' }));
     });
 
-    it('should restore stock on rejected', async () => {
+    it('should release reservation on rejected', async () => {
         const txMock = {
             request: {
                 findUnique: jest.fn().mockResolvedValue({
@@ -113,7 +113,7 @@ describe('updateRequestStatus', () => {
                 update: jest.fn().mockResolvedValue({ id: 2, status: 'rejected' }),
             },
             stockLevel: {
-                findUnique: jest.fn(),
+                findUnique: jest.fn().mockResolvedValue({ quantity: 100, reserved: 3 }),
                 update: jest.fn().mockResolvedValue({}),
             },
             inventoryItem: {
@@ -133,15 +133,10 @@ describe('updateRequestStatus', () => {
 
         expect(txMock.stockLevel.update).toHaveBeenCalledWith(
             expect.objectContaining({
-                data: { quantity: { increment: 3 } },
+                data: { reserved: { decrement: 3 } },
             })
         );
-        expect(txMock.inventoryItem.update).toHaveBeenCalledWith(
-            expect.objectContaining({
-                where: { id: 202 },
-                data: { stock: { increment: 3 } },
-            })
-        );
+        expect(txMock.inventoryItem.update).not.toHaveBeenCalled();
         expect(txMock.history.create).toHaveBeenCalledWith(
             expect.objectContaining({
                 data: expect.objectContaining({ status: 'rejected', item: 'Notebook' }),
@@ -150,7 +145,7 @@ describe('updateRequestStatus', () => {
         expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ status: 'rejected' }));
     });
 
-    it('should throw when stock is insufficient on approved', async () => {
+    it('should throw when stock level is missing on approved', async () => {
         const txMock = {
             request: {
                 findUnique: jest.fn().mockResolvedValue({
@@ -166,7 +161,7 @@ describe('updateRequestStatus', () => {
                 update: jest.fn(),
             },
             stockLevel: {
-                findUnique: jest.fn().mockResolvedValue({ quantity: 10 }),
+                findUnique: jest.fn().mockResolvedValue(null),
                 update: jest.fn(),
             },
             inventoryItem: {
@@ -186,7 +181,7 @@ describe('updateRequestStatus', () => {
 
         expect(res.status).toHaveBeenCalledWith(400);
         expect(res.json).toHaveBeenCalledWith(
-            expect.objectContaining({ message: expect.stringContaining('Insufficient stock') })
+            expect.objectContaining({ message: expect.stringContaining('Stock level not found') })
         );
     });
 });
