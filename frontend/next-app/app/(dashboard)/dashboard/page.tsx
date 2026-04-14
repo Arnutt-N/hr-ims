@@ -1,18 +1,20 @@
 import { getDashboardStats } from "@/lib/actions/dashboard";
 import { Package, AlertTriangle, FileText, Activity } from "lucide-react";
-import { auth } from "@/auth";
+import { getCachedAuth } from "@/lib/auth-cache";
 import { redirect } from "next/navigation";
 import { formatThaiDateTime, formatRelativeTime } from "@/lib/date-utils";
 import { getServerT } from "@/lib/i18n/server";
 
 export default async function DashboardPage() {
-    const session = await auth();
+    const [session, { t }, stats] = await Promise.all([
+        getCachedAuth(),
+        getServerT(),
+        getDashboardStats(),
+    ]);
+
     if (!session) {
         redirect('/login');
     }
-
-    const { t } = await getServerT();
-    const stats = await getDashboardStats();
 
     if (!stats) return <div className="p-8 text-center text-slate-500">{t('common.no-data')}</div>;
 

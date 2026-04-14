@@ -1,21 +1,23 @@
 import { Sidebar } from '@/components/layout/sidebar';
 import { Header } from '@/components/layout/header';
-import { auth } from '@/auth';
-import prisma from '@/lib/prisma';
+import { getCachedAuth } from '@/lib/auth-cache';
+import { getCachedSettings } from '@/lib/settings-cache';
 
 export default async function DashboardLayout({
     children,
 }: {
     children: React.ReactNode;
 }) {
-    const session = await auth();
-    const settings = await prisma.settings.findFirst() as any;
+    const [session, settings] = await Promise.all([
+        getCachedAuth(),
+        getCachedSettings(),
+    ]);
 
     return (
         <div className="flex h-screen bg-slate-50 font-sans text-slate-800 overflow-hidden">
             <Sidebar user={session?.user} />
             <div className="flex-1 flex flex-col min-w-0 transition-all duration-300">
-                <Header />
+                <Header session={session} />
                 <main className="flex-1 overflow-y-auto p-4 md:p-8 relative">
                     <div className="max-w-7xl mx-auto min-h-full flex flex-col">
                         <div className="flex-1">

@@ -3,12 +3,12 @@
 import prisma from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
 import { checkLowStockInternal } from './notifications';
-import { auth } from '@/auth';
 import { sendOverdueEmail, sendStatusUpdateEmail } from '@/lib/mail';
 import { requireRole, APPROVER_ROLES, sessionHasAnyRole } from '@/lib/auth-guards';
+import { getCachedAuth } from '@/lib/auth-cache';
 
 export async function getRequests(status?: string) {
-    const session = await auth();
+    const session = await getCachedAuth();
     if (!session) return { error: 'Unauthorized' };
 
     const isAdmin = sessionHasAnyRole(session, ...APPROVER_ROLES);

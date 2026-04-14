@@ -180,8 +180,8 @@ export async function updateUser(id: number, data: any) {
             }
         });
 
-        // If password changed, revoke all sessions
-        if (validated.password) {
+        // Password and role changes both require JWT refresh so cached roles/permissions don't go stale.
+        if (validated.password || validated.role) {
             await prisma.user.update({
                 where: { id },
                 data: { tokenVersion: { increment: 1 } }
