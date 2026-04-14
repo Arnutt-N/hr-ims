@@ -168,25 +168,23 @@ export async function updateUser(id: number, data: any) {
             updateData.password = await bcrypt.hash(validated.password, 10);
         }
 
-        // Update user
+        // Password and role changes both require JWT refresh so cached roles/permissions don't go stale.
+        // Bump tokenVersion in the SAME transaction to keep role write + revocation atomic.
+        const requiresTokenBump = Boolean(validated.password || validated.role);
+
         await prisma.$transaction(async (tx) => {
             await tx.user.update({
                 where: { id },
-                data: updateData
+                data: {
+                    ...updateData,
+                    ...(requiresTokenBump ? { tokenVersion: { increment: 1 } } : {}),
+                }
             });
 
             if (validated.role) {
                 await syncUserPrimaryRole(tx, id, targetUser.role as Role, validated.role);
             }
         });
-
-        // If password changed, revoke all sessions
-        if (validated.password) {
-            await prisma.user.update({
-                where: { id },
-                data: { tokenVersion: { increment: 1 } }
-            });
-        }
 
         // Log activity
         await logActivity(

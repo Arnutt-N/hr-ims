@@ -1,8 +1,9 @@
 'use server';
 
-import { revalidatePath } from 'next/cache';
+import { revalidatePath, updateTag } from 'next/cache';
 import { z } from 'zod';
 import { getSessionRoles, requireRole, SUPERADMIN_ONLY } from '@/lib/auth-guards';
+import { SETTINGS_CACHE_TAG } from '@/lib/settings-cache';
 
 const settingsSchema = z.object({
     orgName: z.string().min(2, 'Organization name must be at least 2 characters'),
@@ -86,6 +87,7 @@ export async function updateSettings(id: number, data: any) {
         }
 
         revalidatePath('/settings');
+        updateTag(SETTINGS_CACHE_TAG);
         return { success: true, settings: payload.settings || validated };
     } catch (error) {
         if (error instanceof z.ZodError) {

@@ -1,7 +1,7 @@
 'use server';
 
 import prisma from '@/lib/prisma';
-import { auth } from '@/auth';
+import { getCachedAuth } from '@/lib/auth-cache';
 import { sessionHasAnyRole } from '@/lib/auth-guards';
 
 export async function logActivity(
@@ -11,7 +11,7 @@ export async function logActivity(
     details?: any
 ) {
     try {
-        const session = await auth();
+        const session = await getCachedAuth();
         // If no session (e.g. system action), we might want to log as system user or handle differently
         // For now, require session or just log if session exists
         if (!session?.user?.id) return;
@@ -35,7 +35,7 @@ export async function logActivity(
 
 export async function getAuditLogs(limit = 50) {
     try {
-        const session = await auth();
+        const session = await getCachedAuth();
         if (!sessionHasAnyRole(session, 'superadmin', 'admin', 'auditor')) {
             return { error: 'Unauthorized' };
         }

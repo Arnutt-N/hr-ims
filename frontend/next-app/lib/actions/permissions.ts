@@ -25,23 +25,64 @@ export async function updatePermission(role: string, menu: string, path: string,
     if (!session) return { error: 'Unauthorized' };
 
     try {
-        const permission = await prisma.rolePermission.upsert({
-            where: {
-                role_menu: {
+        const permission = await prisma.$transaction(async (tx) => {
+            const updatedPermission = await tx.rolePermission.upsert({
+                where: {
+                    role_menu: {
+                        role,
+                        menu
+                    }
+                },
+                update: {
+                    canView,
+                    path
+                },
+                create: {
                     role,
-                    menu
+                    menu,
+                    path,
+                    canView
                 }
-            },
-            update: {
-                canView,
-                path // Ensure path is updated 
-            },
-            create: {
-                role,
-                menu,
-                path,
-                canView
+            });
+
+            const affectedUsers = await tx.user.findMany({
+                where: {
+                    OR: [
+                        { role },
+                        {
+                            userRoles: {
+                                some: {
+                                    role: {
+                                        slug: role,
+                                    },
+                                },
+                            },
+                        },
+                    ],
+                },
+                select: {
+                    id: true,
+                },
+            });
+
+            const affectedUserIds = Array.from(new Set(affectedUsers.map((user) => user.id)));
+
+            if (affectedUserIds.length > 0) {
+                await tx.user.updateMany({
+                    where: {
+                        id: {
+                            in: affectedUserIds,
+                        },
+                    },
+                    data: {
+                        tokenVersion: {
+                            increment: 1,
+                        },
+                    },
+                });
             }
+
+            return updatedPermission;
         });
 
         await logActivity('PERMISSION_UPDATE', 'Settings', `Updated permission for ${role} -> ${menu}`, { canView });

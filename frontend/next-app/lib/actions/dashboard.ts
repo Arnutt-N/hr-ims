@@ -1,10 +1,10 @@
 'use server';
 
 import prisma from '@/lib/prisma';
-import { auth } from '@/auth';
+import { getCachedAuth } from '@/lib/auth-cache';
 
 export async function getDashboardStats() {
-    const session = await auth();
+    const session = await getCachedAuth();
     if (!session?.user) return null;
 
     try {
@@ -61,7 +61,7 @@ export async function getDashboardStats() {
 }
 
 export async function getLowStockItems() {
-    const session = await auth();
+    const session = await getCachedAuth();
     if (!session?.user) return [];
 
     try {

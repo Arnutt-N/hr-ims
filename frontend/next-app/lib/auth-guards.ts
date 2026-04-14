@@ -1,4 +1,4 @@
-import { auth } from '@/auth';
+import { getCachedAuth } from '@/lib/auth-cache';
 import { sessionHasAnyRole } from '@/lib/role-access';
 
 export {
@@ -19,7 +19,7 @@ export {
  *   if (!session) return { error: 'Unauthorized' };
  */
 export async function requireRole(...roles: string[]) {
-    const session = await auth();
+    const session = await getCachedAuth();
     if (!session?.user) return null;
     if (roles.length > 0 && !sessionHasAnyRole(session, ...roles)) return null;
     return session;

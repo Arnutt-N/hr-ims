@@ -2,7 +2,7 @@ import { Suspense } from 'react';
 import RequestsTable from '@/components/dashboard/requests-table';
 import { getRequests } from '@/lib/actions/requests';
 import { CheckOverdueButton } from '@/components/dashboard/check-overdue-button';
-import { auth } from '@/auth';
+import { getCachedAuth } from '@/lib/auth-cache';
 import { APPROVER_ROLES, sessionHasAnyRole } from '@/lib/auth-guards';
 import { getServerT } from '@/lib/i18n/server';
 
@@ -12,7 +12,7 @@ export const metadata = {
 };
 
 export default async function RequestsPage() {
-    const [result, session, { t }] = await Promise.all([getRequests(), auth(), getServerT()]);
+    const [result, session, { t }] = await Promise.all([getRequests(), getCachedAuth(), getServerT()]);
     const requests = result.success ? result.data : [];
     const canCheckOverdue = sessionHasAnyRole(session, ...APPROVER_ROLES);
 

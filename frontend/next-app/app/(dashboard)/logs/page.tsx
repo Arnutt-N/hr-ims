@@ -1,4 +1,4 @@
-import { auth } from '@/auth';
+import { getCachedAuth } from '@/lib/auth-cache';
 import { redirect } from 'next/navigation';
 import { sessionHasAnyRole } from '@/lib/auth-guards';
 import { getAuditLogs } from '@/lib/actions/audit';
@@ -16,14 +16,16 @@ import {
 import { Activity } from 'lucide-react';
 
 export default async function AuditLogsPage() {
-    const session = await auth();
+    const [session, { t }, result] = await Promise.all([
+        getCachedAuth(),
+        getServerT(),
+        getAuditLogs(200),
+    ]);
+
     if (!session) redirect('/login');
     if (!sessionHasAnyRole(session, 'superadmin', 'admin', 'auditor')) {
         redirect('/dashboard');
     }
-
-    const { t } = await getServerT();
-    const result = await getAuditLogs(200);
 
     if ('error' in result) {
         return (

@@ -32,18 +32,44 @@ export function NotificationBell({ canTriggerLowStockCheck = false }: { canTrigg
     };
 
     useEffect(() => {
-        fetchData();
-        if (canTriggerLowStockCheck) {
-            // Trigger a check when component mounts for roles allowed to generate alerts
-            checkLowStock();
-        }
+        let intervalId: ReturnType<typeof setInterval> | null = null;
 
-        const interval = setInterval(() => {
-            fetchData();
+        const refreshData = () => {
+            void fetchData();
             if (canTriggerLowStockCheck) {
-                checkLowStock();
+                void checkLowStock();
             }
-        }, 60000); // Check every 1 min
+        };
+
+        const stopPolling = () => {
+            if (intervalId !== null) {
+                clearInterval(intervalId);
+                intervalId = null;
+            }
+        };
+
+        const startPolling = () => {
+            if (intervalId !== null || document.hidden) {
+                return;
+            }
+
+            intervalId = setInterval(() => {
+                refreshData();
+            }, 60000);
+        };
+
+        refreshData();
+        startPolling();
+
+        const handleVisibilityChange = () => {
+            if (document.hidden) {
+                stopPolling();
+                return;
+            }
+
+            refreshData();
+            startPolling();
+        };
 
         // Click outside to close
         function handleClickOutside(event: MouseEvent) {
@@ -51,9 +77,13 @@ export function NotificationBell({ canTriggerLowStockCheck = false }: { canTrigg
                 setOpen(false);
             }
         }
+
+        document.addEventListener("visibilitychange", handleVisibilityChange);
         document.addEventListener("mousedown", handleClickOutside);
+
         return () => {
-            clearInterval(interval);
+            stopPolling();
+            document.removeEventListener("visibilitychange", handleVisibilityChange);
             document.removeEventListener("mousedown", handleClickOutside);
         };
     }, [canTriggerLowStockCheck]);

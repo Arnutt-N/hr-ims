@@ -1,4 +1,4 @@
-﻿import { auth } from '@/auth';
+import type { Session } from 'next-auth';
 import { NotificationBell } from './notification-bell';
 import { APPROVER_ROLES, sessionHasAnyRole } from '@/lib/auth-guards';
 import { HeaderTitle } from './header-title';
@@ -6,8 +6,7 @@ import { LocaleToggle } from './locale-toggle';
 import { SearchInput } from './header-search';
 import { ProfileDropdown } from './profile-dropdown';
 
-export async function Header() {
-    const session = await auth();
+export async function Header({ session }: { session: Session | null }) {
     const user = session?.user;
     const canTriggerLowStockCheck = sessionHasAnyRole(session, ...APPROVER_ROLES);
 
@@ -35,4 +34,3 @@ export async function Header() {
         </header>
     );
 }
-
