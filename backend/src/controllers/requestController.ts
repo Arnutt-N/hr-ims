@@ -254,6 +254,11 @@ export const updateRequestStatus = async (req: Request, res: Response) => {
                             userId: existingRequest.userId,
                         },
                     });
+
+                    // Check low stock after approval
+                    checkAndAlertLowStock(ri.itemId, existingRequest.warehouseId, tx).catch((err) =>
+                        console.error('Low stock check failed:', err)
+                    );
                 }
             } else if (status === 'rejected') {
                 if (!existingRequest.warehouseId) {
