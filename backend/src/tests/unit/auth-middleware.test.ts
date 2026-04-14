@@ -10,6 +10,7 @@ const createRes = () => {
 
 describe('Auth middleware', () => {
     test('requireAuth parses multi-role header', () => {
+        process.env.INTERNAL_API_KEY = 'test-internal-key';
         const req: any = {
             headers: {
                 'x-user-id': '123',
