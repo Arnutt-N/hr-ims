@@ -38,8 +38,17 @@ export default async function InventoryPage({
     const warehouseId = params?.warehouse ? Number(params.warehouse) : undefined;
 
     const { t } = await getServerT();
-    const totalPages = await fetchInventoryPages(query, type);
-    const items = await fetchInventoryItems(query, currentPage, type, warehouseId);
+    let totalPages = 0;
+    let items: Awaited<ReturnType<typeof fetchInventoryItems>> = [];
+    let fetchError: string | null = null;
+
+    try {
+        totalPages = await fetchInventoryPages(query, type);
+        items = await fetchInventoryItems(query, currentPage, type, warehouseId);
+    } catch (err) {
+        console.error('Inventory fetch error:', err);
+        fetchError = t('inventory.fetch-error') || 'Failed to load inventory items. Please try again later.';
+    }
 
     const isGrid = view === 'grid';
 
@@ -76,7 +85,7 @@ export default async function InventoryPage({
                         ].map(tab => (
                             <Link
                                 key={tab.id}
-                                href={`/inventory?type=${tab.id}&view=${view}&query=${query}`}
+                                href={`/inventory?type=${tab.id}&view=${view}&query=${query}${warehouseId ? `&warehouse=${warehouseId}` : ''}`}
                                 scroll={false}
                             >
                                 <button className={cn(
@@ -96,7 +105,7 @@ export default async function InventoryPage({
 
                     {/* View Toggle */}
                     <div className="flex bg-slate-100 p-1 rounded-lg">
-                        <Link href={`/inventory?view=grid&type=${type}&query=${query}`} scroll={false}>
+                        <Link href={`/inventory?view=grid&type=${type}&query=${query}${warehouseId ? `&warehouse=${warehouseId}` : ''}`} scroll={false}>
                             <button className={cn(
                                 "p-2 rounded-md transition-all cursor-pointer",
                                 isGrid ? "bg-white text-indigo-600 shadow-sm" : "text-slate-400 hover:text-slate-600"
@@ -104,7 +113,7 @@ export default async function InventoryPage({
                                 <LayoutGrid size={18} />
                             </button>
                         </Link>
-                        <Link href={`/inventory?view=list&type=${type}&query=${query}`} scroll={false}>
+                        <Link href={`/inventory?view=list&type=${type}&query=${query}${warehouseId ? `&warehouse=${warehouseId}` : ''}`} scroll={false}>
                             <button className={cn(
                                 "p-2 rounded-md transition-all cursor-pointer",
                                 !isGrid ? "bg-white text-indigo-600 shadow-sm" : "text-slate-400 hover:text-slate-600"
@@ -118,7 +127,13 @@ export default async function InventoryPage({
 
             {/* Content */}
             <div className="min-h-[400px]">
-                {items.length === 0 ? (
+                {fetchError ? (
+                    <div className="flex flex-col items-center justify-center py-20 bg-white rounded-2xl border border-dashed border-rose-300">
+                        <Package size={48} className="text-rose-200 mb-4" />
+                        <h3 className="text-lg font-medium text-rose-700">{t('inventory.error-title') || 'Error loading items'}</h3>
+                        <p className="text-rose-500">{fetchError}</p>
+                    </div>
+                ) : items.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-20 bg-white rounded-2xl border border-dashed border-slate-300">
                         <Package size={48} className="text-slate-200 mb-4" />
                         <h3 className="text-lg font-medium text-slate-900">No items found</h3>

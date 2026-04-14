@@ -9,7 +9,12 @@ export default async function DashboardLayout({
     children: React.ReactNode;
 }) {
     const session = await auth();
-    const settings = await prisma.settings.findFirst() as any;
+    let settings: any = null;
+    try {
+        settings = await prisma.settings.findFirst() as any;
+    } catch (err) {
+        console.error('Failed to load settings for layout:', err);
+    }
 
     return (
         <div className="flex h-screen bg-slate-50 font-sans text-slate-800 overflow-hidden">

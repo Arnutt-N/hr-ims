@@ -17,6 +17,9 @@ export async function getActiveSessions() {
             userId: parseInt(session.user.id),
             active: true,
             role: session.user.role,
+            userAgent: 'เบราว์เซอร์ปัจจุบัน (JWT)',
+            ipAddress: null,
+            expires: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
         }]
     };
 }

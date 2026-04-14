@@ -99,7 +99,7 @@ export default function SessionsPage() {
                                                     <Globe size={14} /> {session.ipAddress}
                                                 </span>
                                             )}
-                                            <span> Expires: {new Date(session.expires).toLocaleString()}</span>
+                                            <span> หมดอายุ: {session.expires ? new Date(session.expires).toLocaleString() : '-'}</span>
                                         </div>
                                     </div>
                                 </div>
