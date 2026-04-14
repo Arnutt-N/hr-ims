@@ -109,7 +109,7 @@ describe('createRequest', () => {
         };
 
         (prisma.$transaction as jest.Mock).mockImplementation((cb: any) => cb(txMock));
-        (prisma.warehouse.findUnique as jest.Mock).mockResolvedValue({ id: 10, code: 'WH-CENTRAL' });
+        (prisma.warehouse.findUnique as jest.Mock).mockResolvedValue({ id: 10, code: 'WH-CENTRAL', name: 'Central Warehouse' });
         (prisma.user.findUnique as jest.Mock).mockResolvedValue({ name: 'Test', email: 'test@example.com' });
 
         const req: any = {
@@ -124,6 +124,43 @@ describe('createRequest', () => {
         expect(res.status).toHaveBeenCalledWith(400);
         expect(res.json).toHaveBeenCalledWith(
             expect.objectContaining({ message: expect.stringContaining('Insufficient available stock') })
+        );
+    });
+
+    it('should reject request when stock level is missing in the selected warehouse', async () => {
+        const txMock = {
+            request: {
+                create: jest.fn(),
+            },
+            requestItem: {
+                create: jest.fn(),
+            },
+            inventoryItem: {
+                findUnique: jest.fn().mockResolvedValue({ id: 101, name: 'Pen' }),
+            },
+            stockLevel: {
+                findUnique: jest.fn().mockResolvedValue(null),
+                update: jest.fn(),
+                create: jest.fn(),
+            },
+        };
+
+        (prisma.$transaction as jest.Mock).mockImplementation((cb: any) => cb(txMock));
+        (prisma.warehouse.findUnique as jest.Mock).mockResolvedValue({ id: 10, code: 'WH-CENTRAL', name: 'Central Warehouse' });
+        (prisma.user.findUnique as jest.Mock).mockResolvedValue({ name: 'Test', email: 'test@example.com' });
+
+        const req: any = {
+            user: { userId: 1, department: 'Central' },
+            body: { items: JSON.stringify([{ id: '101', quantity: 0 }]), type: 'withdraw' },
+        };
+        const res = createRes();
+
+        await createRequest(req, res);
+
+        expect(txMock.stockLevel.update).not.toHaveBeenCalled();
+        expect(res.status).toHaveBeenCalledWith(400);
+        expect(res.json).toHaveBeenCalledWith(
+            expect.objectContaining({ message: expect.stringContaining('Stock level not found for item Pen in warehouse Central Warehouse') })
         );
     });
 });

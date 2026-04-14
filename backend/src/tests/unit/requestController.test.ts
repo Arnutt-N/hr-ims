@@ -97,7 +97,7 @@ describe('updateRequestStatus', () => {
         expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ status: 'approved' }));
     });
 
-    it('should release reservation on rejected', async () => {
+    it.each(['rejected', 'cancelled'])('should release reservation on %s', async (status) => {
         const txMock = {
             request: {
                 findUnique: jest.fn().mockResolvedValue({
@@ -110,7 +110,7 @@ describe('updateRequestStatus', () => {
                         { itemId: 202, quantity: 3, item: { name: 'Notebook' } },
                     ],
                 }),
-                update: jest.fn().mockResolvedValue({ id: 2, status: 'rejected' }),
+                update: jest.fn().mockResolvedValue({ id: 2, status }),
             },
             stockLevel: {
                 findUnique: jest.fn().mockResolvedValue({ quantity: 100, reserved: 3 }),
@@ -126,7 +126,7 @@ describe('updateRequestStatus', () => {
 
         (prisma.$transaction as jest.Mock).mockImplementation((cb: any) => cb(txMock));
 
-        const req: any = { params: { id: '2' }, body: { status: 'rejected' } };
+        const req: any = { params: { id: '2' }, body: { status } };
         const res = createRes();
 
         await updateRequestStatus(req, res);
@@ -137,6 +137,49 @@ describe('updateRequestStatus', () => {
             })
         );
         expect(txMock.inventoryItem.update).not.toHaveBeenCalled();
+        expect(txMock.history.create).toHaveBeenCalledWith(
+            expect.objectContaining({
+                data: expect.objectContaining({ status, item: 'Notebook' }),
+            })
+        );
+        expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ status }));
+    });
+
+    it('should not decrement reserved below zero', async () => {
+        const txMock = {
+            request: {
+                findUnique: jest.fn().mockResolvedValue({
+                    id: 4,
+                    warehouseId: 20,
+                    userId: 88,
+                    type: 'borrow',
+                    user: { name: 'User', email: 'user@example.com' },
+                    requestItems: [
+                        { itemId: 202, quantity: 3, item: { name: 'Notebook' } },
+                    ],
+                }),
+                update: jest.fn().mockResolvedValue({ id: 4, status: 'rejected' }),
+            },
+            stockLevel: {
+                findUnique: jest.fn().mockResolvedValue({ quantity: 100, reserved: 1 }),
+                update: jest.fn().mockResolvedValue({}),
+            },
+            inventoryItem: {
+                update: jest.fn().mockResolvedValue({}),
+            },
+            history: {
+                create: jest.fn().mockResolvedValue({}),
+            },
+        };
+
+        (prisma.$transaction as jest.Mock).mockImplementation((cb: any) => cb(txMock));
+
+        const req: any = { params: { id: '4' }, body: { status: 'rejected' } };
+        const res = createRes();
+
+        await updateRequestStatus(req, res);
+
+        expect(txMock.stockLevel.update).not.toHaveBeenCalled();
         expect(txMock.history.create).toHaveBeenCalledWith(
             expect.objectContaining({
                 data: expect.objectContaining({ status: 'rejected', item: 'Notebook' }),
@@ -182,6 +225,47 @@ describe('updateRequestStatus', () => {
         expect(res.status).toHaveBeenCalledWith(400);
         expect(res.json).toHaveBeenCalledWith(
             expect.objectContaining({ message: expect.stringContaining('Stock level not found') })
+        );
+    });
+
+    it('should throw when reserved stock is lower than requested on approved', async () => {
+        const txMock = {
+            request: {
+                findUnique: jest.fn().mockResolvedValue({
+                    id: 5,
+                    warehouseId: 30,
+                    userId: 77,
+                    type: 'withdraw',
+                    user: { name: 'User', email: 'user@example.com' },
+                    requestItems: [
+                        { itemId: 303, quantity: 5, item: { name: 'Stapler' } },
+                    ],
+                }),
+                update: jest.fn(),
+            },
+            stockLevel: {
+                findUnique: jest.fn().mockResolvedValue({ quantity: 50, reserved: 2 }),
+                update: jest.fn(),
+            },
+            inventoryItem: {
+                update: jest.fn(),
+            },
+            history: {
+                create: jest.fn(),
+            },
+        };
+
+        (prisma.$transaction as jest.Mock).mockImplementation((cb: any) => cb(txMock));
+
+        const req: any = { params: { id: '5' }, body: { status: 'approved' } };
+        const res = createRes();
+
+        await updateRequestStatus(req, res);
+
+        expect(txMock.stockLevel.update).not.toHaveBeenCalled();
+        expect(res.status).toHaveBeenCalledWith(400);
+        expect(res.json).toHaveBeenCalledWith(
+            expect.objectContaining({ message: expect.stringContaining('Reserved stock mismatch') })
         );
     });
 });

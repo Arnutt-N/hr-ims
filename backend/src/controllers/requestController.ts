@@ -98,7 +98,7 @@ export const createRequest = async (req: AuthRequest, res: Response) => {
         });
 
         // 2. Validate and Reserve Stock
-        const result = await prisma.$transaction(async (tx) => {
+        const result = await prisma.$transaction(async (tx: any) => {
             // Create Request
             const newRequest = await tx.request.create({
                 data: {
@@ -141,30 +141,22 @@ export const createRequest = async (req: AuthRequest, res: Response) => {
                     );
                 }
 
+                if (!stockLevel) {
+                    throw new Error(`Stock level not found for item ${inventoryItem.name} in warehouse ${warehouse.name}`);
+                }
+
                 // Reserve stock
-                if (stockLevel) {
-                    await tx.stockLevel.update({
-                        where: {
-                            warehouseId_itemId: {
-                                warehouseId: warehouse.id,
-                                itemId: parsedItemId,
-                            },
-                        },
-                        data: {
-                            reserved: { increment: quantity },
-                        },
-                    });
-                } else {
-                    // If no stock level exists, create one with negative available (shouldn't normally happen)
-                    await tx.stockLevel.create({
-                        data: {
+                await tx.stockLevel.update({
+                    where: {
+                        warehouseId_itemId: {
                             warehouseId: warehouse.id,
                             itemId: parsedItemId,
-                            quantity: 0,
-                            reserved: quantity,
                         },
-                    });
-                }
+                    },
+                    data: {
+                        reserved: { increment: quantity },
+                    },
+                });
 
                 processedItems.push({
                     id: parsedItemId,
@@ -236,7 +228,7 @@ export const updateRequestStatus = async (req: Request, res: Response) => {
 
         const requestIdNum = parseInt(id);
 
-        const result = await prisma.$transaction(async (tx) => {
+        const result = await prisma.$transaction(async (tx: any) => {
             // Fetch request with items and user info
             const existingRequest = await tx.request.findUnique({
                 where: { id: requestIdNum },
@@ -265,9 +257,14 @@ export const updateRequestStatus = async (req: Request, res: Response) => {
                     });
 
                     // With reservation system, quantity should already be reserved.
-                    // We just need to ensure stockLevel exists.
                     if (!stockLevel) {
                         throw new Error(`Stock level not found for item ${ri.itemId} in warehouse ${existingRequest.warehouseId}`);
+                    }
+                    if (stockLevel.reserved < ri.quantity) {
+                        throw new Error(`Reserved stock mismatch for item ${ri.itemId} in warehouse ${existingRequest.warehouseId}`);
+                    }
+                    if (stockLevel.quantity < ri.quantity) {
+                        throw new Error(`Insufficient stock for item ${ri.itemId} in warehouse ${existingRequest.warehouseId}`);
                     }
 
                     // Convert reservation to actual deduction
@@ -306,30 +303,41 @@ export const updateRequestStatus = async (req: Request, res: Response) => {
                         console.error('Low stock check failed:', err)
                     );
                 }
-            } else if (status === 'rejected') {
+            } else if (status === 'rejected' || status === 'cancelled') {
                 if (!existingRequest.warehouseId) {
                     throw new Error('Request warehouse not found');
                 }
                 for (const ri of existingRequest.requestItems) {
-                    // Release reservation only (do not touch actual quantity)
-                    await tx.stockLevel.update({
+                    const stockLevel = await tx.stockLevel.findUnique({
                         where: {
                             warehouseId_itemId: {
                                 warehouseId: existingRequest.warehouseId,
                                 itemId: ri.itemId,
                             },
                         },
-                        data: {
-                            reserved: { decrement: ri.quantity },
-                        },
                     });
+
+                    if (stockLevel && stockLevel.reserved >= ri.quantity) {
+                        // Release reservation only (do not touch actual quantity)
+                        await tx.stockLevel.update({
+                            where: {
+                                warehouseId_itemId: {
+                                    warehouseId: existingRequest.warehouseId,
+                                    itemId: ri.itemId,
+                                },
+                            },
+                            data: {
+                                reserved: { decrement: ri.quantity },
+                            },
+                        });
+                    }
 
                     // Create history record
                     await tx.history.create({
                         data: {
                             item: ri.item.name,
                             action: existingRequest.type,
-                            status: 'rejected',
+                            status,
                             userId: existingRequest.userId,
                         },
                     });
@@ -349,7 +357,7 @@ export const updateRequestStatus = async (req: Request, res: Response) => {
         // ===== SEND NOTIFICATION ON STATUS CHANGE =====
         if (existingRequest.user?.email) {
             const itemsDisplay = existingRequest.requestItems
-                .map((ri) => `${ri.item.name} x${ri.quantity}`)
+                .map((ri: any) => `${ri.item.name} x${ri.quantity}`)
                 .join(', ');
 
             const emailHtml = emailTemplates.requestStatusChanged({
@@ -357,12 +365,18 @@ export const updateRequestStatus = async (req: Request, res: Response) => {
                 requestId: updatedRequest.id,
                 requestType: formatRequestType(updatedRequest.type),
                 items: itemsDisplay || existingRequest.items || 'ไม่ระบุ',
-                status: status as 'approved' | 'rejected' | 'pending',
+                status: status as 'approved' | 'rejected' | 'pending' | 'cancelled',
                 statusMessage,
             });
 
             const statusText =
-                status === 'approved' ? 'อนุมัติแล้ว' : status === 'rejected' ? 'ถูกปฏิเสธ' : 'อัปเดต';
+                status === 'approved'
+                    ? 'อนุมัติแล้ว'
+                    : status === 'rejected'
+                      ? 'ถูกปฏิเสธ'
+                      : status === 'cancelled'
+                        ? 'ถูกยกเลิก'
+                        : 'อัปเดต';
 
             sendEmail(
                 existingRequest.user.email,
