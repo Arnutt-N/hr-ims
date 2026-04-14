@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from 'react';
+import { useSession } from 'next-auth/react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import StockTransferForm from '@/components/warehouse/StockTransferForm';
@@ -10,10 +11,10 @@ import { APPROVER_ROLES } from '@/lib/role-access';
 
 export default function WarehouseManagementPage() {
     const [activeTab, setActiveTab] = useState('request');
+    const { data: session, status } = useSession();
 
-    // TODO: Get from session/auth
-    const userId = 1;
-    const userRole = 'admin'; // admin, approver, user
+    const userId = session?.user?.id ? Number(session.user.id) : NaN;
+    const userRole = (session?.user?.role as string) || '';
 
     const handleTransferSuccess = () => {
         alert('ส่งคำขอโอนพัสดุเรียบร้อยแล้ว รอการอนุมัติ');
@@ -22,6 +23,16 @@ export default function WarehouseManagementPage() {
             setActiveTab('approval');
         }
     };
+
+    if (status === 'loading') {
+        return (
+            <div className="container mx-auto py-8 px-4 max-w-6xl">
+                <div className="flex items-center justify-center h-64">
+                    <p className="text-gray-600">กำลังโหลด...</p>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="container mx-auto py-8 px-4 max-w-6xl">
@@ -59,6 +70,7 @@ export default function WarehouseManagementPage() {
                             <StockTransferForm
                                 userId={userId}
                                 onSuccess={handleTransferSuccess}
+                                disabled={status !== 'authenticated'}
                             />
                         </CardContent>
                     </Card>

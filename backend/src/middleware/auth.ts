@@ -22,7 +22,7 @@ const parseRoles = (raw: unknown): string[] => {
         .filter(Boolean);
 };
 
-const INTERNAL_API_KEY = process.env.INTERNAL_API_KEY || 'test-internal-key';
+const INTERNAL_API_KEY = process.env.INTERNAL_API_KEY;
 
 // JWT-based authentication (for direct API calls)
 export const authenticateToken = (req: AuthRequest, res: Response, next: NextFunction) => {

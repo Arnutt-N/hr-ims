@@ -1,7 +1,10 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { getItemBySN, getRecentScans } from '@/lib/actions/scanner';
+import { addToCart } from '@/lib/actions/cart';
+import { reportIssue } from '@/lib/actions/assets';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
@@ -13,6 +16,7 @@ import { useI18n } from '@/lib/i18n/provider';
 type ScannerError = 'none' | 'permission' | 'not_supported' | 'init_failed' | 'https_required';
 
 export default function ScannerPage() {
+    const router = useRouter();
     const { t } = useI18n();
     const [code, setCode] = useState('');
     const [scanning, setScanning] = useState(false);
@@ -237,14 +241,33 @@ export default function ScannerPage() {
         if (inputRef.current) inputRef.current.focus();
     };
 
-    const handleQuickBorrow = () => {
-        toast.info('Redirecting to cart...');
-        // Could call addToCart action here
+    const handleQuickBorrow = async () => {
+        if (!scannedItem) return;
+        if (scannedItem.status !== 'available') {
+            toast.error('This item is not available for borrowing.');
+            return;
+        }
+        try {
+            await addToCart(scannedItem.id, 1);
+            toast.success('Item added to cart. Redirecting...');
+            router.push('/cart');
+        } catch (err: any) {
+            toast.error(err?.message || 'Failed to add item to cart.');
+        }
     };
 
-    const handleReportIssue = () => {
-        toast.info('Opening issue report...');
-        // Could open a dialog
+    const handleReportIssue = async () => {
+        if (!scannedItem) return;
+        const issue = window.prompt('Please describe the issue:');
+        if (!issue || !issue.trim()) return;
+        try {
+            await reportIssue(scannedItem.id, issue.trim());
+            toast.success('Issue reported successfully.');
+            setScannedItem(null);
+            loadRecentScans();
+        } catch (err: any) {
+            toast.error(err?.message || 'Failed to report issue.');
+        }
     };
 
     const handleRetryCamera = () => {
