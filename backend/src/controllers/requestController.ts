@@ -208,6 +208,9 @@ export const updateRequestStatus = async (req: Request, res: Response) => {
             }
 
             if (status === 'approved') {
+                if (!existingRequest.warehouseId) {
+                    throw new Error('Request warehouse not found');
+                }
                 for (const ri of existingRequest.requestItems) {
                     const stockLevel = await tx.stockLevel.findUnique({
                         where: {
@@ -253,6 +256,9 @@ export const updateRequestStatus = async (req: Request, res: Response) => {
                     });
                 }
             } else if (status === 'rejected') {
+                if (!existingRequest.warehouseId) {
+                    throw new Error('Request warehouse not found');
+                }
                 for (const ri of existingRequest.requestItems) {
                     // Increment stockLevel and inventoryItem stock
                     await tx.stockLevel.update({
