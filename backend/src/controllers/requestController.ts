@@ -245,11 +245,9 @@ export const updateRequestStatus = async (req: Request, res: Response) => {
                     // Create history record
                     await tx.history.create({
                         data: {
-                            itemId: ri.itemId,
-                            warehouseId: existingRequest.warehouseId,
+                            item: ri.item.name,
                             action: existingRequest.type,
                             status: 'approved',
-                            quantity: ri.quantity,
                             userId: existingRequest.userId,
                         },
                     });
@@ -279,11 +277,9 @@ export const updateRequestStatus = async (req: Request, res: Response) => {
                     // Create history record
                     await tx.history.create({
                         data: {
-                            itemId: ri.itemId,
-                            warehouseId: existingRequest.warehouseId,
+                            item: ri.item.name,
                             action: existingRequest.type,
                             status: 'rejected',
-                            quantity: ri.quantity,
                             userId: existingRequest.userId,
                         },
                     });
