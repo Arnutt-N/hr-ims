@@ -127,18 +127,35 @@ export async function sendOverdueEmail(
 export async function sendStatusUpdateEmail(
     user: { email: string; name: string | null },
     request: { id: number; type: string },
-    status: 'approved' | 'rejected'
+    status: 'approved' | 'rejected' | 'cancelled'
 ) {
     if (!user.email) return { error: 'User has no email' };
 
-    const isApproved = status === 'approved';
-    const subject = isApproved
-        ? '✅ คำขอของคุณได้รับการอนุมัติแล้ว'
-        : '❌ คำขอของคุณถูกปฏิเสธ';
+    const statusConfig = {
+        approved: {
+            subject: '✅ คำขอของคุณได้รับการอนุมัติแล้ว',
+            color: '#10b981',
+            icon: '✅',
+            text: 'อนุมัติ',
+            message: `คำขอของคุณได้รับการอนุมัติแล้ว ${request.type === 'borrow' ? 'สามารถมารับครุภัณฑ์ได้ที่หน่วยงานพัสดุ' : 'กรุณาตรวจสอบรายละเอียดในระบบ'}`,
+        },
+        rejected: {
+            subject: '❌ คำขอของคุณถูกปฏิเสธ',
+            color: '#ef4444',
+            icon: '❌',
+            text: 'ปฏิเสธ',
+            message: 'ขออภัยครับ/ค่ะ คำขอของคุณถูกปฏิเสธ หากต้องการสอบถามเพิ่มเติม กรุณาติดต่อเจ้าหน้าที่พัสดุ',
+        },
+        cancelled: {
+            subject: '🚫 คำขอของคุณถูกยกเลิก',
+            color: '#6b7280',
+            icon: '🚫',
+            text: 'ยกเลิก',
+            message: 'คำขอของคุณถูกยกเลิกแล้ว หากยังต้องการดำเนินการ กรุณาสร้างคำขอใหม่ในระบบ',
+        },
+    } as const;
 
-    const statusColor = isApproved ? '#10b981' : '#ef4444';
-    const statusIcon = isApproved ? '✅' : '❌';
-    const statusText = isApproved ? 'อนุมัติ' : 'ปฏิเสธ';
+    const currentStatus = statusConfig[status];
 
     const typeText = {
         'borrow': 'ยืมครุภัณฑ์',
@@ -153,9 +170,9 @@ export async function sendStatusUpdateEmail(
       <style>
         body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
         .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-        .header { background-color: ${statusColor}; color: white; padding: 20px; border-radius: 8px 8px 0 0; }
+        .header { background-color: ${currentStatus.color}; color: white; padding: 20px; border-radius: 8px 8px 0 0; }
         .content { background-color: #f9fafb; padding: 30px; border-radius: 0 0 8px 8px; }
-        .status-badge { background-color: ${statusColor}; color: white; padding: 8px 16px; border-radius: 20px; display: inline-block; font-weight: bold; }
+        .status-badge { background-color: ${currentStatus.color}; color: white; padding: 8px 16px; border-radius: 20px; display: inline-block; font-weight: bold; }
         .info-box { background-color: white; padding: 20px; border-radius: 6px; margin: 20px 0; border: 1px solid #e5e7eb; }
         .button { background-color: #3b82f6; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block; margin-top: 15px; }
         .footer { text-align: center; margin-top: 30px; color: #6b7280; font-size: 0.875rem; }
@@ -164,7 +181,7 @@ export async function sendStatusUpdateEmail(
     <body>
       <div class="container">
         <div class="header">
-          <h1 style="margin: 0;">${statusIcon} สถานะคำขอของคุณ</h1>
+          <h1 style="margin: 0;">${currentStatus.icon} สถานะคำขอของคุณ</h1>
         </div>
         <div class="content">
           <p>สวัสดีครับ/ค่ะ คุณ <strong>${user.name || 'ผู้ใช้งาน'}</strong>,</p>
@@ -172,13 +189,10 @@ export async function sendStatusUpdateEmail(
           <div class="info-box">
             <p style="margin: 0 0 10px 0;"><strong>คำขอเลขที่:</strong> #${request.id}</p>
             <p style="margin: 0 0 10px 0;"><strong>ประเภท:</strong> ${typeText}</p>
-            <p style="margin: 0;"><strong>สถานะ:</strong> <span class="status-badge">${statusText}</span></p>
+            <p style="margin: 0;"><strong>สถานะ:</strong> <span class="status-badge">${currentStatus.text}</span></p>
           </div>
 
-          ${isApproved
-            ? `<p>คำขอของคุณได้รับการอนุมัติแล้ว ${request.type === 'borrow' ? 'สามารถมารับครุภัณฑ์ได้ที่หน่วยงานพัสดุ' : 'กรุณาตรวจสอบรายละเอียดในระบบ'}</p>`
-            : `<p>ขออภัยครับ/ค่ะ คำขอของคุณถูกปฏิเสธ หากต้องการสอบถามเพิ่มเติม กรุณาติดต่อเจ้าหน้าที่พัสดุ</p>`
-        }
+          <p>${currentStatus.message}</p>
 
           <a href="${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/history" class="button">
             ดูประวัติคำขอ
@@ -196,5 +210,5 @@ export async function sendStatusUpdateEmail(
     </html>
   `;
 
-    return await sendEmail({ to: user.email, subject, html });
+    return await sendEmail({ to: user.email, subject: currentStatus.subject, html });
 }

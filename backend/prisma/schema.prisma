@@ -194,6 +194,7 @@ model StockLevel {
   itemId      Int
   item        InventoryItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
   quantity    Int           @default(0)
+  reserved    Int           @default(0) // จำนวนที่ถูก request แต่ยังไม่ approve
   minStock    Int?          // แจ้งเตือนเมื่อต่ำกว่า
   maxStock    Int?          // จำนวนสูงสุด
   updatedAt   DateTime      @updatedAt

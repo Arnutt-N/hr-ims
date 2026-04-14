@@ -226,13 +226,14 @@ export const emailTemplates = {
         requestId: number;
         requestType: string;
         items: string;
-        status: 'approved' | 'rejected' | 'pending';
+        status: 'approved' | 'rejected' | 'pending' | 'cancelled';
         statusMessage?: string;
     }) => {
         const statusMap = {
             approved: { text: 'อนุมัติแล้ว', class: 'status-approved', emoji: '✅' },
             rejected: { text: 'ถูกปฏิเสธ', class: 'status-rejected', emoji: '❌' },
             pending: { text: 'รอดำเนินการ', class: 'status-pending', emoji: '⏳' },
+            cancelled: { text: 'ยกเลิกแล้ว', class: 'status-rejected', emoji: '🚫' },
         };
         const statusInfo = statusMap[data.status];
 
