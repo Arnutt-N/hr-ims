@@ -26,6 +26,7 @@ jest.mock('../../utils/prisma', () => ({
 
 jest.mock('../../services/notificationService', () => ({
     sendEmail: jest.fn().mockResolvedValue(undefined),
+    checkAndAlertLowStock: jest.fn().mockResolvedValue(undefined),
     emailTemplates: {
         requestStatusChanged: jest.fn().mockReturnValue('<html></html>'),
     },
