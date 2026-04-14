@@ -97,10 +97,16 @@ export default function TagGeneratorPage() {
 
     const loadItems = async () => {
         setLoading(true);
-        const res = await fetchInventoryItems('', 1, 'all');
-        setItems(res);
-        setFilteredItems(res);
-        setLoading(false);
+        try {
+            const res = await fetchInventoryItems('', 1, 'all');
+            setItems(res);
+            setFilteredItems(res);
+        } catch (err) {
+            console.error('Failed to load items for tags:', err);
+            toast.error('Failed to load inventory items. Please try again later.');
+        } finally {
+            setLoading(false);
+        }
     };
 
     const toggleItemSelection = (item: any) => {

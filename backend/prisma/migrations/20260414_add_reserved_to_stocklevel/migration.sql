@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "StockLevel" ADD COLUMN "reserved" INTEGER NOT NULL DEFAULT 0;

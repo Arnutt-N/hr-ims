@@ -10,7 +10,10 @@ export default async function DashboardLayout({
 }) {
     const [session, settings] = await Promise.all([
         getCachedAuth(),
-        getCachedSettings(),
+        getCachedSettings().catch((err) => {
+            console.error('Failed to load settings for layout:', err);
+            return null;
+        }),
     ]);
 
     return (
