@@ -1,4 +1,4 @@
-import { requireAuth, requireRole } from '../../middleware/auth';
+import { requireRole } from '../../middleware/auth';
 import { authorize } from '../../middleware/rbac';
 
 const createRes = () => {
@@ -10,6 +10,10 @@ const createRes = () => {
 
 describe('Auth middleware', () => {
     test('requireAuth parses multi-role header', () => {
+        process.env.INTERNAL_API_KEY = 'test-internal-key';
+        jest.resetModules();
+        const { requireAuth } = require('../../middleware/auth');
+
         const req: any = {
             headers: {
                 'x-user-id': '123',

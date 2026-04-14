@@ -208,6 +208,9 @@ export const updateRequestStatus = async (req: Request, res: Response) => {
             }
 
             if (status === 'approved') {
+                if (!existingRequest.warehouseId) {
+                    throw new Error('Request warehouse not found');
+                }
                 for (const ri of existingRequest.requestItems) {
                     const stockLevel = await tx.stockLevel.findUnique({
                         where: {
@@ -245,16 +248,17 @@ export const updateRequestStatus = async (req: Request, res: Response) => {
                     // Create history record
                     await tx.history.create({
                         data: {
-                            itemId: ri.itemId,
-                            warehouseId: existingRequest.warehouseId,
+                            item: ri.item.name,
                             action: existingRequest.type,
                             status: 'approved',
-                            quantity: ri.quantity,
                             userId: existingRequest.userId,
                         },
                     });
                 }
             } else if (status === 'rejected') {
+                if (!existingRequest.warehouseId) {
+                    throw new Error('Request warehouse not found');
+                }
                 for (const ri of existingRequest.requestItems) {
                     // Increment stockLevel and inventoryItem stock
                     await tx.stockLevel.update({
@@ -279,11 +283,9 @@ export const updateRequestStatus = async (req: Request, res: Response) => {
                     // Create history record
                     await tx.history.create({
                         data: {
-                            itemId: ri.itemId,
-                            warehouseId: existingRequest.warehouseId,
+                            item: ri.item.name,
                             action: existingRequest.type,
                             status: 'rejected',
-                            quantity: ri.quantity,
                             userId: existingRequest.userId,
                         },
                     });

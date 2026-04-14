@@ -28,9 +28,10 @@ interface StockTransferFormProps {
     userId: number;
     onSuccess?: () => void;
     onCancel?: () => void;
+    disabled?: boolean;
 }
 
-export default function StockTransferForm({ userId, onSuccess, onCancel }: StockTransferFormProps) {
+export default function StockTransferForm({ userId, onSuccess, onCancel, disabled = false }: StockTransferFormProps) {
     const [fromWarehouseId, setFromWarehouseId] = useState<number>();
     const [toWarehouseId, setToWarehouseId] = useState<number>();
     const [itemId, setItemId] = useState<number>();
@@ -128,7 +129,7 @@ export default function StockTransferForm({ userId, onSuccess, onCancel }: Stock
     };
 
     return (
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className={`space-y-6 ${disabled ? 'opacity-60 pointer-events-none' : ''}`}>
             {error && (
                 <Alert variant="destructive">
                     <AlertCircle className="h-4 w-4" />
@@ -145,6 +146,7 @@ export default function StockTransferForm({ userId, onSuccess, onCancel }: Stock
                         onChange={setFromWarehouseId}
                         type="all"
                         placeholder="เลือกคลังต้นทาง"
+                        disabled={disabled}
                     />
                 </div>
 
@@ -156,6 +158,7 @@ export default function StockTransferForm({ userId, onSuccess, onCancel }: Stock
                         onChange={setToWarehouseId}
                         type="all"
                         placeholder="เลือกคลังปลายทาง"
+                        disabled={disabled}
                     />
                 </div>
             </div>
@@ -166,7 +169,7 @@ export default function StockTransferForm({ userId, onSuccess, onCancel }: Stock
                 <Select
                     value={itemId?.toString()}
                     onValueChange={(val) => setItemId(parseInt(val))}
-                    disabled={!fromWarehouseId || availableItems.length === 0}
+                    disabled={disabled || !fromWarehouseId || availableItems.length === 0}
                 >
                     <SelectTrigger>
                         <SelectValue placeholder={
@@ -209,7 +212,7 @@ export default function StockTransferForm({ userId, onSuccess, onCancel }: Stock
                     max={selectedStock?.quantity || 999}
                     value={quantity}
                     onChange={(e) => setQuantity(parseInt(e.target.value))}
-                    disabled={!itemId}
+                    disabled={disabled || !itemId}
                 />
             </div>
 
@@ -232,7 +235,7 @@ export default function StockTransferForm({ userId, onSuccess, onCancel }: Stock
                         ยกเลิก
                     </Button>
                 )}
-                <Button type="submit" disabled={loading}>
+                <Button type="submit" disabled={disabled || loading}>
                     {loading ? '  กำลังส่งคำขอ...' : 'ส่งคำขอโอนพัสดุ'}
                 </Button>
             </div>

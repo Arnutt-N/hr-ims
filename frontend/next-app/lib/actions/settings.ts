@@ -25,15 +25,17 @@ type AuthorizedSession = {
     };
 };
 
-function backendHeaders(session: AuthorizedSession) {
+function backendHeaders(session: AuthorizedSession): Record<string, string> {
     const roles = getSessionRoles(session);
-
-    return {
+    const headers: Record<string, string> = {
         'Content-Type': 'application/json',
         'x-user-id': session.user.id || '',
         'x-user-role': roles.join(',') || session.user.role || '',
-        'x-internal-key': INTERNAL_API_KEY,
     };
+    if (INTERNAL_API_KEY) {
+        headers['x-internal-key'] = INTERNAL_API_KEY;
+    }
+    return headers;
 }
 
 export async function getSettings() {
