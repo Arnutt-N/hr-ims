@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { getWarehouses } from '@/lib/actions/warehouse';
 
 interface Warehouse {
     id: number;
@@ -34,8 +35,8 @@ export default function WarehouseSelector({
 
     const fetchWarehouses = useCallback(async () => {
         try {
-            const res = await fetch('/api/warehouses');
-            const data = await res.json();
+            const result = await getWarehouses();
+            const data = ('warehouses' in result && result.warehouses) ? result.warehouses : [];
 
             // Filter by type if specified
             const filtered = type === 'all'

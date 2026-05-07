@@ -506,6 +506,37 @@ async function main() {
         ]
     });
 
+    // 1b. AuditLog rows so /logs has a populated table on first boot
+    // (E2E asserts at least one body row in the audit table).
+    await prisma.auditLog.createMany({
+        data: [
+            {
+                userId: allUsers[0].id,
+                action: 'LOGIN',
+                entity: 'User',
+                entityId: String(allUsers[0].id),
+                ipAddress: '127.0.0.1',
+                userAgent: 'seed-script',
+            },
+            {
+                userId: allUsers[0].id,
+                action: 'CREATE',
+                entity: 'StockTransaction',
+                entityId: 'PO-2024-001',
+                ipAddress: '127.0.0.1',
+                userAgent: 'seed-script',
+            },
+            {
+                userId: allUsers[0].id,
+                action: 'VIEW',
+                entity: 'Report',
+                entityId: 'inventory-summary',
+                ipAddress: '127.0.0.1',
+                userAgent: 'seed-script',
+            },
+        ]
+    });
+
     // 2. Stock Transactions (Simulate Scanner/Audit)
     if (allItems.length > 0) {
         // Inbound (Receive Stock)

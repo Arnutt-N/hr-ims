@@ -156,7 +156,10 @@ function HistorySkeleton() {
 
 export default async function InventoryDetailPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = await params;
-    const itemId = parseInt(id);
+    const itemId = Number.parseInt(id, 10);
+    if (!Number.isFinite(itemId)) {
+        notFound();
+    }
 
     return (
         <div className="container mx-auto py-6 space-y-4">

@@ -24,8 +24,13 @@ test.describe('Golden 02 — Request lifecycle (cart → approve → stock)', ()
         await loginAs(page, 'user');
 
         await page.goto('/inventory', { waitUntil: 'domcontentloaded', timeout: 90_000 });
-        // Wait for at least one inventory card/row to appear.
-        const firstAdd = page.getByRole('button', { name: /add to cart/i }).first();
+        // Wait for at least one inventory card/row to appear. The default
+        // locale is TH so the visible label is "เพิ่มลงตะกร้า"; "Add to Cart"
+        // is the EN copy. Borrow buttons ("Request Borrow" / "ขอยืม") are
+        // also acceptable since the lifecycle is tested via either type.
+        const firstAdd = page
+            .getByRole('button', { name: /add to cart|เพิ่มลงตะกร้า|request borrow|ขอยืม/i })
+            .first();
         await firstAdd.waitFor({ state: 'visible', timeout: 60_000 });
         await firstAdd.click();
 

@@ -98,6 +98,8 @@ export default function LoginForm() {
                             <button
                                 type="button"
                                 onClick={() => setShowPassword(!showPassword)}
+                                aria-label={showPassword ? 'Hide password' : 'Show password'}
+                                aria-pressed={showPassword}
                                 className="absolute right-4 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-blue-300 transition-colors cursor-pointer"
                             >
                                 {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}

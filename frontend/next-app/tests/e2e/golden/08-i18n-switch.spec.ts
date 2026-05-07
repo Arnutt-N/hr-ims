@@ -23,15 +23,28 @@ async function visibleBodyText(page: import('@playwright/test').Page): Promise<s
 
 async function clickLocale(page: import('@playwright/test').Page, label: 'TH' | 'EN') {
     const button = page.getByRole('radio', { name: label === 'TH' ? /ภาษาไทย/i : /English/i }).first();
-    if (!(await button.isVisible({ timeout: 5_000 }).catch(() => false))) {
-        // Fall back: target by visible label inside the segmented control.
-        const fallback = page.getByText(label, { exact: true }).first();
-        await fallback.click();
-    } else {
-        await button.click();
+    const target = (await button.isVisible({ timeout: 5_000 }).catch(() => false))
+        ? button
+        : page.getByText(label, { exact: true }).first();
+
+    // Skip if the target locale is already active — a no-op click would not
+    // trigger window.location.reload() and we'd race the next assertion.
+    const isAlreadyActive = await target
+        .getAttribute('aria-checked')
+        .then((v) => v === 'true')
+        .catch(() => false);
+    if (isAlreadyActive) {
+        return;
     }
-    // Setting locale triggers a full reload (see locale-toggle.tsx).
-    await page.waitForLoadState('domcontentloaded');
+
+    // Clicking the toggle triggers window.location.reload() (see
+    // locale-toggle.tsx). Wait for the navigation to complete before the
+    // caller snapshots the new DOM.
+    await Promise.all([
+        page.waitForLoadState('load'),
+        target.click(),
+    ]);
+    await page.waitForLoadState('networkidle').catch(() => undefined);
 }
 
 test.describe('Golden 08 — Locale toggle + raw-key audit', () => {
