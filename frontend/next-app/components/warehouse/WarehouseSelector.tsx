@@ -58,7 +58,7 @@ export default function WarehouseSelector({
     if (loading) {
         return (
             <Select disabled>
-                <SelectTrigger>
+                <SelectTrigger aria-label="Warehouse filter (loading)">
                     <SelectValue placeholder="กำลังโหลด..." />
                 </SelectTrigger>
             </Select>
@@ -71,7 +71,7 @@ export default function WarehouseSelector({
             onValueChange={(val) => onChange(parseInt(val))}
             disabled={disabled}
         >
-            <SelectTrigger>
+            <SelectTrigger aria-label="Warehouse filter">
                 <SelectValue placeholder={placeholder} />
             </SelectTrigger>
             <SelectContent>

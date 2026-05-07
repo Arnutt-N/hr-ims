@@ -90,14 +90,16 @@ test.describe('Golden 08 — Locale toggle + raw-key audit', () => {
         // Drive locale through the cookie that the LocaleProvider reconciles
         // against on mount (see provider.tsx). This avoids the click-then-
         // reload race in clickLocale() and gives a deterministic snapshot.
+        // The cookie name is 'hr-ims-locale' (LOCALE_COOKIE in messages.ts),
+        // not 'locale' — the server-side reader keys off the namespaced name.
         await context.addCookies([
-            { name: 'locale', value: 'th', url: 'http://localhost:3000', sameSite: 'Lax' },
+            { name: 'hr-ims-locale', value: 'th', url: 'http://localhost:3000', sameSite: 'Lax' },
         ]);
         await page.goto('/dashboard', { waitUntil: 'networkidle', timeout: 90_000 });
         const thaiText = await visibleBodyText(page);
 
         await context.addCookies([
-            { name: 'locale', value: 'en', url: 'http://localhost:3000', sameSite: 'Lax' },
+            { name: 'hr-ims-locale', value: 'en', url: 'http://localhost:3000', sameSite: 'Lax' },
         ]);
         await page.goto('/dashboard', { waitUntil: 'networkidle', timeout: 90_000 });
         const englishText = await visibleBodyText(page);

@@ -34,8 +34,18 @@ test.describe('Golden 02 — Request lifecycle (cart → approve → stock)', ()
         await firstAdd.waitFor({ state: 'visible', timeout: 60_000 });
         await firstAdd.click();
 
+        // Wait for the addToCart Server Action to complete before navigating
+        // away — otherwise the in-flight request gets aborted by the page
+        // navigation and the cart stays empty. The success toast ("Added to
+        // cart!") is the cleanest signal; fall back to networkidle if the
+        // toast is suppressed.
+        const toast = page.getByText(/added to cart|added!|success/i).first();
+        await toast.waitFor({ state: 'visible', timeout: 10_000 }).catch(async () => {
+            await page.waitForLoadState('networkidle').catch(() => undefined);
+        });
+
         // Confirm a toast / cart badge update; if neither, the cart page must show ≥1 item.
-        await page.goto('/cart', { waitUntil: 'domcontentloaded' });
+        await page.goto('/cart', { waitUntil: 'networkidle' });
         // Submit/confirm button — accept EN ("Confirm All Requests") or TH
         // future copies ("ส่งคำขอ", "ยืนยัน").
         const submitButton = page

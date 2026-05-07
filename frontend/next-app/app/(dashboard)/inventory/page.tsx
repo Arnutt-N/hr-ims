@@ -104,20 +104,38 @@ export default async function InventoryPage({
                     <div className="w-px h-8 bg-slate-200 mx-2 hidden md:block"></div>
 
                     {/* View Toggle */}
-                    <div className="flex bg-slate-100 p-1 rounded-lg">
-                        <Link href={`/inventory?view=grid&type=${type}&query=${query}${warehouseId ? `&warehouse=${warehouseId}` : ''}`} scroll={false}>
-                            <button className={cn(
-                                "p-2 rounded-md transition-all cursor-pointer",
-                                isGrid ? "bg-white text-indigo-600 shadow-sm" : "text-slate-400 hover:text-slate-600"
-                            )}>
+                    <div className="flex bg-slate-100 p-1 rounded-lg" role="group" aria-label="View mode">
+                        <Link
+                            href={`/inventory?view=grid&type=${type}&query=${query}${warehouseId ? `&warehouse=${warehouseId}` : ''}`}
+                            scroll={false}
+                            aria-label="Grid view"
+                            aria-current={isGrid ? 'page' : undefined}
+                        >
+                            <button
+                                type="button"
+                                aria-label="Grid view"
+                                className={cn(
+                                    "p-2 rounded-md transition-all cursor-pointer",
+                                    isGrid ? "bg-white text-indigo-600 shadow-sm" : "text-slate-400 hover:text-slate-600"
+                                )}
+                            >
                                 <LayoutGrid size={18} />
                             </button>
                         </Link>
-                        <Link href={`/inventory?view=list&type=${type}&query=${query}${warehouseId ? `&warehouse=${warehouseId}` : ''}`} scroll={false}>
-                            <button className={cn(
-                                "p-2 rounded-md transition-all cursor-pointer",
-                                !isGrid ? "bg-white text-indigo-600 shadow-sm" : "text-slate-400 hover:text-slate-600"
-                            )}>
+                        <Link
+                            href={`/inventory?view=list&type=${type}&query=${query}${warehouseId ? `&warehouse=${warehouseId}` : ''}`}
+                            scroll={false}
+                            aria-label="List view"
+                            aria-current={!isGrid ? 'page' : undefined}
+                        >
+                            <button
+                                type="button"
+                                aria-label="List view"
+                                className={cn(
+                                    "p-2 rounded-md transition-all cursor-pointer",
+                                    !isGrid ? "bg-white text-indigo-600 shadow-sm" : "text-slate-400 hover:text-slate-600"
+                                )}
+                            >
                                 <List size={18} />
                             </button>
                         </Link>
