@@ -54,8 +54,14 @@ test.describe('Golden 02 — Request lifecycle (cart → approve → stock)', ()
         await expect(submitButton).toBeVisible({ timeout: 30_000 });
 
         await submitButton.click();
-        // Submission should redirect or show success; assert we're no longer on /cart.
-        await page.waitForURL((url) => !url.pathname.endsWith('/cart'), { timeout: 30_000 });
+        // Cart submit shows a success toast and clears the items in place — it
+        // does NOT navigate away from /cart (see app/(dashboard)/cart/page.tsx
+        // handleSubmit). Assert on either the toast or the empty-cart state
+        // that follows.
+        const success = page
+            .getByText(/submitted|success|สำเร็จ|ส่งคำขอเรียบร้อย/i)
+            .first();
+        await expect(success).toBeVisible({ timeout: 30_000 });
     });
 
     test('approver sees the new pending request', async ({ page }) => {

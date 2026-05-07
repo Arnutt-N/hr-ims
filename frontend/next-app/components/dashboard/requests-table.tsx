@@ -301,6 +301,7 @@ export default function RequestsTable({ initialRequests }: { initialRequests: an
                                             <div className="flex justify-end gap-2 opacity-100 transition-opacity">
                                                 <Button
                                                     size="sm"
+                                                    aria-label="Approve request"
                                                     className="bg-emerald-500 hover:bg-emerald-600 text-white h-8 px-3"
                                                     onClick={() => handleApproveClick(req)}
                                                     disabled={loadingId === req.id}
@@ -310,6 +311,7 @@ export default function RequestsTable({ initialRequests }: { initialRequests: an
                                                 <Button
                                                     size="sm"
                                                     variant="destructive"
+                                                    aria-label="Reject request"
                                                     className="h-8 px-3"
                                                     onClick={() => handleAction(req.id, 'rejected')}
                                                     disabled={loadingId === req.id}
