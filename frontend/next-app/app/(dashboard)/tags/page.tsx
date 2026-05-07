@@ -171,6 +171,7 @@ export default function TagGeneratorPage() {
 
             // Download
             const link = document.createElement('a');
+            // eslint-disable-next-line react-hooks/purity -- runs on user click, not during render
             link.download = `asset-tags-${Date.now()}.png`;
             link.href = canvas.toDataURL('image/png');
             link.click();
