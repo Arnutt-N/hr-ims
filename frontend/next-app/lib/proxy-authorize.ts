@@ -35,6 +35,7 @@ export const PROTECTED_MODULES = [
     '/settings',
     '/users',
     '/logs',
+    '/warehouse',
 ] as const;
 
 export const LEGACY_ROLE_RULES = [
@@ -47,6 +48,7 @@ export const LEGACY_ROLE_RULES = [
     { prefix: '/settings', roles: ['superadmin', 'admin'] },
     { prefix: '/users', roles: ['superadmin', 'admin'] },
     { prefix: '/logs', roles: ['superadmin', 'admin', 'auditor'] },
+    { prefix: '/warehouse', roles: ['superadmin', 'admin', 'approver'] },
 ] as const;
 
 export function isLegacyFallbackEnabled(envValue: string | undefined): boolean {

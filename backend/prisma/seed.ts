@@ -27,6 +27,7 @@ const ROLE_PERMISSIONS: Record<string, Array<{ menu: string; path: string }>> = 
         { menu: 'Tags', path: '/tags' },
         { menu: 'Users', path: '/users' },
         { menu: 'Audit Logs', path: '/logs' },
+        { menu: 'Warehouse', path: '/warehouse' },
         { menu: 'Categories', path: '/settings/categories' },
         { menu: 'Warehouses', path: '/settings/warehouses' },
         { menu: 'Dept Mapping', path: '/settings/departments' },
@@ -51,6 +52,7 @@ const ROLE_PERMISSIONS: Record<string, Array<{ menu: string; path: string }>> = 
         { menu: 'Tags', path: '/tags' },
         { menu: 'Users', path: '/users' },
         { menu: 'Audit Logs', path: '/logs' },
+        { menu: 'Warehouse', path: '/warehouse' },
         { menu: 'Categories', path: '/settings/categories' },
         { menu: 'Warehouses', path: '/settings/warehouses' },
         { menu: 'Dept Mapping', path: '/settings/departments' },
@@ -64,6 +66,7 @@ const ROLE_PERMISSIONS: Record<string, Array<{ menu: string; path: string }>> = 
         { menu: 'Cart', path: '/cart' },
         { menu: 'My Assets', path: '/my-assets' },
         { menu: 'Requests', path: '/requests' },
+        { menu: 'Warehouse', path: '/warehouse' },
     ],
     auditor: [
         { menu: 'Dashboard', path: '/dashboard' },

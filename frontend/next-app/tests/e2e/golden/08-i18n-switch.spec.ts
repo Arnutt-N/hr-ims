@@ -84,14 +84,22 @@ test.describe('Golden 08 — Locale toggle + raw-key audit', () => {
         });
     }
 
-    test('toggling locale changes visible text', async ({ page }) => {
+    test('toggling locale changes visible text', async ({ page, context }) => {
         await loginAs(page, 'admin');
-        await page.goto('/dashboard', { waitUntil: 'domcontentloaded' });
 
-        await clickLocale(page, 'TH').catch(() => undefined);
+        // Drive locale through the cookie that the LocaleProvider reconciles
+        // against on mount (see provider.tsx). This avoids the click-then-
+        // reload race in clickLocale() and gives a deterministic snapshot.
+        await context.addCookies([
+            { name: 'locale', value: 'th', url: 'http://localhost:3000', sameSite: 'Lax' },
+        ]);
+        await page.goto('/dashboard', { waitUntil: 'networkidle', timeout: 90_000 });
         const thaiText = await visibleBodyText(page);
 
-        await clickLocale(page, 'EN').catch(() => undefined);
+        await context.addCookies([
+            { name: 'locale', value: 'en', url: 'http://localhost:3000', sameSite: 'Lax' },
+        ]);
+        await page.goto('/dashboard', { waitUntil: 'networkidle', timeout: 90_000 });
         const englishText = await visibleBodyText(page);
 
         // The two snapshots must differ — proves the locale provider re-renders.

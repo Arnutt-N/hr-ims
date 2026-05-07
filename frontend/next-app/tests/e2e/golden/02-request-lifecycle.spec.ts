@@ -24,21 +24,23 @@ test.describe('Golden 02 — Request lifecycle (cart → approve → stock)', ()
         await loginAs(page, 'user');
 
         await page.goto('/inventory', { waitUntil: 'domcontentloaded', timeout: 90_000 });
-        // Wait for at least one inventory card/row to appear. The default
-        // locale is TH so the visible label is "เพิ่มลงตะกร้า"; "Add to Cart"
-        // is the EN copy. Borrow buttons ("Request Borrow" / "ขอยืม") are
-        // also acceptable since the lifecycle is tested via either type.
+        // Restrict to add-to-cart variants only (TH default locale shows
+        // "เพิ่มลงตะกร้า"; EN shows "Add to Cart"). Borrow buttons are
+        // intentionally excluded — they don't populate the cart, so the
+        // submit-button assertion below would fail.
         const firstAdd = page
-            .getByRole('button', { name: /add to cart|เพิ่มลงตะกร้า|request borrow|ขอยืม/i })
+            .getByRole('button', { name: /add to cart|เพิ่มลงตะกร้า/i })
             .first();
         await firstAdd.waitFor({ state: 'visible', timeout: 60_000 });
         await firstAdd.click();
 
         // Confirm a toast / cart badge update; if neither, the cart page must show ≥1 item.
         await page.goto('/cart', { waitUntil: 'domcontentloaded' });
-        const cartItems = page.locator('[data-testid="cart-item"], li, tr').filter({ hasText: /qty|จำนวน|×/i });
-        // Best-effort: at least one cart row OR a "submit" button must be visible.
-        const submitButton = page.getByRole('button', { name: /submit|ส่งคำขอ|create request/i });
+        // Submit/confirm button — accept EN ("Confirm All Requests") or TH
+        // future copies ("ส่งคำขอ", "ยืนยัน").
+        const submitButton = page
+            .getByRole('button', { name: /submit|ส่งคำขอ|create request|confirm|ยืนยัน/i })
+            .first();
         await expect(submitButton).toBeVisible({ timeout: 30_000 });
 
         await submitButton.click();
