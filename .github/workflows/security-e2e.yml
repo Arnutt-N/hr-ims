@@ -9,13 +9,17 @@ name: Security E2E
 #
 # Triggers:
 #   - workflow_dispatch:     manual run from the Actions tab
-#   - schedule (commented):  enable once the suite is stable to run nightly
+#   - schedule (nightly):    Phase F of the audit PRP — re-enabled once the
+#                            in-memory RBAC matrix (Phase B) and Server Action
+#                            unit suite (Phase C) gave us a green baseline.
 # ---------------------------------------------------------------------------
 on:
   workflow_dispatch:
-  # Uncomment to enable nightly runs once the baseline is trusted:
-  # schedule:
-  #   - cron: '0 18 * * *'  # 18:00 UTC = 01:00 ICT (Thailand) every day
+  schedule:
+    # 03:00 UTC = 10:00 ICT (Thailand). Runs daily and posts results to the
+    # Actions tab; failures are tracked manually for the first 7 nights, after
+    # which the audit PRP marks Phase F's exit criterion satisfied.
+    - cron: '0 3 * * *'
 
 concurrency:
   group: security-e2e-${{ github.ref }}
@@ -111,11 +115,12 @@ jobs:
 
       - name: Run security test suite
         working-directory: backend
-        # continue-on-error lets us establish a baseline on the first run
-        # without breaking the workflow. Once we know which tests reliably
-        # pass we can tighten this to hard-fail.
+        # Phase F note: keep continue-on-error: true for the first 7 nightly
+        # runs so we can establish which tests are reliably green before
+        # tightening to a hard fail. The matrix test (Phase B) is excluded
+        # because it already runs in-memory in the main `backend` CI job.
         continue-on-error: true
-        run: npm test -- --testPathPattern=src/tests/security
+        run: npm test -- --testPathPattern=src/tests/security --testPathIgnorePatterns=rbac-matrix
 
       - name: Dump backend log on failure
         if: failure()

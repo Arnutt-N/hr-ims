@@ -382,6 +382,13 @@ The session itself already carries `roles` and `permissions` arrays — prefer t
 ### Audit Logging Pattern
 Every CUD Server Action should write to `AuditLog` with: `action` (`CREATE`/`UPDATE`/`DELETE`), `tableName`, `recordId`, `userId`, and snapshots in `oldData` / `newData`. Wrap the mutation + the audit write in `prisma.$transaction` so audits never drift from data.
 
+`lib/actions/audit.ts` exposes two entry points:
+
+- **`logActivity(action, entity, entityId?, details?)`** — the existing one-liner. Auto-populates `ipAddress`, `userAgent`, and `requestId` from `next/headers()` so every audit row is correlatable with backend logs. No caller change needed.
+- **`withAudit({ action, entity, before?, after?, details? }, fn)`** — HOF for new mutating actions that want structured before/after snapshots. Wraps an action and persists `oldValue` (JSON of `before()`) and `newValue` (JSON of `after()`). Audit insert failures never block the wrapped action's return value.
+
+Backend mirror: `backend/src/middleware/audit.ts` mounts on every Express request — stamps a UUID `requestId`, normalizes `req.auditContext` (`{ ipAddress, userAgent, requestId }`), and propagates `requestId` into Winston logs via `requestLogger`.
+
 ## Notes for AI Assistants
 
 - **Database Path**: Use absolute paths or paths relative to project root. Both apps must agree on the same SQLite file.

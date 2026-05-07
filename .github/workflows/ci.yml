@@ -69,10 +69,20 @@ jobs:
       - name: Lint (ESLint)
         run: npm run lint
 
-      - name: Unit tests (Vitest)
+      - name: Unit tests + coverage gate (Vitest)
         # `npm run test` invokes `vitest` which defaults to watch mode.
-        # Use `vitest run` for single-run non-interactive CI mode.
-        run: npx vitest run
+        # `--coverage` enforces the per-file thresholds set in vitest.config.ts
+        # (lines: 70 etc. for the 12 priority lib/actions files). Drops in
+        # coverage on those files break the build.
+        run: npx vitest run --coverage
+
+      - name: Upload coverage artefact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-coverage
+          path: frontend/next-app/coverage/
+          if-no-files-found: ignore
 
   # ---------------------------------------------------------------------------
   # Backend · tsc + Jest
@@ -261,3 +271,121 @@ jobs:
       - name: Generate Prisma Client from TiDB schema (dry run, no DB)
         working-directory: backend
         run: npm run db:generate:tidb
+
+  # ---------------------------------------------------------------------------
+  # Phase D — E2E golden paths (Playwright)
+  # Runs the 9 spec files under tests/e2e/golden/ against a freshly seeded
+  # SQLite DB, with both `chromium` and `Mobile Chrome` Playwright projects.
+  # Fails the build on the first non-flaky failure (retries: 2 in CI per
+  # playwright.config.ts).
+  # ---------------------------------------------------------------------------
+  e2e-golden:
+    name: E2E · golden paths (Playwright)
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: file:./prisma/dev.db
+      NEXTAUTH_URL: http://localhost:3000
+      NEXTAUTH_SECRET: ci-dummy-secret-do-not-use-in-production
+      AUTH_SECRET: ci-dummy-secret-do-not-use-in-production
+      INTERNAL_API_KEY: test-internal-key
+      CI: 'true'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: |
+            backend/package-lock.json
+            frontend/next-app/package-lock.json
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: npm ci
+
+      - name: Install frontend dependencies
+        working-directory: frontend/next-app
+        run: npm ci --legacy-peer-deps
+
+      - name: Push + seed Prisma schema
+        working-directory: backend
+        run: |
+          npx prisma db push
+          npx prisma db seed
+
+      - name: Install Playwright browsers (chromium only)
+        working-directory: frontend/next-app
+        run: npx playwright install --with-deps chromium
+
+      - name: Run golden-path Playwright suite
+        working-directory: frontend/next-app
+        run: ./node_modules/.bin/playwright test tests/e2e/golden/
+
+      - name: Upload Playwright HTML report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: frontend/next-app/playwright-report/
+          if-no-files-found: ignore
+
+  # ---------------------------------------------------------------------------
+  # Phase F — Lighthouse CI (PR-only)
+  # Runs against `next start` (production build) on the four priority routes.
+  # Budget: perf >= 80, a11y >= 95, best-practices >= 90 (see .lighthouserc.cjs).
+  # Skipped on push-to-main to keep main-branch CI fast; PR builds catch
+  # regressions before merge.
+  # ---------------------------------------------------------------------------
+  lighthouse:
+    name: Lighthouse · PR budgets
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    needs: vercel-build
+    env:
+      DATABASE_URL: file:./prisma/dev.db
+      NEXTAUTH_URL: http://localhost:3000
+      NEXTAUTH_SECRET: ci-dummy-secret-do-not-use-in-production
+      AUTH_SECRET: ci-dummy-secret-do-not-use-in-production
+      INTERNAL_API_KEY: test-internal-key
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: |
+            backend/package-lock.json
+            frontend/next-app/package-lock.json
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: npm ci
+
+      - name: Install frontend dependencies
+        working-directory: frontend/next-app
+        run: npm ci --legacy-peer-deps
+
+      - name: Push + seed Prisma schema
+        working-directory: backend
+        run: |
+          npx prisma db push
+          npx prisma db seed
+
+      - name: Build Next.js
+        working-directory: frontend/next-app
+        run: npm run build
+
+      - name: Install Lighthouse CI
+        run: npm install -g @lhci/cli@0.14.x
+
+      - name: Run Lighthouse CI
+        working-directory: frontend/next-app
+        run: lhci autorun --config=.lighthouserc.cjs

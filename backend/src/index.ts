@@ -24,14 +24,23 @@ import departmentRoutes from './routes/departments';
 import emailRoutes from './routes/email';
 import healthRoutes from './routes/health';
 import { setupSwagger } from './utils/swagger';
+import { auditContext } from './middleware/audit';
+import { requestLogger } from './middleware/requestLogger';
 
 app.use(helmet());
 app.use(cors({
     origin: process.env.FRONTEND_URL || 'http://localhost:3000',
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
-    allowedHeaders: ['Authorization', 'Content-Type', 'x-user-id', 'x-user-role', 'x-internal-key'],
+    allowedHeaders: ['Authorization', 'Content-Type', 'x-user-id', 'x-user-role', 'x-internal-key', 'x-request-id'],
+    exposedHeaders: ['x-request-id'],
 }));
 app.use(express.json());
+
+// Stamp every inbound request with a UUID requestId + normalized audit
+// context (ipAddress, userAgent). Mounted BEFORE auth so even 401/403
+// responses are correlatable in logs.
+app.use(auditContext());
+app.use(requestLogger());
 
 app.use('/api/auth', authRoutes);
 app.use('/api/inventory', inventoryRoutes);
