@@ -100,8 +100,17 @@ test.describe('Golden 02 — Request lifecycle (cart → approve → stock)', ()
     });
 
     test('audit log records the approval event', async ({ page }) => {
-        await loginAs(page, 'auditor');
-        await page.goto('/logs', { waitUntil: 'domcontentloaded', timeout: 90_000 });
+        // This is the last test in the suite, so the dev server has already
+        // compiled most routes — but `/logs` is touched only here, and the
+        // server is loaded enough by now that the post-login redirect can
+        // hit `Error: aborted` once or twice. Bump the loginAs ceiling from
+        // 90s to 180s to absorb that, and let the network settle before
+        // navigating to the (uncompiled) `/logs` route. Override the
+        // describe-level 180s test timeout to match the new budget.
+        test.setTimeout(360_000);
+        await loginAs(page, 'auditor', { waitForUrlTimeoutMs: 180_000 });
+        await page.waitForLoadState('networkidle').catch(() => undefined);
+        await page.goto('/logs', { waitUntil: 'domcontentloaded', timeout: 120_000 });
 
         // Look for a row mentioning the approval action.
         const approvalRow = page
