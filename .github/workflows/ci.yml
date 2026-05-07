@@ -321,8 +321,18 @@ jobs:
         working-directory: frontend/next-app
         run: npx playwright install --with-deps chromium
 
+      # Build a production bundle so Playwright runs against `next start`
+      # instead of the Webpack dev server. Compile-on-demand under load was
+      # causing `Error: aborted` navigations and 90s waitForURL timeouts on
+      # the last test in the suite (see PR #14 CI history).
+      - name: Build frontend (production)
+        working-directory: frontend/next-app
+        run: npm run build
+
       - name: Run golden-path Playwright suite
         working-directory: frontend/next-app
+        env:
+          E2E_USE_PROD: '1'
         run: ./node_modules/.bin/playwright test tests/e2e/golden/
 
       - name: Upload Playwright HTML report
