@@ -8,7 +8,9 @@ vi.mock('@/lib/auth-cache', () => ({ getCachedAuth: vi.fn() }));
 vi.mock('next/headers', () => ({ headers: vi.fn() }));
 
 describe('audit Server Actions', () => {
-    let audit: typeof import('@/lib/actions/audit');
+    let audit: typeof import('@/lib/actions/audit') & {
+        withAudit: typeof import('@/lib/actions/with-audit')['withAudit'];
+    };
     let getCachedAuth: Mock;
     let headersMock: Mock;
 
@@ -22,7 +24,9 @@ describe('audit Server Actions', () => {
         headersMock.mockImplementation(() => {
             throw new Error('called outside request scope');
         });
-        audit = await import('@/lib/actions/audit');
+        const auditMod = await import('@/lib/actions/audit');
+        const withAuditMod = await import('@/lib/actions/with-audit');
+        audit = { ...auditMod, withAudit: withAuditMod.withAudit } as typeof audit;
     });
 
     function fakeHeaders(map: Record<string, string>) {
