@@ -15,5 +15,11 @@ export default defineConfig({
         alias: {
             '@': path.resolve(__dirname, './'),
         },
+        coverage: {
+            provider: 'v8',
+            reporter: ['text', 'lcov', 'json-summary'],
+            include: ['lib/**/*.{ts,tsx}', 'components/**/*.{ts,tsx}', 'app/**/*.{ts,tsx}'],
+            exclude: ['**/*.test.{ts,tsx}', '**/*.d.ts', 'lib/api-types.ts'],
+        },
     },
 });
