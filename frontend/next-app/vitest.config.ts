@@ -20,6 +20,19 @@ export default defineConfig({
             reporter: ['text', 'lcov', 'json-summary'],
             include: ['lib/**/*.{ts,tsx}', 'components/**/*.{ts,tsx}', 'app/**/*.{ts,tsx}'],
             exclude: ['**/*.test.{ts,tsx}', '**/*.d.ts', 'lib/api-types.ts'],
+            // Per-file gates for the priority Server Actions tested in Phase C.
+            // Other lib/actions files (assets, dashboard, history, maintenance,
+            // notifications, register, reports, scanner, settings, test-email,
+            // warehouse, auth) are slated for follow-up coverage.
+            thresholds: {
+                'lib/actions/{audit,cart,categories,departments,inventory,password-reset,permissions,requests,sessions,stock-management,stock-transaction,users}.ts':
+                    {
+                        lines: 70,
+                        statements: 70,
+                        functions: 65,
+                        branches: 55,
+                    },
+            },
         },
     },
 });
