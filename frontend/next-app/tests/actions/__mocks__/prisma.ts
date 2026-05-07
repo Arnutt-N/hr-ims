@@ -64,6 +64,8 @@ const MODELS = [
     'stockTransaction',
     'department',
     'departmentMapping',
+    'division',
+    'province',
     'history',
     'notification',
     'settings',
@@ -113,9 +115,13 @@ prismaMock.$transaction.mockImplementation(defaultTransactionImpl);
 /** Reset all mocks. Call from beforeEach. */
 export function resetPrismaMock(): void {
     for (const model of MODELS) {
-        const crud = (prismaMock as any)[model] as Crud;
+        const crud = (prismaMock as any)[model] as Record<string, unknown>;
         for (const fn of Object.values(crud)) {
-            (fn as Mock).mockReset();
+            // Tolerant of test-added stubs (e.g. `stockLevel.fields` references)
+            // that aren't vi.fn() mocks.
+            if (fn && typeof (fn as Mock).mockReset === 'function') {
+                (fn as Mock).mockReset();
+            }
         }
     }
     prismaMock.$transaction.mockReset();
