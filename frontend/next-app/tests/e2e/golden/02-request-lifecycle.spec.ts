@@ -32,26 +32,45 @@ test.describe('Golden 02 — Request lifecycle (cart → approve → stock)', ()
             .getByRole('button', { name: /add to cart|เพิ่มลงตะกร้า/i })
             .first();
         await firstAdd.waitFor({ state: 'visible', timeout: 60_000 });
-        await firstAdd.click();
 
-        // Wait for the addToCart Server Action to complete before navigating
-        // away — otherwise the in-flight request gets aborted by the page
-        // navigation and the cart stays empty. The success toast ("Added to
-        // cart!") is the cleanest signal; fall back to networkidle if the
-        // toast is suppressed.
-        const toast = page.getByText(/added to cart|added!|success/i).first();
-        await toast.waitFor({ state: 'visible', timeout: 10_000 }).catch(async () => {
-            await page.waitForLoadState('networkidle').catch(() => undefined);
-        });
+        // Wait for the addToCart Server Action POST to complete before
+        // navigating away. The toast-then-networkidle fallback used previously
+        // was non-deterministic on loaded CI runners — networkidle could
+        // resolve before the Server Action's DB commit, leaving /cart empty.
+        // Server Actions in Next.js 16 POST to the current page URL
+        // (/inventory) with a `Next-Action` header; matching by method + path
+        // + status is enough to confirm the write landed.
+        const [actionResponse] = await Promise.all([
+            page
+                .waitForResponse(
+                    (resp) =>
+                        resp.request().method() === 'POST' &&
+                        /\/inventory(?:\/|$|\?)/.test(resp.url()),
+                    { timeout: 30_000 },
+                )
+                .catch(() => null),
+            firstAdd.click(),
+        ]);
+        if (actionResponse) {
+            expect(actionResponse.status()).toBeLessThan(400);
+        }
 
-        // Confirm a toast / cart badge update; if neither, the cart page must show ≥1 item.
-        await page.goto('/cart', { waitUntil: 'networkidle' });
+        // Even with a successful POST, react cache + revalidatePath can take
+        // a beat to flush. Re-navigate to /cart inside expect.toPass so a
+        // transient empty render gets retried instead of hard-failing.
         // Submit/confirm button — accept EN ("Confirm All Requests") or TH
         // future copies ("ส่งคำขอ", "ยืนยัน").
+        const submitButtonNamePattern = /submit|ส่งคำขอ|create request|confirm|ยืนยัน/i;
+        await expect(async () => {
+            await page.goto('/cart', { waitUntil: 'domcontentloaded' });
+            await expect(
+                page.getByRole('button', { name: submitButtonNamePattern }).first(),
+            ).toBeVisible({ timeout: 5_000 });
+        }).toPass({ timeout: 30_000, intervals: [2_000, 3_000, 5_000] });
+
         const submitButton = page
-            .getByRole('button', { name: /submit|ส่งคำขอ|create request|confirm|ยืนยัน/i })
+            .getByRole('button', { name: submitButtonNamePattern })
             .first();
-        await expect(submitButton).toBeVisible({ timeout: 30_000 });
 
         await submitButton.click();
         // Cart submit shows a success toast and clears the items in place — it
@@ -100,22 +119,22 @@ test.describe('Golden 02 — Request lifecycle (cart → approve → stock)', ()
     });
 
     test('audit log records the approval event', async ({ page }) => {
-        // This is the last test in the suite, so the dev server has already
-        // compiled most routes — but `/logs` is touched only here, and the
-        // server is loaded enough by now that the post-login redirect can
-        // hit `Error: aborted` once or twice. Bump the loginAs ceiling from
-        // 90s to 180s to absorb that, and let the network settle before
-        // navigating to the (uncompiled) `/logs` route. Override the
-        // describe-level 180s test timeout to match the new budget.
+        // Last test in the suite. Two layered resilience needs:
+        // 1) loginAs sometimes hits aborted-redirect retries on a hot dev
+        //    server — give waitForURL up to 180s.
+        // 2) The audit row written by the previous "approve" test may not
+        //    be visible on the first /logs render (revalidate + cache
+        //    flush can lag a few seconds). Retry with reloads inside
+        //    expect.toPass instead of relying on a single 30s assertion.
         test.setTimeout(360_000);
         await loginAs(page, 'auditor', { waitForUrlTimeoutMs: 180_000 });
         await page.waitForLoadState('networkidle').catch(() => undefined);
-        await page.goto('/logs', { waitUntil: 'domcontentloaded', timeout: 120_000 });
 
-        // Look for a row mentioning the approval action.
-        const approvalRow = page
-            .getByText(/REQUEST_APPROVED|approved|อนุมัติ/i)
-            .first();
-        await expect(approvalRow).toBeVisible({ timeout: 30_000 });
+        await expect(async () => {
+            await page.goto('/logs', { waitUntil: 'domcontentloaded', timeout: 120_000 });
+            await expect(
+                page.getByText(/REQUEST_APPROVED|approved|อนุมัติ/i).first(),
+            ).toBeVisible({ timeout: 5_000 });
+        }).toPass({ timeout: 60_000, intervals: [3_000, 5_000, 8_000] });
     });
 });
