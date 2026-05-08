@@ -23,7 +23,13 @@ test.describe('Golden 02 — Request lifecycle (cart → approve → stock)', ()
     test('user can add a consumable to cart and submit it', async ({ page }) => {
         await loginAs(page, 'user');
 
-        await page.goto('/inventory', { waitUntil: 'domcontentloaded', timeout: 90_000 });
+        // Use 'networkidle' on the very first /inventory load — round-10
+        // trace showed `firstAdd.click()` returning with NO POST request
+        // hitting the server. The button was visible/enabled, but its React
+        // 19 onClick handler had not been hydrated yet. networkidle gives
+        // Webpack chunks a chance to finish loading + React to hydrate the
+        // Client Component before we ask it to handle a click.
+        await page.goto('/inventory', { waitUntil: 'networkidle', timeout: 90_000 });
         // Restrict to add-to-cart variants only (TH default locale shows
         // "เพิ่มลงตะกร้า"; EN shows "Add to Cart"). Borrow buttons are
         // intentionally excluded — they don't populate the cart, so the
@@ -32,28 +38,33 @@ test.describe('Golden 02 — Request lifecycle (cart → approve → stock)', ()
             .getByRole('button', { name: /add to cart|เพิ่มลงตะกร้า/i })
             .first();
         await firstAdd.waitFor({ state: 'visible', timeout: 60_000 });
+        await expect(firstAdd).toBeEnabled({ timeout: 30_000 });
 
-        // Wait for the addToCart Server Action POST to complete before
-        // navigating away. The toast-then-networkidle fallback used previously
-        // was non-deterministic on loaded CI runners — networkidle could
-        // resolve before the Server Action's DB commit, leaving /cart empty.
+        // Retry the click up to 3 times if the Server Action POST never
+        // arrives — under heavy CI load, the first click can land before
+        // hydration completes and silently no-ops. Using the POST itself
+        // as the success signal (rather than a toast string) is portable
+        // across locales and matches what actually proves the write landed.
         // Server Actions in Next.js 16 POST to the current page URL
-        // (/inventory) with a `Next-Action` header; matching by method + path
-        // + status is enough to confirm the write landed.
-        const [actionResponse] = await Promise.all([
-            page
+        // (/inventory) with a `Next-Action` header.
+        let actionResponse: Awaited<ReturnType<typeof page.waitForResponse>> | null = null;
+        for (let attempt = 0; attempt < 3 && !actionResponse; attempt++) {
+            const responsePromise = page
                 .waitForResponse(
                     (resp) =>
                         resp.request().method() === 'POST' &&
                         /\/inventory(?:\/|$|\?)/.test(resp.url()),
-                    { timeout: 30_000 },
+                    { timeout: 10_000 },
                 )
-                .catch(() => null),
-            firstAdd.click(),
-        ]);
-        if (actionResponse) {
-            expect(actionResponse.status()).toBeLessThan(400);
+                .catch(() => null);
+            await firstAdd.click();
+            actionResponse = await responsePromise;
         }
+        expect(
+            actionResponse,
+            'addToCart Server Action POST should fire after click (3 attempts)',
+        ).not.toBeNull();
+        expect(actionResponse!.status()).toBeLessThan(400);
 
         // Even with a successful POST, react cache + revalidatePath can take
         // a beat to flush. Re-navigate to /cart inside expect.toPass so a
