@@ -699,3 +699,207 @@ export async function rejectItemResolution(input: unknown) {
         return { error: message };
     }
 }
+
+// =============================================================================
+// Cancel + Reopen (Phase 2 commit #7) — PRP v6 Q3, Q4
+// =============================================================================
+
+const ONE_HOUR_MS = 60 * 60 * 1000;
+
+const CancelRequestSchema = z.object({
+    requestId: z.number().int().positive(),
+    reason: z.string().trim().min(1).max(2000),
+});
+
+/**
+ * Cancel an entire request (Q3).
+ * Auth: reporter within 1 hour of createdAt OR admin/superadmin (anytime).
+ * Side effects:
+ *   - Set request.status='cancelled'
+ *   - Cascade: all non-terminal items → 'cancelled' (resolved/closed kept as-is)
+ *   - Insert log action='cancelled' with reason
+ *   - Sync inventoryItem.status='available' for cancelled items
+ */
+export async function cancelMaintenanceRequest(input: unknown) {
+    const session = await auth();
+    if (!session?.user?.id) return { error: 'Unauthorized' };
+    const actorId = Number.parseInt(session.user.id, 10);
+
+    const parsed = CancelRequestSchema.safeParse(input);
+    if (!parsed.success) return { error: 'Invalid input', issues: parsed.error.format() };
+    const { requestId, reason } = parsed.data;
+
+    try {
+        await prisma.$transaction(async (tx) => {
+            const req = await tx.maintenanceRequest.findUnique({
+                where: { id: requestId },
+                include: { items: true },
+            });
+            if (!req) throw new Error('Request not found');
+            if (req.status === 'cancelled' || req.status === 'closed') {
+                throw new Error(`Cannot cancel request in status: ${req.status}`);
+            }
+
+            const isReporter = req.reportedById === actorId;
+            const adminSession = await requireRole(...ADMIN_ROLES);
+            if (!isReporter && !adminSession) {
+                throw new Error('Forbidden - reporter or admin only');
+            }
+            // Reporter time window check (1 hour); admin bypasses
+            if (isReporter && !adminSession) {
+                const elapsed = Date.now() - req.createdAt.getTime();
+                if (elapsed > ONE_HOUR_MS) {
+                    throw new Error('Reporter cancel window expired (1 hour); only admin can cancel now');
+                }
+            }
+
+            // Cascade: cancel non-terminal items
+            const itemsToFree: number[] = [];
+            for (const it of req.items) {
+                if (it.status === 'closed' || it.status === 'cancelled') continue;
+                await tx.maintenanceRequestItem.update({
+                    where: { id: it.id },
+                    data: {
+                        status: 'cancelled',
+                        version: { increment: 1 },
+                    },
+                });
+                itemsToFree.push(it.itemId);
+            }
+
+            await tx.maintenanceRequest.update({
+                where: { id: requestId },
+                data: { status: 'cancelled' },
+            });
+
+            await tx.maintenanceLog.create({
+                data: {
+                    requestId,
+                    userId: actorId,
+                    action: 'cancelled',
+                    fromStatus: req.status,
+                    toStatus: 'cancelled',
+                    notes: reason,
+                },
+            });
+
+            if (itemsToFree.length > 0) {
+                await tx.inventoryItem.updateMany({
+                    where: { id: { in: itemsToFree } },
+                    data: { status: 'available' },
+                });
+            }
+        });
+
+        revalidatePath('/maintenance');
+        revalidatePath(`/maintenance/${requestId}`);
+        revalidatePath('/inventory');
+        return { success: true };
+    } catch (error) {
+        const message = error instanceof Error ? error.message : 'Unknown error';
+        console.error('cancelMaintenanceRequest failed:', message);
+        return { error: message };
+    }
+}
+
+const ReopenRequestSchema = z.object({
+    requestId: z.number().int().positive(),
+    reason: z.string().trim().min(1).max(2000),
+});
+
+/**
+ * Reopen a closed (or resolved-aggregate) request — admin only (Q4).
+ * Side effects:
+ *   - All items in (closed, resolved) revert to 'in_progress'
+ *   - Clear request.resolvedAt + closedAt
+ *   - Recompute request.status (will be 'in_progress')
+ *   - Insert log action='reopened'
+ */
+export async function reopenMaintenanceRequest(input: unknown) {
+    const session = await requireRole(...ADMIN_ROLES);
+    if (!session?.user?.id) return { error: 'Unauthorized - Admin only' };
+    const actorId = Number.parseInt(session.user.id, 10);
+
+    const parsed = ReopenRequestSchema.safeParse(input);
+    if (!parsed.success) return { error: 'Invalid input', issues: parsed.error.format() };
+    const { requestId, reason } = parsed.data;
+
+    try {
+        await prisma.$transaction(async (tx) => {
+            const req = await tx.maintenanceRequest.findUnique({
+                where: { id: requestId },
+                include: { items: true },
+            });
+            if (!req) throw new Error('Request not found');
+            if (!['resolved', 'closed'].includes(req.status)) {
+                throw new Error(`Cannot reopen request in status: ${req.status}`);
+            }
+
+            const fromStatus = req.status;
+
+            // Revert items in (closed, resolved) → in_progress
+            const itemsToReopen = req.items.filter((it) =>
+                ['closed', 'resolved'].includes(it.status),
+            );
+            for (const it of itemsToReopen) {
+                await tx.maintenanceRequestItem.update({
+                    where: { id: it.id },
+                    data: {
+                        status: 'in_progress',
+                        closedAt: null,
+                        resolvedAt: null,
+                        version: { increment: 1 },
+                    },
+                });
+            }
+
+            // Recompute aggregate
+            const allItems = await tx.maintenanceRequestItem.findMany({
+                where: { requestId },
+                select: { status: true },
+            });
+            const newAggregate = computeRequestStatus(
+                allItems.map((i) => ({ status: i.status as ItemStatus })),
+                req.assignedToId,
+                false,
+            );
+
+            await tx.maintenanceRequest.update({
+                where: { id: requestId },
+                data: {
+                    status: newAggregate,
+                    resolvedAt: null,
+                    closedAt: null,
+                },
+            });
+
+            await tx.maintenanceLog.create({
+                data: {
+                    requestId,
+                    userId: actorId,
+                    action: 'reopened',
+                    fromStatus,
+                    toStatus: newAggregate,
+                    notes: reason,
+                },
+            });
+
+            // Items become unavailable again
+            if (itemsToReopen.length > 0) {
+                await tx.inventoryItem.updateMany({
+                    where: { id: { in: itemsToReopen.map((i) => i.itemId) } },
+                    data: { status: 'issue_reported' },
+                });
+            }
+        });
+
+        revalidatePath('/maintenance');
+        revalidatePath(`/maintenance/${requestId}`);
+        revalidatePath('/inventory');
+        return { success: true };
+    } catch (error) {
+        const message = error instanceof Error ? error.message : 'Unknown error';
+        console.error('reopenMaintenanceRequest failed:', message);
+        return { error: message };
+    }
+}
