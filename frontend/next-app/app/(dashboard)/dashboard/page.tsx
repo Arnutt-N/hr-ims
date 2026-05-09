@@ -4,6 +4,7 @@ import { getCachedAuth } from "@/lib/auth-cache";
 import { redirect } from "next/navigation";
 import { formatThaiDateTime, formatRelativeTime } from "@/lib/date-utils";
 import { getServerT } from "@/lib/i18n/server";
+import { PendingVerificationWidget } from "@/components/maintenance/PendingVerificationWidget";
 
 export default async function DashboardPage() {
     const [session, { t }, stats] = await Promise.all([
@@ -64,6 +65,9 @@ export default async function DashboardPage() {
                     {t('dashboard.welcome.summary', { pending: stats.pendingRequests, lowStock: stats.lowStockItems })}
                 </p>
             </div>
+
+            {/* Maintenance verification widget — surfaces only when reporter has resolved items waiting */}
+            <PendingVerificationWidget />
 
             {/* Stats Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
