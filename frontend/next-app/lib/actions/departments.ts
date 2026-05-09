@@ -3,6 +3,32 @@
 import { revalidatePath } from 'next/cache';
 import { auth } from '@/auth';
 import { getSessionRoles, requireRole, ADMIN_ROLES } from '@/lib/auth-guards';
+import prisma from '@/lib/prisma';
+
+/**
+ * Return Department records from the org-structure table.
+ * Used by maintenance request location picker (PRP v6 Q6) and any other
+ * UI needing the actual Department FK options (not the deprecated
+ * User.department free-text column).
+ *
+ * Auth: any logged-in user (read-only reference data).
+ */
+export async function getDepartments() {
+    const session = await auth();
+    if (!session?.user) return { error: 'Unauthorized' };
+
+    try {
+        const departments = await prisma.department.findMany({
+            select: { id: true, name: true, abbr: true },
+            orderBy: { name: 'asc' },
+        });
+        return { success: true, departments };
+    } catch (error) {
+        const message = error instanceof Error ? error.message : 'Unknown error';
+        console.error('getDepartments failed:', message);
+        return { error: message };
+    }
+}
 
 const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:3001';
 const INTERNAL_API_KEY = process.env.INTERNAL_API_KEY || 'test-internal-key';
