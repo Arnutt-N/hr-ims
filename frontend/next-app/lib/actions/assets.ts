@@ -119,31 +119,60 @@ export async function requestReturn(itemId: number) {
     }
 }
 
-// Report Issue
+// Report Issue (legacy single-item entry point)
+//
+// PRP v6 commit #12: this wrapper now delegates to the proper maintenance
+// workflow's createMaintenanceRequest. The /my-assets page still calls
+// reportIssue(itemId, issueText) — this preserves that contract while
+// routing the data through the new MaintenanceRequest table.
+//
+// Phase 3 will replace the call site (/my-assets) with the proper modal
+// RequestForm; once that lands, this wrapper can be removed entirely.
 export async function reportIssue(itemId: number, issue: string) {
     const session = await auth();
     if (!session) return { error: 'Unauthorized' };
 
-    // Update item status/log?
-    // For now, just log history
     try {
         const item = await prisma.inventoryItem.findUnique({ where: { id: itemId } });
         if (!item) return { error: 'Item not found' };
 
+        // History entry preserved for the existing /history view (legacy log).
         await prisma.history.create({
             data: {
                 userId: parseInt(session.user.id || '0'),
                 action: 'report',
                 item: item.name + ` (${issue})`,
-                status: 'issue_reported'
-            }
+                status: 'issue_reported',
+            },
         });
 
-        // Update item status
-        await prisma.inventoryItem.update({
-            where: { id: itemId },
-            data: { status: 'issue_reported' }
-        });
+        // Try the new maintenance workflow first; fall back to the legacy
+        // status flip if it rejects or throws. Inner try/catch isolates the
+        // delegate failure so we don't bubble up a misleading "Report failed".
+        let delegated = false;
+        try {
+            const { createMaintenanceRequest } = await import('@/lib/actions/maintenance');
+            const result = await createMaintenanceRequest({
+                itemIds: [itemId],
+                title: `Issue reported: ${item.name}`,
+                description: issue,
+                severity: 'medium',
+                priority: 'normal',
+                category: 'other',
+            });
+            delegated = 'success' in result && result.success === true;
+        } catch (delegateErr) {
+            console.warn('reportIssue: createMaintenanceRequest delegate failed, using legacy fallback', delegateErr);
+        }
+
+        if (!delegated) {
+            // Legacy fallback: direct status flip preserves the contract that
+            // /my-assets has relied on since before the new workflow.
+            await prisma.inventoryItem.update({
+                where: { id: itemId },
+                data: { status: 'issue_reported' },
+            });
+        }
 
         revalidatePath('/my-assets');
         return { success: true };
