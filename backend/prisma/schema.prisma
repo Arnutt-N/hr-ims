@@ -1,4 +1,3 @@
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -17,28 +16,32 @@ datasource db {
 
 // User model
 model User {
-  id        Int       @id @default(autoincrement())
-  email     String    @unique
-  password  String
-  role      String    @default("user") // superadmin, admin, approver, auditor, technician, user
-  name      String?
-  department String?
-  status    String    @default("active")
-  avatar    String?
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  requests  Request[]
-  history   History[]
-  notifications Notification[]
-  cartItems    CartItem[]
-  heldItems    InventoryItem[] @relation("CurrentHolder")
-  stockTransactions StockTransaction[]
-  tokenVersion Int      @default(1) // For session invalidation
-  managedWarehouses Warehouse[] @relation("WarehouseManagers")
-  userRoles   UserRole[] // Relation to roles
-  auditLogs   AuditLog[] // Relation to AuditLog
-  passwordHistory PasswordHistory[] // Relation to PasswordHistory
-  emailVerification EmailVerification[] // Relation to EmailVerification
+  id                          Int                  @id @default(autoincrement())
+  email                       String               @unique
+  password                    String
+  role                        String               @default("user") // superadmin, admin, approver, auditor, technician, user
+  name                        String?
+  department                  String?
+  status                      String               @default("active")
+  avatar                      String?
+  createdAt                   DateTime             @default(now())
+  updatedAt                   DateTime             @updatedAt
+  requests                    Request[]
+  history                     History[]
+  notifications               Notification[]
+  cartItems                   CartItem[]
+  heldItems                   InventoryItem[]      @relation("CurrentHolder")
+  stockTransactions           StockTransaction[]
+  tokenVersion                Int                  @default(1) // For session invalidation
+  managedWarehouses           Warehouse[]          @relation("WarehouseManagers")
+  userRoles                   UserRole[] // Relation to roles
+  auditLogs                   AuditLog[] // Relation to AuditLog
+  passwordHistory             PasswordHistory[] // Relation to PasswordHistory
+  emailVerification           EmailVerification[] // Relation to EmailVerification
+  // Maintenance workflow (PRP v6 — added 2026-05-09)
+  reportedMaintenanceRequests MaintenanceRequest[] @relation("ReportedMaintenanceRequests")
+  assignedMaintenanceRequests MaintenanceRequest[] @relation("AssignedMaintenanceRequests")
+  maintenanceLogs             MaintenanceLog[]     @relation("MaintenanceLogEntries")
 }
 
 // Note: SQLite doesn't support enums, so Role is now String
@@ -46,67 +49,72 @@ model User {
 
 // New Multi-Role System
 model Role {
-  id          Int          @id @default(autoincrement())
-  slug        String       @unique // e.g. "admin", "approver"
-  name        String       // Display Name e.g. "Administrator"
+  id          Int              @id @default(autoincrement())
+  slug        String           @unique // e.g. "admin", "approver"
+  name        String // Display Name e.g. "Administrator"
   description String?
   userRoles   UserRole[]
   permissions RolePermission[]
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
 }
 
 model UserRole {
-  id        Int      @id @default(autoincrement())
-  userId    Int
-  roleId    Int
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  role      Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  id         Int      @id @default(autoincrement())
+  userId     Int
+  roleId     Int
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role       Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
   assignedAt DateTime @default(now())
 
   @@unique([userId, roleId])
 }
 
 model InventoryItem {
-  id        Int       @id @default(autoincrement())
-  name      String
-  category  String
-  type      String    // durable, consumable
-  serial    String?   @unique
-  status    String    @default("available") // available, borrowed, maintenance
-  image     String?
-  stock     Int       @default(1) // DEPRECATED: Use stockLevels instead
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  cartItems    CartItem[]
-  requestItems RequestItem[]
-  stockLevels  StockLevel[] // NEW: Stock per warehouse
-  stockTransfers StockTransfer[] // NEW: Transfer history
-  stockTransactions StockTransaction[]
-  repairNotes  String?   // Maintenance/repair notes
-  categoryId      Int?
-  categoryRef     Category? @relation(fields: [categoryId], references: [id])
-  currentHolderId Int?
-  currentHolder   User? @relation("CurrentHolder", fields: [currentHolderId], references: [id])
+  id                      Int                      @id @default(autoincrement())
+  name                    String
+  category                String
+  type                    String // durable, consumable
+  serial                  String?                  @unique
+  status                  String                   @default("available") // available, borrowed, maintenance, issue_reported
+  image                   String?
+  stock                   Int                      @default(1) // DEPRECATED: Use stockLevels instead
+  createdAt               DateTime                 @default(now())
+  updatedAt               DateTime                 @updatedAt
+  cartItems               CartItem[]
+  requestItems            RequestItem[]
+  stockLevels             StockLevel[] // NEW: Stock per warehouse
+  stockTransfers          StockTransfer[] // NEW: Transfer history
+  stockTransactions       StockTransaction[]
+  // @deprecated since PRP v6 (2026-05-09) — new flow stores per-item resolution
+  // on MaintenanceRequestItem.resolution. Existing values stay as legacy data;
+  // UI shows them under "Legacy repair note" disclosure on item detail page.
+  repairNotes             String?
+  categoryId              Int?
+  categoryRef             Category?                @relation(fields: [categoryId], references: [id])
+  currentHolderId         Int?
+  currentHolder           User?                    @relation("CurrentHolder", fields: [currentHolderId], references: [id])
+  // Maintenance workflow (PRP v6 — added 2026-05-09)
+  maintenanceRequestItems MaintenanceRequestItem[]
 }
 
 model Request {
-  id        Int      @id @default(autoincrement())
-  userId    Int
-  user      User     @relation(fields: [userId], references: [id])
-  items     String?  // JSON string (Deprecated, use requestItems)
-  date      DateTime @default(now())
-  status    String   @default("pending") // pending, approved, rejected
-  type      String   // withdraw, borrow, return
-  assetId   Int?     // For return requests
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id           Int           @id @default(autoincrement())
+  userId       Int
+  user         User          @relation(fields: [userId], references: [id])
+  items        String? // JSON string (Deprecated, use requestItems)
+  date         DateTime      @default(now())
+  status       String        @default("pending") // pending, approved, rejected
+  type         String // withdraw, borrow, return
+  assetId      Int? // For return requests
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
   requestItems RequestItem[]
-  warehouseId Int?
-  warehouse   Warehouse? @relation(fields: [warehouseId], references: [id])
-  dueDate     DateTime?  // For borrow requests - when item should be returned
-  returnedAt  DateTime?  // Actual return date
-  isOverdue   Boolean    @default(false) // Automatically marked when past due
+  warehouseId  Int?
+  warehouse    Warehouse?    @relation(fields: [warehouseId], references: [id])
+  dueDate      DateTime? // For borrow requests - when item should be returned
+  returnedAt   DateTime? // Actual return date
+  isOverdue    Boolean       @default(false) // Automatically marked when past due
 }
 
 model RequestItem {
@@ -144,7 +152,7 @@ model History {
 
 model Notification {
   id        Int      @id @default(autoincrement())
-  userId    Int?     // Optional: if null, global notification
+  userId    Int? // Optional: if null, global notification
   user      User?    @relation(fields: [userId], references: [id])
   text      String
   read      Boolean  @default(false)
@@ -157,24 +165,24 @@ model Notification {
 
 // คลังสินค้า (แต่ละกอง/หน่วยงานมี 1 คลัง)
 model Warehouse {
-  id          Int       @id @default(autoincrement())
-  name        String    // ชื่อคลัง เช่น "คลังกลาง - กองบริหารการคลัง"
-  code        String    @unique // รหัสคลัง เช่น "WH-CENTRAL", "WH-IT"
-  type        String    // "main" | "division" | "provincial"
-  divisionId  Int?      // Link to Division (if type = division)
-  division    Division? @relation(fields: [divisionId], references: [id])
-  provinceId  Int?      // Link to Province (if type = provincial)
-  province    Province? @relation(fields: [provinceId], references: [id])
-  isActive    Boolean   @default(true)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  managers    User[]    @relation("WarehouseManagers")
-  stockLevels StockLevel[]
-  transfersOut StockTransfer[] @relation("TransferFrom")
-  transfersIn  StockTransfer[] @relation("TransferTo")
-  stockTransactions StockTransaction[]
+  id                 Int                 @id @default(autoincrement())
+  name               String // ชื่อคลัง เช่น "คลังกลาง - กองบริหารการคลัง"
+  code               String              @unique // รหัสคลัง เช่น "WH-CENTRAL", "WH-IT"
+  type               String // "main" | "division" | "provincial"
+  divisionId         Int? // Link to Division (if type = division)
+  division           Division?           @relation(fields: [divisionId], references: [id])
+  provinceId         Int? // Link to Province (if type = provincial)
+  province           Province?           @relation(fields: [provinceId], references: [id])
+  isActive           Boolean             @default(true)
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  managers           User[]              @relation("WarehouseManagers")
+  stockLevels        StockLevel[]
+  transfersOut       StockTransfer[]     @relation("TransferFrom")
+  transfersIn        StockTransfer[]     @relation("TransferTo")
+  stockTransactions  StockTransaction[]
   departmentMappings DepartmentMapping[]
-  requests    Request[] // Requests targeting this warehouse
+  requests           Request[] // Requests targeting this warehouse
 }
 
 model DepartmentMapping {
@@ -195,8 +203,8 @@ model StockLevel {
   item        InventoryItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
   quantity    Int           @default(0)
   reserved    Int           @default(0) // จำนวนที่ถูก request แต่ยังไม่ approve
-  minStock    Int?          // แจ้งเตือนเมื่อต่ำกว่า
-  maxStock    Int?          // จำนวนสูงสุด
+  minStock    Int? // แจ้งเตือนเมื่อต่ำกว่า
+  maxStock    Int? // จำนวนสูงสุด
   updatedAt   DateTime      @updatedAt
 
   @@unique([warehouseId, itemId])
@@ -204,82 +212,82 @@ model StockLevel {
 
 // การโอนพัสดุระหว่างคลัง
 model StockTransfer {
-  id              Int       @id @default(autoincrement())
+  id              Int           @id @default(autoincrement())
   fromWarehouseId Int
-  fromWarehouse   Warehouse @relation("TransferFrom", fields: [fromWarehouseId], references: [id])
+  fromWarehouse   Warehouse     @relation("TransferFrom", fields: [fromWarehouseId], references: [id])
   toWarehouseId   Int
-  toWarehouse     Warehouse @relation("TransferTo", fields: [toWarehouseId], references: [id])
+  toWarehouse     Warehouse     @relation("TransferTo", fields: [toWarehouseId], references: [id])
   itemId          Int
   item            InventoryItem @relation(fields: [itemId], references: [id])
   quantity        Int
-  status          String    @default("pending") // pending, approved, completed, rejected
-  requestedBy     Int       // User ID ผู้ขอโอน
-  approvedBy      Int?      // User ID ผู้อนุมัติ
+  status          String        @default("pending") // pending, approved, completed, rejected
+  requestedBy     Int // User ID ผู้ขอโอน
+  approvedBy      Int? // User ID ผู้อนุมัติ
   note            String?
-  createdAt       DateTime  @default(now())
+  createdAt       DateTime      @default(now())
   completedAt     DateTime?
-  updatedAt       DateTime  @updatedAt
+  updatedAt       DateTime      @updatedAt
 }
 
 model Settings {
-  id               Int     @id @default(autoincrement())
-  orgName          String  @default("IMS Corporation")
-  borrowLimit      Int     @default(7)
-  checkInterval    Int     @default(7)
-  maintenanceAlert Boolean @default(true)
+  id                Int     @id @default(autoincrement())
+  orgName           String  @default("IMS Corporation")
+  borrowLimit       Int     @default(7)
+  checkInterval     Int     @default(7)
+  maintenanceAlert  Boolean @default(true)
   allowRegistration Boolean @default(false)
-  footerText       String? @default("IMS Asset Management System")
-  
+  footerText        String? @default("IMS Asset Management System")
+
   // Rate Limiting Settings
-  rateLimitEnabled            Boolean  @default(true)
-  rateLimitWindowMs           Int      @default(900000)
-  rateLimitMaxRequests        Int      @default(100)
-  rateLimitAuthMaxRequests    Int      @default(5)
-  
+  rateLimitEnabled         Boolean @default(true)
+  rateLimitWindowMs        Int     @default(900000)
+  rateLimitMaxRequests     Int     @default(100)
+  rateLimitAuthMaxRequests Int     @default(5)
+
   // Logging Settings
-  loggingEnabled              Boolean  @default(true)
-  logLevel                    String   @default("info")
-  logRetentionDays            Int      @default(30)
-  auditLogEnabled             Boolean  @default(true)
-  
+  loggingEnabled   Boolean @default(true)
+  logLevel         String  @default("info")
+  logRetentionDays Int     @default(30)
+  auditLogEnabled  Boolean @default(true)
+
   // Backup Settings
-  backupEnabled               Boolean  @default(true)
-  backupSchedule              String   @default("0 2 * * *")
-  backupRetentionCount        Int      @default(7)
-  backupStoragePath           String   @default("./backups")
-  backupIncludeUploads        Boolean  @default(true)
-  
+  backupEnabled        Boolean @default(true)
+  backupSchedule       String  @default("0 2 * * *")
+  backupRetentionCount Int     @default(7)
+  backupStoragePath    String  @default("./backups")
+  backupIncludeUploads Boolean @default(true)
+
   // Password Policy Settings
-  passwordPolicyEnabled       Boolean  @default(true)
-  passwordMinLength           Int      @default(8)
-  passwordRequireUppercase    Boolean  @default(true)
-  passwordRequireLowercase    Boolean  @default(true)
-  passwordRequireNumbers      Boolean  @default(true)
-  passwordRequireSymbols      Boolean  @default(true)
-  passwordExpiryDays          Int      @default(0)
-  passwordHistoryCount        Int      @default(5)
-  
+  passwordPolicyEnabled    Boolean @default(true)
+  passwordMinLength        Int     @default(8)
+  passwordRequireUppercase Boolean @default(true)
+  passwordRequireLowercase Boolean @default(true)
+  passwordRequireNumbers   Boolean @default(true)
+  passwordRequireSymbols   Boolean @default(true)
+  passwordExpiryDays       Int     @default(0)
+  passwordHistoryCount     Int     @default(5)
+
   // Caching Settings
-  cachingEnabled              Boolean  @default(true)
-  cacheDefaultTTL             Int      @default(300)
-  cacheMaxSize                Int      @default(1000)
-  
+  cachingEnabled  Boolean @default(true)
+  cacheDefaultTTL Int     @default(300)
+  cacheMaxSize    Int     @default(1000)
+
   // Email Settings
-  emailVerificationEnabled    Boolean  @default(false)
-  emailSmtpHost               String?
-  emailSmtpPort               Int      @default(587)
-  emailSmtpUser               String?
-  emailSmtpPass               String?
-  emailFromAddress            String   @default("noreply@hr-ims.local")
-  
+  emailVerificationEnabled Boolean @default(false)
+  emailSmtpHost            String?
+  emailSmtpPort            Int     @default(587)
+  emailSmtpUser            String?
+  emailSmtpPass            String?
+  emailFromAddress         String  @default("noreply@hr-ims.local")
+
   // System Info
-  lastBackupAt                DateTime?
-  lastBackupStatus            String?
-  lastBackupPath              String?
-  
-  createdAt                   DateTime @default(now())
-  updatedAt                   DateTime @default(now()) @updatedAt
-  updatedBy                   Int?
+  lastBackupAt     DateTime?
+  lastBackupStatus String?
+  lastBackupPath   String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+  updatedBy Int?
 }
 
 // ==========================================
@@ -289,8 +297,8 @@ model Settings {
 // กระทรวง
 model Ministry {
   id          Int          @id @default(autoincrement())
-  name        String       // ชื่อกระทรวง
-  abbr        String?      // ชื่อย่อ
+  name        String // ชื่อกระทรวง
+  abbr        String? // ชื่อย่อ
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
   departments Department[]
@@ -298,37 +306,39 @@ model Ministry {
 
 // กรม
 model Department {
-  id          Int        @id @default(autoincrement())
-  name        String     // ชื่อกรม
-  abbr        String?    // ชื่อย่อ
-  ministryId  Int
-  ministry    Ministry   @relation(fields: [ministryId], references: [id])
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
-  divisions   Division[]
+  id                  Int                  @id @default(autoincrement())
+  name                String // ชื่อกรม
+  abbr                String? // ชื่อย่อ
+  ministryId          Int
+  ministry            Ministry             @relation(fields: [ministryId], references: [id])
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  divisions           Division[]
+  // Maintenance workflow (PRP v6 — added 2026-05-09)
+  maintenanceRequests MaintenanceRequest[] @relation("MaintenanceLocations")
 }
 
 // กอง
 model Division {
-  id           Int         @id @default(autoincrement())
-  name         String      // ชื่อกอง
-  abbr         String?     // ชื่อย่อ
+  id           Int          @id @default(autoincrement())
+  name         String // ชื่อกอง
+  abbr         String? // ชื่อย่อ
   departmentId Int
-  department   Department  @relation(fields: [departmentId], references: [id])
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
+  department   Department   @relation(fields: [departmentId], references: [id])
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
   workGroups1  WorkGroup1[]
   warehouses   Warehouse[]
 }
 
 // กลุ่มงาน ระดับ 1
 model WorkGroup1 {
-  id          Int         @id @default(autoincrement())
+  id          Int          @id @default(autoincrement())
   name        String
   divisionId  Int
-  division    Division    @relation(fields: [divisionId], references: [id])
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  division    Division     @relation(fields: [divisionId], references: [id])
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
   workGroups2 WorkGroup2[]
 }
 
@@ -344,15 +354,15 @@ model WorkGroup2 {
 
 // จังหวัด
 model Province {
-  id               Int               @id @default(autoincrement())
-  name             String            // ชื่อจังหวัด
-  code             String?           // รหัสจังหวัด
+  id               Int                  @id @default(autoincrement())
+  name             String // ชื่อจังหวัด
+  code             String? // รหัสจังหวัด
   regionId         Int?
-  region           Region?           @relation(fields: [regionId], references: [id])
+  region           Region?              @relation(fields: [regionId], references: [id])
   inspectionZoneId Int?
-  inspectionZone   InspectionZone?   @relation(fields: [inspectionZoneId], references: [id])
-  createdAt        DateTime          @default(now())
-  updatedAt        DateTime          @updatedAt
+  inspectionZone   InspectionZone?      @relation(fields: [inspectionZoneId], references: [id])
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
   customZones      CustomProvinceZone[]
   warehouses       Warehouse[]
 }
@@ -360,7 +370,7 @@ model Province {
 // เขตจังหวัด (ภาค)
 model Region {
   id        Int        @id @default(autoincrement())
-  name      String     // เช่น ภาคเหนือ, ภาคกลาง
+  name      String // เช่น ภาคเหนือ, ภาคกลาง
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
   provinces Province[]
@@ -369,7 +379,7 @@ model Region {
 // เขตตรวจราชการ
 model InspectionZone {
   id        Int        @id @default(autoincrement())
-  name      String     // เช่น เขตตรวจราชการที่ 1
+  name      String // เช่น เขตตรวจราชการที่ 1
   code      String?
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
@@ -379,7 +389,7 @@ model InspectionZone {
 // เขตจังหวัด (กำหนดเอง)
 model CustomProvinceZone {
   id         Int      @id @default(autoincrement())
-  name       String   // ชื่อเขตที่กำหนดเอง
+  name       String // ชื่อเขตที่กำหนดเอง
   provinceId Int
   province   Province @relation(fields: [provinceId], references: [id])
   createdAt  DateTime @default(now())
@@ -393,7 +403,7 @@ model CustomProvinceZone {
 // ประเภทบุคลากร
 model PersonnelType {
   id        Int         @id @default(autoincrement())
-  name      String      // ข้าราชการ, ลูกจ้างประจำ, พนักงานราชการ, etc.
+  name      String // ข้าราชการ, ลูกจ้างประจำ, พนักงานราชการ, etc.
   createdAt DateTime    @default(now())
   personnel Personnel[]
 }
@@ -401,7 +411,7 @@ model PersonnelType {
 // คำนำหน้าชื่อ
 model NamePrefix {
   id        Int         @id @default(autoincrement())
-  name      String      // นาย, นาง, นางสาว, ดร., etc.
+  name      String // นาย, นาง, นางสาว, ดร., etc.
   createdAt DateTime    @default(now())
   personnel Personnel[]
 }
@@ -409,7 +419,7 @@ model NamePrefix {
 // ประเภทตำแหน่ง/ประเภทกลุ่มงาน
 model PositionCategory {
   id        Int         @id @default(autoincrement())
-  name      String      // วิชาการ, ทั่วไป, อำนวยการ, etc.
+  name      String // วิชาการ, ทั่วไป, อำนวยการ, etc.
   createdAt DateTime    @default(now())
   personnel Personnel[]
 }
@@ -417,71 +427,71 @@ model PositionCategory {
 // ระดับตำแหน่ง
 model PositionLevel {
   id        Int         @id @default(autoincrement())
-  name      String      // ปฏิบัติการ, ชำนาญการ, ชำนาญการพิเศษ, etc.
-  rank      Int?        // ลำดับขั้น
+  name      String // ปฏิบัติการ, ชำนาญการ, ชำนาญการพิเศษ, etc.
+  rank      Int? // ลำดับขั้น
   createdAt DateTime    @default(now())
   personnel Personnel[]
 }
 
 // หน่วยงาน (Organization Unit) - สำหรับเชื่อมกับบุคลากร
 model OrganizationUnit {
-  id            Int      @id @default(autoincrement())
-  name          String
-  code          String?
-  unitType      String   // ministry, department, division, workgroup1, workgroup2
-  parentId      Int?     // For hierarchy
-  isLegal       Boolean  @default(true)  // ตามกฎหมาย
-  isAssigned    Boolean  @default(false) // ตามมอบหมายงาน
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  
+  id         Int      @id @default(autoincrement())
+  name       String
+  code       String?
+  unitType   String // ministry, department, division, workgroup1, workgroup2
+  parentId   Int? // For hierarchy
+  isLegal    Boolean  @default(true) // ตามกฎหมาย
+  isAssigned Boolean  @default(false) // ตามมอบหมายงาน
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
   personnelLegal    Personnel[] @relation("LegalOrg")
   personnelAssigned Personnel[] @relation("AssignedOrg")
 }
 
 // บุคลากร (Personnel)
 model Personnel {
-  id                  Int       @id @default(autoincrement())
-  
+  id Int @id @default(autoincrement())
+
   // ประเภทบุคลากร
-  personnelTypeId     Int
-  personnelType       PersonnelType @relation(fields: [personnelTypeId], references: [id])
-  
+  personnelTypeId Int
+  personnelType   PersonnelType @relation(fields: [personnelTypeId], references: [id])
+
   // ชื่อ-นามสกุล
-  prefixId            Int
-  prefix              NamePrefix @relation(fields: [prefixId], references: [id])
-  firstName           String    // ชื่อตัว
-  middleName          String?   // ชื่อรอง
-  lastName            String    // ชื่อสกุล
-  nickName            String?   // ชื่อเล่น
-  
+  prefixId   Int
+  prefix     NamePrefix @relation(fields: [prefixId], references: [id])
+  firstName  String // ชื่อตัว
+  middleName String? // ชื่อรอง
+  lastName   String // ชื่อสกุล
+  nickName   String? // ชื่อเล่น
+
   // ข้อมูลทะเบียน
-  citizenId           String    @unique // เลขประจำตัวประชาชน (13 หลัก)
-  
+  citizenId String @unique // เลขประจำตัวประชาชน (13 หลัก)
+
   // ตำแหน่ง
-  positionNumber      String?   // เลขที่ตำแหน่ง
-  positionName        String?   // ชื่อตำแหน่ง
-  positionCategoryId  Int?
-  positionCategory    PositionCategory? @relation(fields: [positionCategoryId], references: [id])
-  positionLevelId     Int?
-  positionLevel       PositionLevel? @relation(fields: [positionLevelId], references: [id])
-  
+  positionNumber     String? // เลขที่ตำแหน่ง
+  positionName       String? // ชื่อตำแหน่ง
+  positionCategoryId Int?
+  positionCategory   PositionCategory? @relation(fields: [positionCategoryId], references: [id])
+  positionLevelId    Int?
+  positionLevel      PositionLevel?    @relation(fields: [positionLevelId], references: [id])
+
   // หน่วยงาน
-  legalOrgId          Int?      // หน่วยงาน ตามกฎหมาย
-  legalOrg            OrganizationUnit? @relation("LegalOrg", fields: [legalOrgId], references: [id])
-  assignedOrgId       Int?      // หน่วยงาน ตามมอบหมายงาน
-  assignedOrg         OrganizationUnit? @relation("AssignedOrg", fields: [assignedOrgId], references: [id])
-  
+  legalOrgId    Int? // หน่วยงาน ตามกฎหมาย
+  legalOrg      OrganizationUnit? @relation("LegalOrg", fields: [legalOrgId], references: [id])
+  assignedOrgId Int? // หน่วยงาน ตามมอบหมายงาน
+  assignedOrg   OrganizationUnit? @relation("AssignedOrg", fields: [assignedOrgId], references: [id])
+
   // สถานะ
-  status              String    @default("active") // active, pending, terminated
-  
+  status String @default("active") // active, pending, terminated
+
   // ติดต่อ
-  email               String?
-  phoneNumber         String?
-  
+  email       String?
+  phoneNumber String?
+
   // Timestamps
-  createdAt           DateTime  @default(now())
-  updatedAt           DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 // ==========================================
@@ -489,59 +499,59 @@ model Personnel {
 // ==========================================
 
 model StockTransaction {
-  id          Int       @id @default(autoincrement())
+  id          Int           @id @default(autoincrement())
   warehouseId Int
-  warehouse   Warehouse @relation(fields: [warehouseId], references: [id])
+  warehouse   Warehouse     @relation(fields: [warehouseId], references: [id])
   itemId      Int
   item        InventoryItem @relation(fields: [itemId], references: [id])
-  quantity    Int       // จำนวนที่เปลี่ยนแปลง (+ เพิ่ม, - ลด)
-  type        String    // "inbound", "outbound", "transfer_in", "transfer_out", "adjustment"
-  referenceId String?   // อ้างอิงเอกสาร เช่น Ref No., Request ID, Transfer ID
+  quantity    Int // จำนวนที่เปลี่ยนแปลง (+ เพิ่ม, - ลด)
+  type        String // "inbound", "outbound", "transfer_in", "transfer_out", "adjustment"
+  referenceId String? // อ้างอิงเอกสาร เช่น Ref No., Request ID, Transfer ID
   note        String?
   userId      Int
-  user        User      @relation(fields: [userId], references: [id])
-  createdAt   DateTime  @default(now())
+  user        User          @relation(fields: [userId], references: [id])
+  createdAt   DateTime      @default(now())
 }
 
 model RolePermission {
   id        Int      @id @default(autoincrement())
-  role      String   // DEPRECATED: Use roleId
-  roleId    Int?     // Link to Role table
+  role      String // DEPRECATED: Use roleId
+  roleId    Int? // Link to Role table
   roleRef   Role?    @relation(fields: [roleId], references: [id])
-  menu      String   // e.g., "inventory", "settings"
-  path      String   // e.g., "/inventory", "/settings"
+  menu      String // e.g., "inventory", "settings"
+  path      String // e.g., "/inventory", "/settings"
   canView   Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
-  @@index([roleId])
+
   @@unique([role, menu]) // Keep for now until migrated
+  @@index([roleId])
 }
 
 model Category {
-  id          Int      @id @default(autoincrement())
-  name        String   @unique
+  id          Int             @id @default(autoincrement())
+  name        String          @unique
   description String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
   items       InventoryItem[]
 }
 
 model AuditLog {
-  id          Int      @id @default(autoincrement())
-  userId      Int?
-  user        User?    @relation(fields: [userId], references: [id])
-  action      String   // CREATE, UPDATE, DELETE, LOGIN, LOGOUT, EXPORT, VIEW
-  entity      String   // ชื่อ Table/Entity
-  entityId    String?  // ID ของ Record
-  oldValue    String?  // JSON ค่าเก่า
-  newValue    String?  // JSON ค่าใหม่
-  details     String?  // รายละเอียดเพิ่มเติม
-  ipAddress   String?
-  userAgent   String?
-  requestId   String?  // UUID propagated from requestLogger middleware so a single
-                       // request's audit rows can be correlated with backend logs.
-  createdAt   DateTime @default(now())
+  id        Int      @id @default(autoincrement())
+  userId    Int?
+  user      User?    @relation(fields: [userId], references: [id])
+  action    String // CREATE, UPDATE, DELETE, LOGIN, LOGOUT, EXPORT, VIEW
+  entity    String // ชื่อ Table/Entity
+  entityId  String? // ID ของ Record
+  oldValue  String? // JSON ค่าเก่า
+  newValue  String? // JSON ค่าใหม่
+  details   String? // รายละเอียดเพิ่มเติม
+  ipAddress String?
+  userAgent String?
+  requestId String? // UUID propagated from requestLogger middleware so a single
+  // request's audit rows can be correlated with backend logs.
+  createdAt DateTime @default(now())
 
   @@index([userId])
   @@index([action])
@@ -555,23 +565,141 @@ model PasswordHistory {
   id        Int      @id @default(autoincrement())
   userId    Int
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  password  String   // เก็บ Hash
+  password  String // เก็บ Hash
   createdAt DateTime @default(now())
-  
+
   @@index([userId])
 }
 
 // Email Verification
 model EmailVerification {
-  id          Int       @id @default(autoincrement())
-  userId      Int
-  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  token       String    @unique
-  type        String    @default("EMAIL_VERIFICATION") // EMAIL_VERIFICATION, PASSWORD_RESET
-  expiresAt   DateTime
-  verifiedAt  DateTime?
-  createdAt   DateTime  @default(now())
-  
+  id         Int       @id @default(autoincrement())
+  userId     Int
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token      String    @unique
+  type       String    @default("EMAIL_VERIFICATION") // EMAIL_VERIFICATION, PASSWORD_RESET
+  expiresAt  DateTime
+  verifiedAt DateTime?
+  createdAt  DateTime  @default(now())
+
   @@index([token])
   @@index([userId])
+}
+
+// =============================================================================
+// MAINTENANCE WORKFLOW (PRP v6 — added 2026-05-09)
+// See: PRPs/claude/2026-05-09_104630_claude_plan_maintenance-workflow.md
+// =============================================================================
+
+// Container/header. Aggregate-level fields only. Per-item state on the
+// MaintenanceRequestItem join table. Status field is denormalized aggregate
+// computed by lib/maintenance/aggregate.ts and updated atomically inside
+// the same $transaction that mutates any item. Single-writer rule mitigates
+// drift risk; soft-delete via Prisma middleware (lib/prisma.ts).
+model MaintenanceRequest {
+  id           Int   @id @default(autoincrement())
+  reportedById Int
+  reportedBy   User  @relation("ReportedMaintenanceRequests", fields: [reportedById], references: [id])
+  assignedToId Int?
+  assignedTo   User? @relation("AssignedMaintenanceRequests", fields: [assignedToId], references: [id])
+
+  // Optional FK to existing Department table (location of the issue)
+  locationId Int?
+  location   Department? @relation("MaintenanceLocations", fields: [locationId], references: [id])
+
+  title       String
+  description String
+  severity    String  @default("medium") // low | medium | high | critical (IMPACT axis)
+  priority    String  @default("normal") // low | normal | high | urgent (URGENCY axis)
+  category    String  @default("other") // electrical | mechanical | software | physical | other
+  tags        String? // JSON array of free-form labels (max 10, each ≤32 chars)
+  status      String  @default("open") // open | assigned | in_progress | awaiting_parts | resolved | closed | cancelled (AGGREGATE)
+  photos      String? // JSON array of UploadThing URLs (max 5)
+
+  estimatedCost Float? // aggregate estimate; per-item actuals on join row
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  assignedAt  DateTime? // set when assignedToId first assigned (used by escalation cron)
+  escalatedAt DateTime? // set when escalation cron has notified admin (idempotency guard)
+  resolvedAt  DateTime? // set when ALL items reach 'resolved' (technician's claim)
+  closedAt    DateTime? // set when ALL items reach 'closed' (reporter's verification)
+  deletedAt   DateTime? // soft-delete; Prisma middleware injects WHERE deletedAt IS NULL
+
+  items MaintenanceRequestItem[]
+  logs  MaintenanceLog[]
+
+  @@index([status])
+  @@index([assignedToId])
+  @@index([reportedById])
+  @@index([locationId])
+}
+
+// Join table — one row per (request, item). Per-item state machine:
+//   open ──→ in_progress ←→ awaiting_parts ──→ resolved ──→ closed
+//                                                  │
+//                                                  └─(rejected)──→ in_progress
+//   any non-terminal ──→ cancelled
+//   closed ──→ in_progress  (admin reopen only)
+//
+// Terminal states: closed, cancelled
+// Pending-verification: resolved (waiting for reporter to approve)
+// Optimistic lock via `version` field — incremented on every state mutation.
+model MaintenanceRequestItem {
+  id        Int                @id @default(autoincrement())
+  requestId Int
+  request   MaintenanceRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  itemId    Int
+  item      InventoryItem      @relation(fields: [itemId], references: [id])
+
+  status          String    @default("open") // open | in_progress | awaiting_parts | resolved | closed | cancelled
+  resolution      String? // per-item repair note from technician (set on → 'resolved')
+  rejectionReason String? // set when reporter rejects → goes back to 'in_progress'; cleared on next 'resolved'
+  actualCost      Float? // per-item cost
+  resolvedAt      DateTime? // when technician marked 'resolved'
+  closedAt        DateTime? // when reporter approved → 'closed'
+  deletedAt       DateTime? // soft-delete cascaded from parent request
+  version         Int       @default(0) // optimistic lock — incremented on every state mutation
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([requestId, itemId]) // one item appears once per request
+  @@index([itemId])
+  @@index([status])
+}
+
+// Audit trail. itemId is nullable: log entries for request-level actions
+// (created, assigned, reopened, deleted, restored, request_resolved,
+// request_closed, escalated) leave it null; per-item events fill it in.
+model MaintenanceLog {
+  id        Int                @id @default(autoincrement())
+  requestId Int
+  request   MaintenanceRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  itemId    Int? // null = request-level event; set = item-level event
+  userId    Int
+  user      User               @relation("MaintenanceLogEntries", fields: [userId], references: [id])
+
+  action     String
+  // Action catalog:
+  //   created
+  //   assigned | unassigned
+  //   status_changed             — generic item status transition
+  //   item_marked_awaiting_parts | item_resumed_work
+  //   item_resolved              — tech claims fix done (per-item)
+  //   item_approved              — reporter verifies (per-item) → closed
+  //   item_rejected              — reporter rejects (per-item) → back to in_progress
+  //   request_resolved           — aggregate: all items resolved
+  //   request_closed             — aggregate: all items closed (terminal positive)
+  //   reopened                   — admin reopens closed request
+  //   cancelled                  — request or item cancelled
+  //   escalated                  — escalation cron notified admin (Phase 5)
+  //   deleted | restored         — soft-delete operations (admin only)
+  //   note_added                 — free-text note, no state change
+  fromStatus String?
+  toStatus   String?
+  notes      String?
+  createdAt  DateTime @default(now())
+
+  @@index([requestId])
 }

@@ -569,6 +569,71 @@ async function main() {
         });
     }
 
+    // ==========================================
+    // SEED MAINTENANCE WORKFLOW SAMPLES (PRP v6 — added 2026-05-09)
+    // ==========================================
+    if (allItems.length >= 2) {
+        // Sample 1: single-item, low severity, with tags — reporter only (no assignee yet)
+        const sample1 = await prisma.maintenanceRequest.create({
+            data: {
+                reportedById: staff.id,
+                title: 'จอแสดงผลกระพริบ',
+                description: 'จอภาพกระพริบเป็นระยะเมื่อใช้งานเกิน 30 นาที พบช่วงบ่าย',
+                severity: 'low',
+                priority: 'normal',
+                category: 'electrical',
+                tags: JSON.stringify(['warranty', 'recurring-issue']),
+                status: 'open',
+                items: {
+                    create: [
+                        { itemId: allItems[0].id, status: 'open' },
+                    ],
+                },
+                logs: {
+                    create: [
+                        {
+                            userId: staff.id,
+                            action: 'created',
+                            notes: 'Seeded sample request',
+                        },
+                    ],
+                },
+            },
+        });
+
+        // Sample 2: multi-item batch, high severity, assigned to admin — already in_progress
+        await prisma.maintenanceRequest.create({
+            data: {
+                reportedById: staff.id,
+                assignedToId: admin.id,
+                assignedAt: new Date(),
+                title: 'อุปกรณ์ห้องประชุมไม่ทำงาน',
+                description: 'โปรเจคเตอร์ดับเอง + คีย์บอร์ดบางปุ่มไม่ตอบสนอง',
+                severity: 'high',
+                priority: 'high',
+                category: 'mechanical',
+                tags: JSON.stringify(['vip', 'meeting-room-301']),
+                status: 'in_progress',
+                estimatedCost: 1500,
+                items: {
+                    create: [
+                        { itemId: allItems[0].id, status: 'in_progress' },
+                        { itemId: allItems[1].id, status: 'awaiting_parts', resolution: null },
+                    ],
+                },
+                logs: {
+                    create: [
+                        { userId: staff.id, action: 'created', notes: 'Seeded multi-item sample' },
+                        { userId: admin.id, action: 'assigned', fromStatus: 'open', toStatus: 'assigned' },
+                        { userId: admin.id, action: 'item_marked_awaiting_parts', itemId: allItems[1].id, notes: 'Waiting on replacement keyboard' },
+                    ],
+                },
+            },
+        });
+
+        console.log(`Seeded 2 maintenance request samples (1 single-item, 1 multi-item with tags)`);
+    }
+
     console.log('Seed data created');
 }
 
