@@ -226,3 +226,258 @@ export async function updateMaintenanceStatus(
         return { error: 'Failed to update status' };
     }
 }
+
+// =============================================================================
+// State mutation actions (Phase 2 commit #5)
+// =============================================================================
+
+import { assertValidItemTransition, IllegalItemTransitionError } from '@/lib/maintenance/transitions';
+import { assertItemVersion, OptimisticLockError } from '@/lib/maintenance/optimistic-lock';
+import { computeRequestStatus } from '@/lib/maintenance/aggregate';
+import type { ItemStatus } from '@/lib/maintenance/types';
+
+const AssignSchema = z.object({
+    requestId: z.number().int().positive(),
+    assigneeUserId: z.number().int().positive(),
+});
+
+/**
+ * Admin assigns a request to a technician (PRP v6 assignMaintenanceRequest).
+ *
+ * Auth: admin | superadmin
+ * Validates: assignee has admin/superadmin/technician role; request not
+ * resolved/closed/cancelled (terminal states can't be reassigned).
+ */
+export async function assignMaintenanceRequest(input: unknown) {
+    const session = await requireRole(...ADMIN_ROLES);
+    if (!session?.user?.id) return { error: 'Unauthorized - Admin only' };
+
+    const parsed = AssignSchema.safeParse(input);
+    if (!parsed.success) return { error: 'Invalid input', issues: parsed.error.format() };
+    const { requestId, assigneeUserId } = parsed.data;
+    const actorId = Number.parseInt(session.user.id, 10);
+
+    try {
+        await prisma.$transaction(async (tx) => {
+            const req = await tx.maintenanceRequest.findUnique({
+                where: { id: requestId },
+                include: { items: { select: { status: true } } },
+            });
+            if (!req) throw new Error('Request not found');
+            if (['resolved', 'closed', 'cancelled'].includes(req.status)) {
+                throw new Error(`Cannot assign request in terminal state: ${req.status}`);
+            }
+
+            // Verify assignee has the right role(s)
+            const assignee = await tx.user.findUnique({
+                where: { id: assigneeUserId },
+                include: { userRoles: { include: { role: true } } },
+            });
+            if (!assignee) throw new Error('Assignee not found');
+            const assigneeRoles = assignee.userRoles.map((ur) => ur.role.slug);
+            const eligible = assigneeRoles.some((r) =>
+                ['admin', 'superadmin', 'technician'].includes(r),
+            );
+            if (!eligible) {
+                throw new Error('Assignee must have admin, superadmin, or technician role');
+            }
+
+            const fromStatus = req.status;
+            const newAggregate = computeRequestStatus(
+                req.items.map((i) => ({ status: i.status as ItemStatus })),
+                assigneeUserId,
+                false,
+            );
+
+            await tx.maintenanceRequest.update({
+                where: { id: requestId },
+                data: {
+                    assignedToId: assigneeUserId,
+                    assignedAt: req.assignedAt ?? new Date(), // preserve original if reassigning
+                    status: newAggregate,
+                },
+            });
+
+            await tx.maintenanceLog.create({
+                data: {
+                    requestId,
+                    userId: actorId,
+                    action: 'assigned',
+                    fromStatus,
+                    toStatus: newAggregate,
+                },
+            });
+        });
+
+        revalidatePath('/maintenance');
+        revalidatePath(`/maintenance/${requestId}`);
+        return { success: true };
+    } catch (error) {
+        const message = error instanceof Error ? error.message : 'Unknown error';
+        console.error('assignMaintenanceRequest failed:', message);
+        return { error: message };
+    }
+}
+
+const UpdateItemStatusSchema = z.object({
+    requestId: z.number().int().positive(),
+    itemId: z.number().int().positive(), // MaintenanceRequestItem.id
+    expectedVersion: z.number().int().nonnegative(),
+    newStatus: z.enum(['in_progress', 'awaiting_parts', 'resolved', 'cancelled']),
+    resolution: z.string().trim().min(1).max(2000).optional(),
+    actualCost: z.number().nonnegative().optional(),
+    notes: z.string().trim().max(2000).optional(),
+});
+
+/**
+ * Technician updates an item's state (PRP v6 updateMaintenanceItemStatus).
+ *
+ * Auth: request.assignedTo === session.user.id OR admin/superadmin
+ * Validates:
+ *   - state transition legal (per ALLOWED_ITEM_TRANSITIONS)
+ *   - newStatus='resolved' requires non-empty resolution
+ *   - optimistic lock: expectedVersion must match current
+ * Side effects:
+ *   - Update MaintenanceRequestItem (status, resolution, actualCost,
+ *     resolvedAt, version+=1)
+ *   - Insert MaintenanceLog with appropriate action
+ *   - Recompute request.status via computeRequestStatus
+ *   - On 'cancelled': sync inventoryItem.status='available' (backward compat)
+ *     (resolved items still pending verification — not synced yet)
+ */
+export async function updateMaintenanceItemStatus(input: unknown) {
+    const session = await auth();
+    if (!session?.user?.id) return { error: 'Unauthorized' };
+    const actorId = Number.parseInt(session.user.id, 10);
+
+    const parsed = UpdateItemStatusSchema.safeParse(input);
+    if (!parsed.success) return { error: 'Invalid input', issues: parsed.error.format() };
+    const data = parsed.data;
+
+    if (data.newStatus === 'resolved' && !data.resolution) {
+        return { error: 'Resolution text required when marking item as resolved' };
+    }
+
+    try {
+        await prisma.$transaction(async (tx) => {
+            // Fetch request + the specific item
+            const item = await tx.maintenanceRequestItem.findUnique({
+                where: { id: data.itemId },
+                include: { request: true, item: { select: { id: true } } },
+            });
+            if (!item || item.requestId !== data.requestId) {
+                throw new Error('Item not found in this request');
+            }
+
+            // Auth check: assignee or admin
+            const isAssignee = item.request.assignedToId === actorId;
+            const adminSession = await requireRole(...ADMIN_ROLES);
+            if (!isAssignee && !adminSession) {
+                throw new Error('Forbidden — assignee or admin only');
+            }
+
+            // Transition validation
+            assertValidItemTransition(item.status as ItemStatus, data.newStatus);
+
+            // Optimistic lock
+            await assertItemVersion(tx, data.itemId, data.expectedVersion);
+
+            const fromStatus = item.status;
+
+            // Update the item
+            const updateData: {
+                status: ItemStatus;
+                version: { increment: number };
+                resolution?: string;
+                actualCost?: number;
+                resolvedAt?: Date | null;
+            } = {
+                status: data.newStatus,
+                version: { increment: 1 },
+            };
+            if (data.newStatus === 'resolved') {
+                updateData.resolution = data.resolution;
+                updateData.resolvedAt = new Date();
+                if (data.actualCost !== undefined) updateData.actualCost = data.actualCost;
+            }
+            await tx.maintenanceRequestItem.update({
+                where: { id: data.itemId },
+                data: updateData,
+            });
+
+            // Determine log action label
+            let logAction: string = 'status_changed';
+            if (data.newStatus === 'awaiting_parts') logAction = 'item_marked_awaiting_parts';
+            else if (fromStatus === 'awaiting_parts' && data.newStatus === 'in_progress')
+                logAction = 'item_resumed_work';
+            else if (data.newStatus === 'resolved') logAction = 'item_resolved';
+            else if (data.newStatus === 'cancelled') logAction = 'cancelled';
+
+            await tx.maintenanceLog.create({
+                data: {
+                    requestId: data.requestId,
+                    itemId: item.item.id, // InventoryItem.id, not join row id
+                    userId: actorId,
+                    action: logAction,
+                    fromStatus,
+                    toStatus: data.newStatus,
+                    notes: data.notes ?? data.resolution ?? null,
+                },
+            });
+
+            // Recompute aggregate request status
+            const allItems = await tx.maintenanceRequestItem.findMany({
+                where: { requestId: data.requestId },
+                select: { status: true },
+            });
+            const newAggregate = computeRequestStatus(
+                allItems.map((i) => ({ status: i.status as ItemStatus })),
+                item.request.assignedToId,
+                item.request.status === 'cancelled',
+            );
+
+            const requestUpdate: {
+                status: string;
+                resolvedAt?: Date;
+            } = { status: newAggregate };
+            if (newAggregate === 'resolved' && !item.request.resolvedAt) {
+                requestUpdate.resolvedAt = new Date();
+                await tx.maintenanceLog.create({
+                    data: {
+                        requestId: data.requestId,
+                        userId: actorId,
+                        action: 'request_resolved',
+                        toStatus: 'resolved',
+                    },
+                });
+            }
+            await tx.maintenanceRequest.update({
+                where: { id: data.requestId },
+                data: requestUpdate,
+            });
+
+            // Backward compat: cancelled items free up inventory
+            if (data.newStatus === 'cancelled') {
+                await tx.inventoryItem.update({
+                    where: { id: item.item.id },
+                    data: { status: 'available' },
+                });
+            }
+        });
+
+        revalidatePath('/maintenance');
+        revalidatePath(`/maintenance/${data.requestId}`);
+        revalidatePath('/inventory');
+        return { success: true };
+    } catch (error) {
+        if (error instanceof OptimisticLockError) {
+            return { error: error.message, code: 'OPTIMISTIC_LOCK' };
+        }
+        if (error instanceof IllegalItemTransitionError) {
+            return { error: error.message, code: 'ILLEGAL_TRANSITION' };
+        }
+        const message = error instanceof Error ? error.message : 'Unknown error';
+        console.error('updateMaintenanceItemStatus failed:', message);
+        return { error: message };
+    }
+}
