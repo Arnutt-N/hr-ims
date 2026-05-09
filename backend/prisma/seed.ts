@@ -27,6 +27,7 @@ const ROLE_PERMISSIONS: Record<string, Array<{ menu: string; path: string }>> = 
         { menu: 'Tags', path: '/tags' },
         { menu: 'Users', path: '/users' },
         { menu: 'Audit Logs', path: '/logs' },
+        { menu: 'Warehouse', path: '/warehouse' },
         { menu: 'Categories', path: '/settings/categories' },
         { menu: 'Warehouses', path: '/settings/warehouses' },
         { menu: 'Dept Mapping', path: '/settings/departments' },
@@ -51,6 +52,7 @@ const ROLE_PERMISSIONS: Record<string, Array<{ menu: string; path: string }>> = 
         { menu: 'Tags', path: '/tags' },
         { menu: 'Users', path: '/users' },
         { menu: 'Audit Logs', path: '/logs' },
+        { menu: 'Warehouse', path: '/warehouse' },
         { menu: 'Categories', path: '/settings/categories' },
         { menu: 'Warehouses', path: '/settings/warehouses' },
         { menu: 'Dept Mapping', path: '/settings/departments' },
@@ -64,6 +66,7 @@ const ROLE_PERMISSIONS: Record<string, Array<{ menu: string; path: string }>> = 
         { menu: 'Cart', path: '/cart' },
         { menu: 'My Assets', path: '/my-assets' },
         { menu: 'Requests', path: '/requests' },
+        { menu: 'Warehouse', path: '/warehouse' },
     ],
     auditor: [
         { menu: 'Dashboard', path: '/dashboard' },
@@ -503,6 +506,37 @@ async function main() {
             { userId: allUsers[0].id, action: 'LOGIN', item: 'System', status: 'Success' },
             { userId: allUsers[0].id, action: 'VIEW_REPORT', item: 'Inventory Summary', status: 'Success' },
             { userId: allUsers[1]?.id || allUsers[0].id, action: 'LOGIN', item: 'System', status: 'Success' },
+        ]
+    });
+
+    // 1b. AuditLog rows so /logs has a populated table on first boot
+    // (E2E asserts at least one body row in the audit table).
+    await prisma.auditLog.createMany({
+        data: [
+            {
+                userId: allUsers[0].id,
+                action: 'LOGIN',
+                entity: 'User',
+                entityId: String(allUsers[0].id),
+                ipAddress: '127.0.0.1',
+                userAgent: 'seed-script',
+            },
+            {
+                userId: allUsers[0].id,
+                action: 'CREATE',
+                entity: 'StockTransaction',
+                entityId: 'PO-2024-001',
+                ipAddress: '127.0.0.1',
+                userAgent: 'seed-script',
+            },
+            {
+                userId: allUsers[0].id,
+                action: 'VIEW',
+                entity: 'Report',
+                entityId: 'inventory-summary',
+                ipAddress: '127.0.0.1',
+                userAgent: 'seed-script',
+            },
         ]
     });
 

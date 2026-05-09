@@ -1,17 +1,6 @@
 import { auth } from './auth';
 import { NextResponse } from 'next/server';
-
-const legacyRoleRules = [
-    { prefix: '/requests', roles: ['superadmin', 'admin', 'approver'] },
-    { prefix: '/maintenance', roles: ['superadmin', 'admin', 'technician'] },
-    { prefix: '/history', roles: ['superadmin', 'admin', 'auditor'] },
-    { prefix: '/reports', roles: ['superadmin', 'admin', 'auditor'] },
-    { prefix: '/scanner', roles: ['superadmin', 'admin', 'technician'] },
-    { prefix: '/tags', roles: ['superadmin', 'admin'] },
-    { prefix: '/settings', roles: ['superadmin', 'admin'] },
-    { prefix: '/users', roles: ['superadmin', 'admin'] },
-    { prefix: '/logs', roles: ['superadmin', 'admin', 'auditor'] },
-] as const;
+import { authorizeRequest, isLegacyFallbackEnabled } from './lib/proxy-authorize';
 
 const INTERNAL_API_KEY = process.env.INTERNAL_API_KEY || 'test-internal-key';
 
@@ -40,42 +29,18 @@ export default auth(async (req) => {
         return NextResponse.next({ request: { headers: requestHeaders } });
     }
 
-    // Superadmin bypass
-    if (userRoles.includes('superadmin')) {
-        return NextResponse.next();
-    }
+    const decision = authorizeRequest({
+        pathname: nextUrl.pathname,
+        userRoles,
+        userPermissions,
+        legacyFallbackEnabled: isLegacyFallbackEnabled(process.env.RBAC_LEGACY_FALLBACK),
+    });
 
-    // Protected modules RBAC
-    const protectedModules = [
-        '/inventory', '/cart', '/my-assets', '/requests', '/maintenance',
-        '/history', '/reports', '/scanner', '/tags', '/settings', '/users', '/logs'
-    ];
-
-    const isProtected = protectedModules.some(path => nextUrl.pathname.startsWith(path));
-
-    if (isProtected) {
-        // Path-based permission match
-        const hasPermission = userPermissions.some((allowedPath: string) => {
-            if (nextUrl.pathname === allowedPath) return true;
-            if (nextUrl.pathname.startsWith(`${allowedPath}/`)) return true;
-            if (allowedPath.startsWith(`${nextUrl.pathname}/`)) return true;
-            return false;
-        });
-
-        // Legacy role fallback
-        const matchingLegacyRule = legacyRoleRules.find((rule) =>
-            nextUrl.pathname.startsWith(rule.prefix)
+    if (!decision.allow) {
+        console.log(
+            `[Proxy] Access Denied: roles=[${userRoles.join(',')}] path=${nextUrl.pathname}`,
         );
-        const hasLegacyAccess =
-            !matchingLegacyRule ||
-            matchingLegacyRule.roles.some((role) => userRoles.includes(role));
-
-        if (!hasPermission && !hasLegacyAccess) {
-            console.log(
-                `[Proxy] Access Denied: roles=[${userRoles.join(',')}] path=${nextUrl.pathname}`,
-            );
-            return NextResponse.redirect(new URL('/dashboard?error=access_denied', nextUrl.origin));
-        }
+        return NextResponse.redirect(new URL('/dashboard?error=access_denied', nextUrl.origin));
     }
 
     return NextResponse.next();

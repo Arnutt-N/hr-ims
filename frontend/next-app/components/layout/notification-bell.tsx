@@ -110,6 +110,8 @@ export function NotificationBell({ canTriggerLowStockCheck = false }: { canTrigg
         <div className="relative" ref={wrapperRef}>
             <button
                 onClick={() => setOpen(!open)}
+                aria-label={unreadCount > 0 ? `Notifications, ${unreadCount} unread` : 'Notifications'}
+                aria-expanded={open}
                 className={cn(
                     "relative p-2.5 rounded-xl transition-all outline-none cursor-pointer",
                     open ? "text-indigo-600 bg-indigo-50" : "text-slate-400 hover:text-indigo-600 hover:bg-slate-50"

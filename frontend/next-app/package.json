@@ -58,6 +58,7 @@
         "zod": "^4.3.5"
     },
     "devDependencies": {
+        "@axe-core/playwright": "^4.10.0",
         "@playwright/test": "^1.58.0",
         "@tailwindcss/postcss": "^4.1.18",
         "@testing-library/jest-dom": "^6.9.1",
@@ -69,6 +70,7 @@
         "@types/react": "^19.0.6",
         "@types/react-dom": "^19.0.2",
         "@vitejs/plugin-react": "^5.1.2",
+        "@vitest/coverage-v8": "^4.1.5",
         "@vitest/ui": "^4.0.18",
         "eslint": "^9.39.4",
         "eslint-config-next": "^16.2.0",

@@ -65,6 +65,9 @@ test-results/
 playwright-report/
 **/tests/e2e/.auth-*.json
 
+# Generated backups (BullMQ backup queue)
+backend/backups/
+
 # Stack dumps
 *.stackdump
 

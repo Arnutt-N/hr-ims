@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { getWarehouses } from '@/lib/actions/warehouse';
 
 interface Warehouse {
     id: number;
@@ -34,8 +35,8 @@ export default function WarehouseSelector({
 
     const fetchWarehouses = useCallback(async () => {
         try {
-            const res = await fetch('/api/warehouses');
-            const data = await res.json();
+            const result = await getWarehouses();
+            const data = ('warehouses' in result && result.warehouses) ? result.warehouses : [];
 
             // Filter by type if specified
             const filtered = type === 'all'
@@ -57,7 +58,7 @@ export default function WarehouseSelector({
     if (loading) {
         return (
             <Select disabled>
-                <SelectTrigger>
+                <SelectTrigger aria-label="Warehouse filter (loading)">
                     <SelectValue placeholder="กำลังโหลด..." />
                 </SelectTrigger>
             </Select>
@@ -70,7 +71,7 @@ export default function WarehouseSelector({
             onValueChange={(val) => onChange(parseInt(val))}
             disabled={disabled}
         >
-            <SelectTrigger>
+            <SelectTrigger aria-label="Warehouse filter">
                 <SelectValue placeholder={placeholder} />
             </SelectTrigger>
             <SelectContent>

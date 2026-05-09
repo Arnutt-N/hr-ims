@@ -1,0 +1,88 @@
+Listing tests:
+  [chromium] › golden/01-login-rbac.spec.ts:12:9 › Golden 01 — Login + role-based redirect › login form rejects bad credentials
+  [chromium] › golden/01-login-rbac.spec.ts:26:13 › Golden 01 — Login + role-based redirect › superadmin can log in and lands on /dashboard
+  [chromium] › golden/01-login-rbac.spec.ts:26:13 › Golden 01 — Login + role-based redirect › admin can log in and lands on /dashboard
+  [chromium] › golden/01-login-rbac.spec.ts:26:13 › Golden 01 — Login + role-based redirect › approver can log in and lands on /dashboard
+  [chromium] › golden/01-login-rbac.spec.ts:26:13 › Golden 01 — Login + role-based redirect › auditor can log in and lands on /dashboard
+  [chromium] › golden/01-login-rbac.spec.ts:26:13 › Golden 01 — Login + role-based redirect › technician can log in and lands on /dashboard
+  [chromium] › golden/01-login-rbac.spec.ts:26:13 › Golden 01 — Login + role-based redirect › user can log in and lands on /dashboard
+  [chromium] › golden/01-login-rbac.spec.ts:34:9 › Golden 01 — Login + role-based redirect › superadmin reaches every gated route without access_denied
+  [chromium] › golden/01-login-rbac.spec.ts:58:9 › Golden 01 — Login + role-based redirect › regular user can NOT reach /users (admin-only)
+  [chromium] › golden/01-login-rbac.spec.ts:68:9 › Golden 01 — Login + role-based redirect › regular user can NOT reach /settings (admin-only)
+  [chromium] › golden/01-login-rbac.spec.ts:76:9 › Golden 01 — Login + role-based redirect › seed users come from fixtures (sanity check)
+  [chromium] › golden/02-request-lifecycle.spec.ts:23:9 › Golden 02 — Request lifecycle (cart → approve → stock) › user can add a consumable to cart and submit it
+  [chromium] › golden/02-request-lifecycle.spec.ts:44:9 › Golden 02 — Request lifecycle (cart → approve → stock) › approver sees the new pending request
+  [chromium] › golden/02-request-lifecycle.spec.ts:52:9 › Golden 02 — Request lifecycle (cart → approve → stock) › approver approves the most recent request → status moves out of pending
+  [chromium] › golden/02-request-lifecycle.spec.ts:79:9 › Golden 02 — Request lifecycle (cart → approve → stock) › audit log records the approval event
+  [chromium] › golden/03-inventory-crud.spec.ts:10:9 › Golden 03 — Inventory CRUD (admin) › admin can open the inventory list
+  [chromium] › golden/03-inventory-crud.spec.ts:17:9 › Golden 03 — Inventory CRUD (admin) › admin can create a new inventory item
+  [chromium] › golden/03-inventory-crud.spec.ts:50:9 › Golden 03 — Inventory CRUD (admin) › regular user cannot see the create button
+  [chromium] › golden/04-user-management.spec.ts:8:9 › Golden 04 — User management (admin + RBAC gate) › admin sees the users list
+  [chromium] › golden/04-user-management.spec.ts:18:9 › Golden 04 — User management (admin + RBAC gate) › admin cannot promote anyone to superadmin (form should refuse)
+  [chromium] › golden/04-user-management.spec.ts:50:9 › Golden 04 — User management (admin + RBAC gate) › non-admin cannot reach /users
+  [chromium] › golden/04-user-management.spec.ts:59:9 › Golden 04 — User management (admin + RBAC gate) › superadmin can see and toggle role on a user
+  [chromium] › golden/05-stock-transaction.spec.ts:15:9 › Golden 05 — Stock transaction flow › admin can open the receive-goods page
+  [chromium] › golden/05-stock-transaction.spec.ts:24:9 › Golden 05 — Stock transaction flow › history page is reachable for auditor
+  [chromium] › golden/05-stock-transaction.spec.ts:32:9 › Golden 05 — Stock transaction flow › audit log includes a stock-related action
+  [chromium] › golden/05-stock-transaction.spec.ts:41:9 › Golden 05 — Stock transaction flow › non-approver cannot see stock-adjust controls on /warehouse
+  [chromium] › golden/06-reports-export.spec.ts:8:9 › Golden 06 — Reports + export › auditor can open /reports
+  [chromium] › golden/06-reports-export.spec.ts:18:9 › Golden 06 — Reports + export › print button is reachable
+  [chromium] › golden/06-reports-export.spec.ts:27:9 › Golden 06 — Reports + export › user role is denied from /reports
+  [chromium] › golden/07-settings-permission-leak.spec.ts:52:9 › Golden 07 — /settings/* permission leak audit › superadmin reaches every settings sub-route
+  [chromium] › golden/07-settings-permission-leak.spec.ts:60:9 › Golden 07 — /settings/* permission leak audit › admin reaches the admin-allowed subset and is denied the rest
+  [chromium] › golden/07-settings-permission-leak.spec.ts:76:13 › Golden 07 — /settings/* permission leak audit › approver is denied from every settings sub-route
+  [chromium] › golden/07-settings-permission-leak.spec.ts:76:13 › Golden 07 — /settings/* permission leak audit › auditor is denied from every settings sub-route
+  [chromium] › golden/07-settings-permission-leak.spec.ts:76:13 › Golden 07 — /settings/* permission leak audit › technician is denied from every settings sub-route
+  [chromium] › golden/07-settings-permission-leak.spec.ts:76:13 › Golden 07 — /settings/* permission leak audit › user is denied from every settings sub-route
+  [chromium] › golden/08-i18n-switch.spec.ts:39:9 › Golden 08 — Locale toggle + raw-key audit › locale toggle is rendered in the header on dashboard
+  [chromium] › golden/08-i18n-switch.spec.ts:48:13 › Golden 08 — Locale toggle + raw-key audit › no raw i18n keys visible on /dashboard in TH
+  [chromium] › golden/08-i18n-switch.spec.ts:62:13 › Golden 08 — Locale toggle + raw-key audit › no raw i18n keys visible on /dashboard in EN
+  [chromium] › golden/08-i18n-switch.spec.ts:48:13 › Golden 08 — Locale toggle + raw-key audit › no raw i18n keys visible on /inventory in TH
+  [chromium] › golden/08-i18n-switch.spec.ts:62:13 › Golden 08 — Locale toggle + raw-key audit › no raw i18n keys visible on /inventory in EN
+  [chromium] › golden/08-i18n-switch.spec.ts:48:13 › Golden 08 — Locale toggle + raw-key audit › no raw i18n keys visible on /requests in TH
+  [chromium] › golden/08-i18n-switch.spec.ts:62:13 › Golden 08 — Locale toggle + raw-key audit › no raw i18n keys visible on /requests in EN
+  [chromium] › golden/08-i18n-switch.spec.ts:74:9 › Golden 08 — Locale toggle + raw-key audit › toggling locale changes visible text
+  [Mobile Chrome] › golden/01-login-rbac.spec.ts:12:9 › Golden 01 — Login + role-based redirect › login form rejects bad credentials
+  [Mobile Chrome] › golden/01-login-rbac.spec.ts:26:13 › Golden 01 — Login + role-based redirect › superadmin can log in and lands on /dashboard
+  [Mobile Chrome] › golden/01-login-rbac.spec.ts:26:13 › Golden 01 — Login + role-based redirect › admin can log in and lands on /dashboard
+  [Mobile Chrome] › golden/01-login-rbac.spec.ts:26:13 › Golden 01 — Login + role-based redirect › approver can log in and lands on /dashboard
+  [Mobile Chrome] › golden/01-login-rbac.spec.ts:26:13 › Golden 01 — Login + role-based redirect › auditor can log in and lands on /dashboard
+  [Mobile Chrome] › golden/01-login-rbac.spec.ts:26:13 › Golden 01 — Login + role-based redirect › technician can log in and lands on /dashboard
+  [Mobile Chrome] › golden/01-login-rbac.spec.ts:26:13 › Golden 01 — Login + role-based redirect › user can log in and lands on /dashboard
+  [Mobile Chrome] › golden/01-login-rbac.spec.ts:34:9 › Golden 01 — Login + role-based redirect › superadmin reaches every gated route without access_denied
+  [Mobile Chrome] › golden/01-login-rbac.spec.ts:58:9 › Golden 01 — Login + role-based redirect › regular user can NOT reach /users (admin-only)
+  [Mobile Chrome] › golden/01-login-rbac.spec.ts:68:9 › Golden 01 — Login + role-based redirect › regular user can NOT reach /settings (admin-only)
+  [Mobile Chrome] › golden/01-login-rbac.spec.ts:76:9 › Golden 01 — Login + role-based redirect › seed users come from fixtures (sanity check)
+  [Mobile Chrome] › golden/02-request-lifecycle.spec.ts:23:9 › Golden 02 — Request lifecycle (cart → approve → stock) › user can add a consumable to cart and submit it
+  [Mobile Chrome] › golden/02-request-lifecycle.spec.ts:44:9 › Golden 02 — Request lifecycle (cart → approve → stock) › approver sees the new pending request
+  [Mobile Chrome] › golden/02-request-lifecycle.spec.ts:52:9 › Golden 02 — Request lifecycle (cart → approve → stock) › approver approves the most recent request → status moves out of pending
+  [Mobile Chrome] › golden/02-request-lifecycle.spec.ts:79:9 › Golden 02 — Request lifecycle (cart → approve → stock) › audit log records the approval event
+  [Mobile Chrome] › golden/03-inventory-crud.spec.ts:10:9 › Golden 03 — Inventory CRUD (admin) › admin can open the inventory list
+  [Mobile Chrome] › golden/03-inventory-crud.spec.ts:17:9 › Golden 03 — Inventory CRUD (admin) › admin can create a new inventory item
+  [Mobile Chrome] › golden/03-inventory-crud.spec.ts:50:9 › Golden 03 — Inventory CRUD (admin) › regular user cannot see the create button
+  [Mobile Chrome] › golden/04-user-management.spec.ts:8:9 › Golden 04 — User management (admin + RBAC gate) › admin sees the users list
+  [Mobile Chrome] › golden/04-user-management.spec.ts:18:9 › Golden 04 — User management (admin + RBAC gate) › admin cannot promote anyone to superadmin (form should refuse)
+  [Mobile Chrome] › golden/04-user-management.spec.ts:50:9 › Golden 04 — User management (admin + RBAC gate) › non-admin cannot reach /users
+  [Mobile Chrome] › golden/04-user-management.spec.ts:59:9 › Golden 04 — User management (admin + RBAC gate) › superadmin can see and toggle role on a user
+  [Mobile Chrome] › golden/05-stock-transaction.spec.ts:15:9 › Golden 05 — Stock transaction flow › admin can open the receive-goods page
+  [Mobile Chrome] › golden/05-stock-transaction.spec.ts:24:9 › Golden 05 — Stock transaction flow › history page is reachable for auditor
+  [Mobile Chrome] › golden/05-stock-transaction.spec.ts:32:9 › Golden 05 — Stock transaction flow › audit log includes a stock-related action
+  [Mobile Chrome] › golden/05-stock-transaction.spec.ts:41:9 › Golden 05 — Stock transaction flow › non-approver cannot see stock-adjust controls on /warehouse
+  [Mobile Chrome] › golden/06-reports-export.spec.ts:8:9 › Golden 06 — Reports + export › auditor can open /reports
+  [Mobile Chrome] › golden/06-reports-export.spec.ts:18:9 › Golden 06 — Reports + export › print button is reachable
+  [Mobile Chrome] › golden/06-reports-export.spec.ts:27:9 › Golden 06 — Reports + export › user role is denied from /reports
+  [Mobile Chrome] › golden/07-settings-permission-leak.spec.ts:52:9 › Golden 07 — /settings/* permission leak audit › superadmin reaches every settings sub-route
+  [Mobile Chrome] › golden/07-settings-permission-leak.spec.ts:60:9 › Golden 07 — /settings/* permission leak audit › admin reaches the admin-allowed subset and is denied the rest
+  [Mobile Chrome] › golden/07-settings-permission-leak.spec.ts:76:13 › Golden 07 — /settings/* permission leak audit › approver is denied from every settings sub-route
+  [Mobile Chrome] › golden/07-settings-permission-leak.spec.ts:76:13 › Golden 07 — /settings/* permission leak audit › auditor is denied from every settings sub-route
+  [Mobile Chrome] › golden/07-settings-permission-leak.spec.ts:76:13 › Golden 07 — /settings/* permission leak audit › technician is denied from every settings sub-route
+  [Mobile Chrome] › golden/07-settings-permission-leak.spec.ts:76:13 › Golden 07 — /settings/* permission leak audit › user is denied from every settings sub-route
+  [Mobile Chrome] › golden/08-i18n-switch.spec.ts:39:9 › Golden 08 — Locale toggle + raw-key audit › locale toggle is rendered in the header on dashboard
+  [Mobile Chrome] › golden/08-i18n-switch.spec.ts:48:13 › Golden 08 — Locale toggle + raw-key audit › no raw i18n keys visible on /dashboard in TH
+  [Mobile Chrome] › golden/08-i18n-switch.spec.ts:62:13 › Golden 08 — Locale toggle + raw-key audit › no raw i18n keys visible on /dashboard in EN
+  [Mobile Chrome] › golden/08-i18n-switch.spec.ts:48:13 › Golden 08 — Locale toggle + raw-key audit › no raw i18n keys visible on /inventory in TH
+  [Mobile Chrome] › golden/08-i18n-switch.spec.ts:62:13 › Golden 08 — Locale toggle + raw-key audit › no raw i18n keys visible on /inventory in EN
+  [Mobile Chrome] › golden/08-i18n-switch.spec.ts:48:13 › Golden 08 — Locale toggle + raw-key audit › no raw i18n keys visible on /requests in TH
+  [Mobile Chrome] › golden/08-i18n-switch.spec.ts:62:13 › Golden 08 — Locale toggle + raw-key audit › no raw i18n keys visible on /requests in EN
+  [Mobile Chrome] › golden/08-i18n-switch.spec.ts:74:9 › Golden 08 — Locale toggle + raw-key audit › toggling locale changes visible text
+Total: 86 tests in 8 files

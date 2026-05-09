@@ -204,6 +204,7 @@ export default function UserManagementPage() {
                                                 <Button
                                                     variant="ghost"
                                                     size="icon"
+                                                    aria-label="Edit user"
                                                     onClick={() => handleEdit(user)}
                                                     className="text-slate-400 hover:text-indigo-600 hover:bg-indigo-50"
                                                 >
@@ -212,6 +213,7 @@ export default function UserManagementPage() {
                                                 <Button
                                                     variant="ghost"
                                                     size="icon"
+                                                    aria-label="Delete user"
                                                     onClick={() => handleDeleteClick(user)}
                                                     className="text-slate-400 hover:text-red-600 hover:bg-red-50"
                                                 >

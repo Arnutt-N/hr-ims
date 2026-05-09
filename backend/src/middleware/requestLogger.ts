@@ -21,6 +21,9 @@ export function requestLogger() {
         const { method, path, ip, headers } = req;
         const userAgent = headers['user-agent'];
         const userId = (req as any).user?.id;
+        // requestId is stamped by `auditContext()` middleware (mounted earlier).
+        // Falls back to undefined when the middleware hasn't run.
+        const requestId = (req as any).auditContext?.requestId;
 
         // รอจนกว่า Response จะเสร็จสิ้น
         res.on('finish', async () => {
@@ -36,6 +39,7 @@ export function requestLogger() {
                 ip,
                 userAgent,
                 userId,
+                requestId,
                 timestamp: new Date().toISOString(),
             });
         });
@@ -61,6 +65,7 @@ export function errorLogger() {
                 path: req.path,
                 method: req.method,
                 userId: (req as any).user?.id,
+                requestId: (req as any).auditContext?.requestId,
                 timestamp: new Date().toISOString(),
             });
         }

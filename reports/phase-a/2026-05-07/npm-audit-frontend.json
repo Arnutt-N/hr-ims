@@ -1,0 +1,274 @@
+{
+  "auditReportVersion": 2,
+  "vulnerabilities": {
+    "@auth/core": {
+      "name": "@auth/core",
+      "severity": "low",
+      "isDirect": false,
+      "via": [
+        "nodemailer"
+      ],
+      "effects": [
+        "@auth/prisma-adapter",
+        "next-auth"
+      ],
+      "range": "*",
+      "nodes": [
+        "node_modules/@auth/core"
+      ],
+      "fixAvailable": false
+    },
+    "@auth/prisma-adapter": {
+      "name": "@auth/prisma-adapter",
+      "severity": "low",
+      "isDirect": true,
+      "via": [
+        "@auth/core"
+      ],
+      "effects": [],
+      "range": "*",
+      "nodes": [
+        "node_modules/@auth/prisma-adapter"
+      ],
+      "fixAvailable": false
+    },
+    "@uploadthing/react": {
+      "name": "@uploadthing/react",
+      "severity": "high",
+      "isDirect": true,
+      "via": [
+        "@uploadthing/shared",
+        "uploadthing"
+      ],
+      "effects": [],
+      "range": "5.6.1-canary.8c1c98d || 6.3.3-canary.1bafd62 - 6.3.3 || 6.4.2-canary.02ff941 - 6.4.2-canary.d850078 || >=6.6.1-canary.06f1714",
+      "nodes": [
+        "node_modules/@uploadthing/react"
+      ],
+      "fixAvailable": {
+        "name": "@uploadthing/react",
+        "version": "6.6.0",
+        "isSemVerMajor": true
+      }
+    },
+    "@uploadthing/shared": {
+      "name": "@uploadthing/shared",
+      "severity": "high",
+      "isDirect": false,
+      "via": [
+        "effect"
+      ],
+      "effects": [
+        "@uploadthing/react",
+        "uploadthing"
+      ],
+      "range": ">=6.7.6-canary.06f1714",
+      "nodes": [
+        "node_modules/@uploadthing/shared"
+      ],
+      "fixAvailable": {
+        "name": "uploadthing",
+        "version": "6.12.0",
+        "isSemVerMajor": true
+      }
+    },
+    "effect": {
+      "name": "effect",
+      "severity": "high",
+      "isDirect": false,
+      "via": [
+        {
+          "source": 1115356,
+          "name": "effect",
+          "dependency": "effect",
+          "title": "Effect `AsyncLocalStorage` context lost/contaminated inside Effect fibers under concurrent load with RPC",
+          "url": "https://github.com/advisories/GHSA-38f7-945m-qr2g",
+          "severity": "high",
+          "cwe": [
+            "CWE-362"
+          ],
+          "cvss": {
+            "score": 7.4,
+            "vectorString": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:H/A:N"
+          },
+          "range": "<3.20.0"
+        }
+      ],
+      "effects": [
+        "@uploadthing/shared",
+        "uploadthing"
+      ],
+      "range": "<3.20.0",
+      "nodes": [
+        "node_modules/effect"
+      ],
+      "fixAvailable": {
+        "name": "uploadthing",
+        "version": "6.12.0",
+        "isSemVerMajor": true
+      }
+    },
+    "next": {
+      "name": "next",
+      "severity": "moderate",
+      "isDirect": true,
+      "via": [
+        "postcss"
+      ],
+      "effects": [
+        "next-auth"
+      ],
+      "range": "9.3.4-canary.0 - 16.3.0-canary.5",
+      "nodes": [
+        "node_modules/next"
+      ],
+      "fixAvailable": {
+        "name": "next",
+        "version": "9.3.3",
+        "isSemVerMajor": true
+      }
+    },
+    "next-auth": {
+      "name": "next-auth",
+      "severity": "moderate",
+      "isDirect": true,
+      "via": [
+        "@auth/core",
+        "next",
+        "nodemailer"
+      ],
+      "effects": [],
+      "range": "<=0.0.0-semantically-released || 1.1.0 - 1.5.0 || >=2.0.0-beta.0",
+      "nodes": [
+        "node_modules/next-auth"
+      ],
+      "fixAvailable": {
+        "name": "next-auth",
+        "version": "1.12.1",
+        "isSemVerMajor": true
+      }
+    },
+    "nodemailer": {
+      "name": "nodemailer",
+      "severity": "moderate",
+      "isDirect": true,
+      "via": [
+        {
+          "source": 1115470,
+          "name": "nodemailer",
+          "dependency": "nodemailer",
+          "title": "Nodemailer has SMTP command injection due to unsanitized `envelope.size` parameter",
+          "url": "https://github.com/advisories/GHSA-c7w3-x93f-qmm8",
+          "severity": "low",
+          "cwe": [
+            "CWE-93"
+          ],
+          "cvss": {
+            "score": 0,
+            "vectorString": null
+          },
+          "range": "<8.0.4"
+        },
+        {
+          "source": 1116270,
+          "name": "nodemailer",
+          "dependency": "nodemailer",
+          "title": "Nodemailer Vulnerable to SMTP Command Injection via CRLF in Transport name Option (EHLO/HELO) ",
+          "url": "https://github.com/advisories/GHSA-vvjj-xcjg-gr5g",
+          "severity": "moderate",
+          "cwe": [
+            "CWE-93"
+          ],
+          "cvss": {
+            "score": 4.9,
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:H/UI:N/S:U/C:N/I:H/A:N"
+          },
+          "range": "<=8.0.4"
+        }
+      ],
+      "effects": [
+        "@auth/core",
+        "next-auth"
+      ],
+      "range": "<=8.0.4",
+      "nodes": [
+        "node_modules/nodemailer"
+      ],
+      "fixAvailable": false
+    },
+    "postcss": {
+      "name": "postcss",
+      "severity": "moderate",
+      "isDirect": false,
+      "via": [
+        {
+          "source": 1117015,
+          "name": "postcss",
+          "dependency": "postcss",
+          "title": "PostCSS has XSS via Unescaped </style> in its CSS Stringify Output",
+          "url": "https://github.com/advisories/GHSA-qx2v-qp2m-jg93",
+          "severity": "moderate",
+          "cwe": [
+            "CWE-79"
+          ],
+          "cvss": {
+            "score": 6.1,
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:C/C:L/I:L/A:N"
+          },
+          "range": "<8.5.10"
+        }
+      ],
+      "effects": [
+        "next"
+      ],
+      "range": "<8.5.10",
+      "nodes": [
+        "node_modules/next/node_modules/postcss"
+      ],
+      "fixAvailable": {
+        "name": "next",
+        "version": "9.3.3",
+        "isSemVerMajor": true
+      }
+    },
+    "uploadthing": {
+      "name": "uploadthing",
+      "severity": "high",
+      "isDirect": true,
+      "via": [
+        "@uploadthing/shared",
+        "effect"
+      ],
+      "effects": [
+        "@uploadthing/react"
+      ],
+      "range": "4.1.1-canary.102891b - 4.1.1-canary.166c330 || 6.5.1-canary.1bafd62 - 6.5.1 || >=6.12.1-canary.06f1714",
+      "nodes": [
+        "node_modules/uploadthing"
+      ],
+      "fixAvailable": {
+        "name": "uploadthing",
+        "version": "6.12.0",
+        "isSemVerMajor": true
+      }
+    }
+  },
+  "metadata": {
+    "vulnerabilities": {
+      "info": 0,
+      "low": 2,
+      "moderate": 4,
+      "high": 4,
+      "critical": 0,
+      "total": 10
+    },
+    "dependencies": {
+      "prod": 175,
+      "dev": 522,
+      "optional": 109,
+      "peer": 0,
+      "peerOptional": 0,
+      "total": 740
+    }
+  }
+}

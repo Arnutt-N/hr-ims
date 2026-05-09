@@ -539,12 +539,15 @@ model AuditLog {
   details     String?  // รายละเอียดเพิ่มเติม
   ipAddress   String?
   userAgent   String?
+  requestId   String?  // UUID propagated from requestLogger middleware so a single
+                       // request's audit rows can be correlated with backend logs.
   createdAt   DateTime @default(now())
-  
+
   @@index([userId])
   @@index([action])
   @@index([entity])
   @@index([createdAt])
+  @@index([requestId])
 }
 
 // Password History for preventing reuse

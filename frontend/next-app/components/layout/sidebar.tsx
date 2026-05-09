@@ -186,6 +186,8 @@ export function Sidebar({ user }: { user?: any }) {
             {/* Mobile Trigger */}
             <button
                 onClick={() => setIsOpen(!isOpen)}
+                aria-label={isOpen ? 'Close navigation menu' : 'Open navigation menu'}
+                aria-expanded={isOpen}
                 className="md:hidden fixed top-4 left-4 z-50 p-2 bg-white rounded-xl shadow-lg border border-slate-100 text-slate-600 cursor-pointer"
             >
                 {isOpen ? <X size={24} /> : <Menu size={24} />}
