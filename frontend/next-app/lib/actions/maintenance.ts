@@ -985,6 +985,260 @@ export async function deleteMaintenanceRequest(input: unknown) {
     }
 }
 
+// =============================================================================
+// Notes + read-side queries (Phase 2 commit #9)
+// =============================================================================
+
+const AddNoteSchema = z.object({
+    requestId: z.number().int().positive(),
+    notes: z.string().trim().min(1).max(2000),
+    itemId: z.number().int().positive().optional(),
+});
+
+/**
+ * Add a free-text note to a request (no state change).
+ * Auth: assignee, admin, or superadmin.
+ */
+export async function addMaintenanceNote(input: unknown) {
+    const session = await auth();
+    if (!session?.user?.id) return { error: 'Unauthorized' };
+    const actorId = Number.parseInt(session.user.id, 10);
+
+    const parsed = AddNoteSchema.safeParse(input);
+    if (!parsed.success) return { error: 'Invalid input', issues: parsed.error.format() };
+    const { requestId, notes, itemId } = parsed.data;
+
+    try {
+        const req = await prisma.maintenanceRequest.findUnique({
+            where: { id: requestId },
+            select: { assignedToId: true },
+        });
+        if (!req) return { error: 'Request not found' };
+
+        const isAssignee = req.assignedToId === actorId;
+        const adminSession = await requireRole(...ADMIN_ROLES);
+        if (!isAssignee && !adminSession) {
+            return { error: 'Forbidden - assignee or admin only' };
+        }
+
+        await prisma.maintenanceLog.create({
+            data: {
+                requestId,
+                itemId: itemId ?? null,
+                userId: actorId,
+                action: 'note_added',
+                notes,
+            },
+        });
+
+        revalidatePath(`/maintenance/${requestId}`);
+        return { success: true };
+    } catch (error) {
+        const message = error instanceof Error ? error.message : 'Unknown error';
+        console.error('addMaintenanceNote failed:', message);
+        return { error: message };
+    }
+}
+
+const ListFiltersSchema = z.object({
+    status: z.string().optional(),
+    assignedToId: z.union([z.number().int().positive(), z.literal('me'), z.literal('unassigned')]).optional(),
+    severity: z.string().optional(),
+    itemId: z.number().int().positive().optional(),
+    tags: z.array(z.string()).optional(),
+    view: z.enum(['active', 'deleted']).optional(),
+}).optional();
+
+/**
+ * List requests with optional filters (PRP v6).
+ * Auth: admin, superadmin, technician, auditor (read-only).
+ * filters.view='deleted' requires admin/superadmin.
+ */
+export async function getMaintenanceRequests(filters?: unknown) {
+    const session = await requireRole(...ADMIN_ROLES, 'technician', 'auditor');
+    if (!session?.user?.id) return { error: 'Unauthorized' };
+
+    const parsed = ListFiltersSchema.safeParse(filters);
+    if (!parsed.success) return { error: 'Invalid filters', issues: parsed.error.format() };
+    const f = parsed.data ?? {};
+    const actorId = Number.parseInt(session.user.id, 10);
+
+    if (f.view === 'deleted') {
+        const adminSession = await requireRole(...ADMIN_ROLES);
+        if (!adminSession) return { error: 'Forbidden - deleted view is admin only' };
+    }
+
+    try {
+        const where: Record<string, unknown> = {};
+        if (f.status) where.status = f.status;
+        if (f.severity) where.severity = f.severity;
+        if (f.assignedToId === 'me') where.assignedToId = actorId;
+        else if (f.assignedToId === 'unassigned') where.assignedToId = null;
+        else if (typeof f.assignedToId === 'number') where.assignedToId = f.assignedToId;
+        if (f.itemId !== undefined) where.items = { some: { itemId: f.itemId } };
+
+        // 'view=deleted' bypasses soft-delete middleware via explicit filter
+        if (f.view === 'deleted') {
+            where.deletedAt = { not: null };
+        }
+
+        let requests = await prisma.maintenanceRequest.findMany({
+            where: where as never,
+            include: {
+                items: {
+                    include: {
+                        item: { select: { id: true, name: true, serial: true, image: true } },
+                    },
+                },
+                reportedBy: { select: { id: true, name: true } },
+                assignedTo: { select: { id: true, name: true } },
+                location: { select: { id: true, name: true } },
+            },
+            orderBy: { createdAt: 'desc' },
+            take: 200,
+        });
+
+        // Tags filter is post-fetch because tags is JSON-string in SQLite
+        if (f.tags && f.tags.length > 0) {
+            const tagsToMatch = f.tags;
+            requests = requests.filter((r) => {
+                if (!r.tags) return false;
+                try {
+                    const parsedTags = JSON.parse(r.tags) as string[];
+                    return tagsToMatch.every((t) => parsedTags.includes(t));
+                } catch {
+                    return false;
+                }
+            });
+        }
+
+        return { success: true, requests };
+    } catch (error) {
+        const message = error instanceof Error ? error.message : 'Unknown error';
+        console.error('getMaintenanceRequests failed:', message);
+        return { error: message };
+    }
+}
+
+/**
+ * Get current user's reported requests.
+ */
+export async function getMyMaintenanceRequests() {
+    const session = await auth();
+    if (!session?.user?.id) return { error: 'Unauthorized' };
+    const actorId = Number.parseInt(session.user.id, 10);
+
+    try {
+        const requests = await prisma.maintenanceRequest.findMany({
+            where: { reportedById: actorId },
+            include: {
+                items: {
+                    include: {
+                        item: { select: { id: true, name: true, serial: true, image: true } },
+                    },
+                },
+                assignedTo: { select: { id: true, name: true } },
+                location: { select: { id: true, name: true } },
+            },
+            orderBy: { createdAt: 'desc' },
+            take: 100,
+        });
+        return { success: true, requests };
+    } catch (error) {
+        const message = error instanceof Error ? error.message : 'Unknown error';
+        console.error('getMyMaintenanceRequests failed:', message);
+        return { error: message };
+    }
+}
+
+/**
+ * Get a single request with items + log timeline.
+ * Auth: admin/auditor see all; reporter or assignee can see own.
+ */
+export async function getMaintenanceRequest(id: number) {
+    const session = await auth();
+    if (!session?.user?.id) return { error: 'Unauthorized' };
+    const actorId = Number.parseInt(session.user.id, 10);
+
+    if (!Number.isInteger(id) || id <= 0) return { error: 'Invalid id' };
+
+    try {
+        const request = await prisma.maintenanceRequest.findUnique({
+            where: { id },
+            include: {
+                items: {
+                    include: {
+                        item: { select: { id: true, name: true, serial: true, image: true } },
+                    },
+                    orderBy: { id: 'asc' },
+                },
+                reportedBy: { select: { id: true, name: true } },
+                assignedTo: { select: { id: true, name: true } },
+                location: { select: { id: true, name: true } },
+                logs: {
+                    include: {
+                        user: { select: { id: true, name: true } },
+                    },
+                    orderBy: { createdAt: 'asc' },
+                },
+            },
+        });
+        if (!request) return { error: 'Request not found' };
+
+        // Scope check: reporter, assignee, or admin/auditor
+        const isReporter = request.reportedById === actorId;
+        const isAssignee = request.assignedToId === actorId;
+        const adminish = await requireRole(...ADMIN_ROLES, 'auditor');
+        if (!isReporter && !isAssignee && !adminish) {
+            return { error: 'Forbidden' };
+        }
+
+        return { success: true, request };
+    } catch (error) {
+        const message = error instanceof Error ? error.message : 'Unknown error';
+        console.error('getMaintenanceRequest failed:', message);
+        return { error: message };
+    }
+}
+
+/**
+ * Return a deduplicated list of all tags across non-deleted requests.
+ * Used for autocomplete in TagInput + filter chips.
+ * Auth: any logged-in user.
+ */
+export async function getMaintenanceTags(filter?: string) {
+    const session = await auth();
+    if (!session?.user?.id) return { error: 'Unauthorized' };
+
+    try {
+        const rows = await prisma.maintenanceRequest.findMany({
+            where: { tags: { not: null } },
+            select: { tags: true },
+            take: 500,
+        });
+        const tagSet = new Set<string>();
+        for (const r of rows) {
+            if (!r.tags) continue;
+            try {
+                const arr = JSON.parse(r.tags) as string[];
+                for (const t of arr) tagSet.add(t);
+            } catch {
+                // skip malformed
+            }
+        }
+        let tags = Array.from(tagSet).sort();
+        if (filter && typeof filter === 'string') {
+            const needle = filter.toLowerCase();
+            tags = tags.filter((t) => t.toLowerCase().includes(needle));
+        }
+        return { success: true, tags: tags.slice(0, 50) };
+    } catch (error) {
+        const message = error instanceof Error ? error.message : 'Unknown error';
+        console.error('getMaintenanceTags failed:', message);
+        return { error: message };
+    }
+}
+
 /**
  * Restore a soft-deleted request — admin only.
  * Bypasses middleware via explicit deletedAt filter on the lookup.
