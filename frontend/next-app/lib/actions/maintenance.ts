@@ -1239,6 +1239,259 @@ export async function getMaintenanceTags(filter?: string) {
     }
 }
 
+// =============================================================================
+// Stats / dashboard aggregation (Phase 2 commit #10) — PRP v6 Q14
+// =============================================================================
+
+const StatsFiltersSchema = z.object({
+    dateFrom: z.coerce.date().optional(),
+    dateTo: z.coerce.date().optional(),
+    severity: z.string().optional(),
+    priority: z.string().optional(),
+    category: z.string().optional(),
+    tags: z.array(z.string()).optional(),
+    locationId: z.number().int().positive().optional(),
+}).optional();
+
+/**
+ * Aggregate metrics for the maintenance dashboard pages
+ * (/reports/maintenance and /maintenance/dashboard).
+ *
+ * Auth: admin/superadmin/technician/auditor (read-only).
+ *
+ * Trade-off: most counts done via Prisma groupBy + a few JS post-aggregations
+ * for fields the SQLite/Prisma query layer can't express ergonomically (e.g.
+ * tag filter on JSON column, average resolve time per assignee).
+ */
+export async function getMaintenanceStats(filters?: unknown) {
+    const session = await requireRole(...ADMIN_ROLES, 'technician', 'auditor');
+    if (!session?.user?.id) return { error: 'Unauthorized' };
+
+    const parsed = StatsFiltersSchema.safeParse(filters);
+    if (!parsed.success) return { error: 'Invalid filters', issues: parsed.error.format() };
+    const f = parsed.data ?? {};
+
+    try {
+        const where: Record<string, unknown> = {};
+        if (f.dateFrom || f.dateTo) {
+            where.createdAt = {
+                ...(f.dateFrom ? { gte: f.dateFrom } : {}),
+                ...(f.dateTo ? { lte: f.dateTo } : {}),
+            };
+        }
+        if (f.severity) where.severity = f.severity;
+        if (f.priority) where.priority = f.priority;
+        if (f.category) where.category = f.category;
+        if (f.locationId !== undefined) where.locationId = f.locationId;
+
+        // Fetch full rows once (filters narrow result; index on status/locationId helps)
+        const rows = await prisma.maintenanceRequest.findMany({
+            where: where as never,
+            include: {
+                items: {
+                    include: {
+                        item: { select: { id: true, name: true } },
+                    },
+                },
+                location: { select: { id: true, name: true } },
+                assignedTo: { select: { id: true, name: true } },
+            },
+        });
+
+        // Tag filter (post-fetch — see getMaintenanceRequests for rationale)
+        const filtered = f.tags && f.tags.length > 0
+            ? rows.filter((r) => {
+                if (!r.tags) return false;
+                try {
+                    const t = JSON.parse(r.tags) as string[];
+                    return f.tags!.every((tag) => t.includes(tag));
+                } catch {
+                    return false;
+                }
+            })
+            : rows;
+
+        const totalRequests = filtered.length;
+
+        // Aggregate by status / severity / priority / category
+        const tally = <K extends string>(field: K) => {
+            const out: Record<string, number> = {};
+            for (const r of filtered) {
+                const v = (r as Record<string, unknown>)[field];
+                if (typeof v === 'string') out[v] = (out[v] ?? 0) + 1;
+            }
+            return out;
+        };
+        const byStatus = tally('status');
+        const bySeverity = tally('severity');
+        const byPriority = tally('priority');
+        const byCategory = tally('category');
+
+        // By location
+        const locationMap = new Map<number, { name: string; count: number }>();
+        for (const r of filtered) {
+            if (!r.locationId || !r.location) continue;
+            const cur = locationMap.get(r.locationId);
+            if (cur) cur.count += 1;
+            else locationMap.set(r.locationId, { name: r.location.name, count: 1 });
+        }
+        const byLocation = Array.from(locationMap.entries()).map(([departmentId, v]) => ({
+            departmentId,
+            departmentName: v.name,
+            count: v.count,
+        }));
+
+        // Avg resolve / close time
+        const resolveTimes: number[] = [];
+        const closeTimes: number[] = [];
+        for (const r of filtered) {
+            if (r.resolvedAt) resolveTimes.push(r.resolvedAt.getTime() - r.createdAt.getTime());
+            if (r.closedAt) closeTimes.push(r.closedAt.getTime() - r.createdAt.getTime());
+        }
+        const avgHours = (arr: number[]): number | null =>
+            arr.length === 0 ? null : arr.reduce((a, b) => a + b, 0) / arr.length / (60 * 60 * 1000);
+        const averageResolveTimeHours = avgHours(resolveTimes);
+        const averageCloseTimeHours = avgHours(closeTimes);
+
+        // Top items by request count
+        const itemCount = new Map<number, { name: string; count: number }>();
+        for (const r of filtered) {
+            for (const it of r.items) {
+                const cur = itemCount.get(it.itemId);
+                if (cur) cur.count += 1;
+                else itemCount.set(it.itemId, { name: it.item.name, count: 1 });
+            }
+        }
+        const topItemsByRequestCount = Array.from(itemCount.entries())
+            .map(([itemId, v]) => ({ itemId, itemName: v.name, count: v.count }))
+            .sort((a, b) => b.count - a.count)
+            .slice(0, 10);
+
+        // Cost by department
+        const costMap = new Map<
+            number,
+            { name: string; estimated: number; actual: number; count: number }
+        >();
+        for (const r of filtered) {
+            if (!r.locationId || !r.location) continue;
+            const cur = costMap.get(r.locationId) ?? {
+                name: r.location.name,
+                estimated: 0,
+                actual: 0,
+                count: 0,
+            };
+            cur.estimated += r.estimatedCost ?? 0;
+            cur.actual += r.items.reduce((sum, it) => sum + (it.actualCost ?? 0), 0);
+            cur.count += 1;
+            costMap.set(r.locationId, cur);
+        }
+        const costByDepartment = Array.from(costMap.entries()).map(([departmentId, v]) => ({
+            departmentId,
+            departmentName: v.name,
+            estimatedTotal: v.estimated,
+            actualTotal: v.actual,
+            requestCount: v.count,
+        }));
+
+        // Technician productivity
+        const techMap = new Map<
+            number,
+            {
+                name: string;
+                resolvedCount: number;
+                closedCount: number;
+                resolveTimes: number[];
+                closeTimes: number[];
+                actualCost: number;
+            }
+        >();
+        for (const r of filtered) {
+            if (!r.assignedToId || !r.assignedTo) continue;
+            const cur = techMap.get(r.assignedToId) ?? {
+                name: r.assignedTo.name ?? 'Unknown',
+                resolvedCount: 0,
+                closedCount: 0,
+                resolveTimes: [],
+                closeTimes: [],
+                actualCost: 0,
+            };
+            if (r.resolvedAt) {
+                cur.resolvedCount += 1;
+                cur.resolveTimes.push(r.resolvedAt.getTime() - r.createdAt.getTime());
+            }
+            if (r.closedAt) {
+                cur.closedCount += 1;
+                cur.closeTimes.push(r.closedAt.getTime() - r.createdAt.getTime());
+            }
+            cur.actualCost += r.items.reduce((sum, it) => sum + (it.actualCost ?? 0), 0);
+            techMap.set(r.assignedToId, cur);
+        }
+        const technicianProductivity = Array.from(techMap.entries()).map(([userId, v]) => ({
+            userId,
+            userName: v.name,
+            resolvedCount: v.resolvedCount,
+            closedCount: v.closedCount,
+            averageResolveTimeHours: avgHours(v.resolveTimes) ?? 0,
+            averageCloseTimeHours: avgHours(v.closeTimes) ?? 0,
+            totalActualCost: v.actualCost,
+        }));
+
+        const costSummary = {
+            estimatedTotal: filtered.reduce((s, r) => s + (r.estimatedCost ?? 0), 0),
+            actualTotal: filtered.reduce(
+                (s, r) => s + r.items.reduce((s2, it) => s2 + (it.actualCost ?? 0), 0),
+                0,
+            ),
+        };
+
+        // Trend by day (last 30 days)
+        const trendMap = new Map<string, { created: number; closed: number }>();
+        const now = Date.now();
+        const thirtyDaysAgo = now - 30 * 24 * 60 * 60 * 1000;
+        for (const r of filtered) {
+            const createdMs = r.createdAt.getTime();
+            if (createdMs >= thirtyDaysAgo) {
+                const key = r.createdAt.toISOString().slice(0, 10);
+                const cur = trendMap.get(key) ?? { created: 0, closed: 0 };
+                cur.created += 1;
+                trendMap.set(key, cur);
+            }
+            if (r.closedAt && r.closedAt.getTime() >= thirtyDaysAgo) {
+                const key = r.closedAt.toISOString().slice(0, 10);
+                const cur = trendMap.get(key) ?? { created: 0, closed: 0 };
+                cur.closed += 1;
+                trendMap.set(key, cur);
+            }
+        }
+        const trendByDay = Array.from(trendMap.entries())
+            .sort(([a], [b]) => a.localeCompare(b))
+            .map(([date, v]) => ({ date, created: v.created, closed: v.closed }));
+
+        return {
+            success: true,
+            stats: {
+                totalRequests,
+                byStatus,
+                bySeverity,
+                byPriority,
+                byCategory,
+                byLocation,
+                averageResolveTimeHours,
+                averageCloseTimeHours,
+                topItemsByRequestCount,
+                costByDepartment,
+                technicianProductivity,
+                costSummary,
+                trendByDay,
+            },
+        };
+    } catch (error) {
+        const message = error instanceof Error ? error.message : 'Unknown error';
+        console.error('getMaintenanceStats failed:', message);
+        return { error: message };
+    }
+}
+
 /**
  * Restore a soft-deleted request — admin only.
  * Bypasses middleware via explicit deletedAt filter on the lookup.
