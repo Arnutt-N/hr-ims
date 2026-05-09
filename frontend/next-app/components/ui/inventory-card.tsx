@@ -21,6 +21,8 @@ import { getSafeImageSrc } from '@/lib/safe-image';
 import { useI18n } from '@/lib/i18n/provider';
 import { toast } from 'sonner';
 import { useState } from 'react';
+import { Wrench } from 'lucide-react';
+import { RequestForm } from '@/components/maintenance/RequestForm';
 
 // ... interface InventoryItem ...
 
@@ -32,6 +34,7 @@ interface InventoryCardProps {
 export function InventoryCard({ item, onAction }: InventoryCardProps) {
     const { t } = useI18n();
     const [loading, setLoading] = useState(false);
+    const [reportOpen, setReportOpen] = useState(false);
     const isAvailable = item.status === 'available' || item.stock > 0;
     const isConsumable = item.type === 'consumable';
     const imageSrc = getSafeImageSrc(item.image);
@@ -116,7 +119,7 @@ export function InventoryCard({ item, onAction }: InventoryCardProps) {
                         </div>
                     )}
 
-                    <div className="mt-auto pt-4 border-t border-slate-50">
+                    <div className="mt-auto pt-4 border-t border-slate-50 space-y-2">
                         <button
                             onClick={(e) => {
                                 e.preventDefault();
@@ -136,9 +139,28 @@ export function InventoryCard({ item, onAction }: InventoryCardProps) {
                                 </>
                             )}
                         </button>
+                        {/* PRP v6 Phase 3: Report Issue button (any logged-in user) */}
+                        <button
+                            type="button"
+                            onClick={(e) => {
+                                e.preventDefault();
+                                setReportOpen(true);
+                            }}
+                            className="w-full py-2 rounded-lg flex items-center justify-center gap-1.5 text-xs font-medium text-slate-600 hover:text-red-600 hover:bg-red-50 transition border border-slate-200 hover:border-red-200"
+                            title="แจ้งซ่อมอุปกรณ์นี้"
+                        >
+                            <Wrench size={14} /> แจ้งซ่อม
+                        </button>
                     </div>
                 </div>
             </motion.div>
+
+            <RequestForm
+                open={reportOpen}
+                onOpenChange={setReportOpen}
+                defaultItemIds={[item.id]}
+                onSuccess={() => toast.success('แจ้งซ่อมเรียบร้อย')}
+            />
         </div>
     );
 }

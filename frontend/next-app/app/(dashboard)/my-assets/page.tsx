@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getMyAssets, checkInAsset, requestReturn, reportIssue } from '@/lib/actions/assets';
+import { getMyAssets, checkInAsset, requestReturn } from '@/lib/actions/assets';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { Package, CheckCircle, AlertTriangle, ArrowRightLeft, Clock } from 'lucide-react';
@@ -9,11 +9,13 @@ import { formatThaiDateShort, formatRelativeTime } from '@/lib/date-utils';
 import { Badge } from '@/components/ui/badge';
 import { useI18n } from '@/lib/i18n/provider';
 import { PageLoader } from '@/components/ui/page-loader';
+import { RequestForm } from '@/components/maintenance/RequestForm';
 
 export default function MyAssetsPage() {
     const { t } = useI18n();
     const [assets, setAssets] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const [reportItemId, setReportItemId] = useState<number | null>(null);
 
     useEffect(() => {
         loadAssets();
@@ -47,18 +49,10 @@ export default function MyAssetsPage() {
         }
     };
 
-    const handleReport = async (id: number) => {
-        // Simple prompt for now
-        const issue = prompt('Describe the issue:');
-        if (issue) {
-            const res = await reportIssue(id, issue);
-            if (res.success) {
-                toast.success('Issue reported');
-                loadAssets();
-            } else {
-                toast.error('Failed to report issue');
-            }
-        }
+    // PRP v6 Phase 3: open the proper RequestForm modal seeded with this
+    // asset id, replacing the legacy JS prompt() flow.
+    const handleReport = (id: number) => {
+        setReportItemId(id);
     };
 
     if (loading) return <PageLoader />;
@@ -169,6 +163,16 @@ export default function MyAssetsPage() {
                     })}
                 </div>
             )}
+
+            <RequestForm
+                open={reportItemId !== null}
+                onOpenChange={(open) => !open && setReportItemId(null)}
+                defaultItemIds={reportItemId !== null ? [reportItemId] : undefined}
+                onSuccess={() => {
+                    toast.success('แจ้งซ่อมเรียบร้อย');
+                    loadAssets();
+                }}
+            />
         </div>
     );
 }
