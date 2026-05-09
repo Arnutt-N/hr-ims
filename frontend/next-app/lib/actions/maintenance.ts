@@ -4,6 +4,155 @@ import prisma from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
 import { auth } from '@/auth';
 import { requireRole, ADMIN_ROLES } from '@/lib/auth-guards';
+import { z } from 'zod';
+import {
+    SEVERITY_LEVELS,
+    PRIORITY_LEVELS,
+    CATEGORIES,
+} from '@/lib/maintenance/types';
+import { sendMaintenanceAlert } from '@/lib/maintenance/telegram-service';
+
+// =============================================================================
+// MAINTENANCE WORKFLOW (PRP v6 — added 2026-05-09)
+// See: PRPs/claude/2026-05-09_104630_claude_plan_maintenance-workflow.md
+// =============================================================================
+
+const TAG_PATTERN = /^[a-zA-Z0-9-]+$/;
+
+const CreateMaintenanceRequestSchema = z.object({
+    itemIds: z.array(z.number().int().positive()).min(1).max(20),
+    title: z.string().trim().min(1).max(200),
+    description: z.string().trim().min(1).max(5000),
+    severity: z.enum(SEVERITY_LEVELS),
+    priority: z.enum(PRIORITY_LEVELS).default('normal'),
+    category: z.enum(CATEGORIES),
+    tags: z
+        .array(z.string().trim().min(1).max(32).regex(TAG_PATTERN))
+        .max(10)
+        .optional(),
+    locationId: z.number().int().positive().optional(),
+    photoUrls: z
+        .array(z.string().url())
+        .max(5)
+        .optional(),
+    estimatedCost: z.number().nonnegative().optional(),
+});
+
+export type CreateMaintenanceRequestInput = z.infer<typeof CreateMaintenanceRequestSchema>;
+
+/**
+ * Create a new maintenance request (PRP v6 createMaintenanceRequest).
+ *
+ * Auth: any logged-in user.
+ * Side effects (single $transaction):
+ *   - Insert MaintenanceRequest (status='open' since no auto-assign yet —
+ *     Phase 5 wires CategoryAssigneeRule lookup here)
+ *   - Insert N MaintenanceRequestItem rows (each status='open')
+ *   - Insert MaintenanceLog (action='created', itemId=null)
+ *   - For each item: update inventoryItem.status='issue_reported' (backward compat)
+ *   - revalidatePath
+ * Post-transaction (best-effort, non-blocking):
+ *   - severity === 'critical': fire Telegram alert (env-gated, no-op without secrets)
+ */
+export async function createMaintenanceRequest(input: unknown) {
+    const session = await auth();
+    if (!session?.user?.id) return { error: 'Unauthorized' };
+
+    const parsed = CreateMaintenanceRequestSchema.safeParse(input);
+    if (!parsed.success) {
+        return { error: 'Invalid input', issues: parsed.error.format() };
+    }
+    const data = parsed.data;
+    const reporterId = Number.parseInt(session.user.id, 10);
+
+    try {
+        const created = await prisma.$transaction(async (tx) => {
+            // Verify all items exist (otherwise FK violation)
+            const items = await tx.inventoryItem.findMany({
+                where: { id: { in: data.itemIds } },
+                select: { id: true, name: true },
+            });
+            if (items.length !== data.itemIds.length) {
+                throw new Error('One or more items not found');
+            }
+
+            // Verify location if provided
+            if (data.locationId !== undefined) {
+                const dept = await tx.department.findUnique({
+                    where: { id: data.locationId },
+                    select: { id: true },
+                });
+                if (!dept) throw new Error('Location (department) not found');
+            }
+
+            const request = await tx.maintenanceRequest.create({
+                data: {
+                    reportedById: reporterId,
+                    locationId: data.locationId ?? null,
+                    title: data.title,
+                    description: data.description,
+                    severity: data.severity,
+                    priority: data.priority,
+                    category: data.category,
+                    tags: data.tags ? JSON.stringify(data.tags) : null,
+                    photos: data.photoUrls ? JSON.stringify(data.photoUrls) : null,
+                    estimatedCost: data.estimatedCost ?? null,
+                    status: 'open',
+                    items: {
+                        create: data.itemIds.map((itemId) => ({
+                            itemId,
+                            status: 'open',
+                        })),
+                    },
+                    logs: {
+                        create: [
+                            {
+                                userId: reporterId,
+                                action: 'created',
+                                toStatus: 'open',
+                            },
+                        ],
+                    },
+                },
+                include: {
+                    items: { include: { item: { select: { id: true, name: true } } } },
+                    reportedBy: { select: { id: true, name: true } },
+                },
+            });
+
+            // Backward-compat: sync inventoryItem.status (legacy /maintenance dashboard reads this)
+            await tx.inventoryItem.updateMany({
+                where: { id: { in: data.itemIds } },
+                data: { status: 'issue_reported' },
+            });
+
+            return request;
+        });
+
+        // Fire-and-forget Telegram alert for critical severity (env-gated)
+        if (data.severity === 'critical') {
+            void sendMaintenanceAlert({
+                requestId: created.id,
+                title: created.title,
+                description: created.description,
+                severity: 'critical',
+                reporterName: created.reportedBy.name ?? 'Unknown',
+                itemNames: created.items.map((i) => i.item.name),
+                locationName: null, // resolve to dept name in a future commit if needed
+            });
+        }
+
+        revalidatePath('/maintenance');
+        revalidatePath('/inventory');
+        revalidatePath('/my-assets');
+
+        return { success: true, request: created };
+    } catch (error) {
+        const message = error instanceof Error ? error.message : 'Unknown error';
+        console.error('createMaintenanceRequest failed:', message);
+        return { error: `Failed to create request: ${message}` };
+    }
+}
 
 export async function getMaintenanceItems() {
     const session = await requireRole(...ADMIN_ROLES, 'technician');
