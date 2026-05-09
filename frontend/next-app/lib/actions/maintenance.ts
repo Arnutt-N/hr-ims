@@ -481,3 +481,221 @@ export async function updateMaintenanceItemStatus(input: unknown) {
         return { error: message };
     }
 }
+
+// =============================================================================
+// Reporter approval flow (Phase 2 commit #6) — PRP v6 Q9
+// =============================================================================
+
+const ApproveItemSchema = z.object({
+    requestId: z.number().int().positive(),
+    itemId: z.number().int().positive(),
+    expectedVersion: z.number().int().nonnegative(),
+});
+
+/**
+ * Reporter (or admin) verifies a resolved item → moves to closed.
+ * Auth: request.reportedBy === session.user.id OR admin/superadmin
+ */
+export async function approveItemResolution(input: unknown) {
+    const session = await auth();
+    if (!session?.user?.id) return { error: 'Unauthorized' };
+    const actorId = Number.parseInt(session.user.id, 10);
+
+    const parsed = ApproveItemSchema.safeParse(input);
+    if (!parsed.success) return { error: 'Invalid input', issues: parsed.error.format() };
+    const data = parsed.data;
+
+    try {
+        await prisma.$transaction(async (tx) => {
+            const item = await tx.maintenanceRequestItem.findUnique({
+                where: { id: data.itemId },
+                include: { request: true, item: { select: { id: true } } },
+            });
+            if (!item || item.requestId !== data.requestId) {
+                throw new Error('Item not found in this request');
+            }
+
+            const isReporter = item.request.reportedById === actorId;
+            const adminSession = await requireRole(...ADMIN_ROLES);
+            if (!isReporter && !adminSession) {
+                throw new Error('Forbidden - reporter or admin only');
+            }
+
+            if (item.status !== 'resolved') {
+                throw new Error(`Cannot approve item in status: ${item.status}`);
+            }
+
+            assertValidItemTransition('resolved', 'closed');
+            await assertItemVersion(tx, data.itemId, data.expectedVersion);
+
+            await tx.maintenanceRequestItem.update({
+                where: { id: data.itemId },
+                data: {
+                    status: 'closed',
+                    closedAt: new Date(),
+                    version: { increment: 1 },
+                },
+            });
+
+            await tx.maintenanceLog.create({
+                data: {
+                    requestId: data.requestId,
+                    itemId: item.item.id,
+                    userId: actorId,
+                    action: 'item_approved',
+                    fromStatus: 'resolved',
+                    toStatus: 'closed',
+                },
+            });
+
+            const allItems = await tx.maintenanceRequestItem.findMany({
+                where: { requestId: data.requestId },
+                select: { status: true },
+            });
+            const newAggregate = computeRequestStatus(
+                allItems.map((i) => ({ status: i.status as ItemStatus })),
+                item.request.assignedToId,
+                item.request.status === 'cancelled',
+            );
+
+            const reqUpdate: { status: string; closedAt?: Date } = { status: newAggregate };
+            if (newAggregate === 'closed' && !item.request.closedAt) {
+                reqUpdate.closedAt = new Date();
+                await tx.maintenanceLog.create({
+                    data: {
+                        requestId: data.requestId,
+                        userId: actorId,
+                        action: 'request_closed',
+                        toStatus: 'closed',
+                    },
+                });
+            }
+            await tx.maintenanceRequest.update({
+                where: { id: data.requestId },
+                data: reqUpdate,
+            });
+
+            // Now safe to free inventory item — reporter verified
+            await tx.inventoryItem.update({
+                where: { id: item.item.id },
+                data: { status: 'available' },
+            });
+        });
+
+        revalidatePath('/maintenance');
+        revalidatePath(`/maintenance/${data.requestId}`);
+        revalidatePath('/inventory');
+        revalidatePath('/my-assets');
+        return { success: true };
+    } catch (error) {
+        if (error instanceof OptimisticLockError) return { error: error.message, code: 'OPTIMISTIC_LOCK' };
+        const message = error instanceof Error ? error.message : 'Unknown error';
+        console.error('approveItemResolution failed:', message);
+        return { error: message };
+    }
+}
+
+const RejectItemSchema = z.object({
+    requestId: z.number().int().positive(),
+    itemId: z.number().int().positive(),
+    expectedVersion: z.number().int().nonnegative(),
+    reason: z.string().trim().min(1).max(2000),
+});
+
+/**
+ * Reporter (or admin) rejects a resolved item → back to in_progress
+ * with rejectionReason recorded. Notifies assignee in-app.
+ */
+export async function rejectItemResolution(input: unknown) {
+    const session = await auth();
+    if (!session?.user?.id) return { error: 'Unauthorized' };
+    const actorId = Number.parseInt(session.user.id, 10);
+
+    const parsed = RejectItemSchema.safeParse(input);
+    if (!parsed.success) return { error: 'Invalid input', issues: parsed.error.format() };
+    const data = parsed.data;
+
+    try {
+        await prisma.$transaction(async (tx) => {
+            const item = await tx.maintenanceRequestItem.findUnique({
+                where: { id: data.itemId },
+                include: { request: true, item: { select: { id: true } } },
+            });
+            if (!item || item.requestId !== data.requestId) {
+                throw new Error('Item not found in this request');
+            }
+
+            const isReporter = item.request.reportedById === actorId;
+            const adminSession = await requireRole(...ADMIN_ROLES);
+            if (!isReporter && !adminSession) {
+                throw new Error('Forbidden - reporter or admin only');
+            }
+
+            if (item.status !== 'resolved') {
+                throw new Error(`Cannot reject item in status: ${item.status}`);
+            }
+
+            assertValidItemTransition('resolved', 'in_progress');
+            await assertItemVersion(tx, data.itemId, data.expectedVersion);
+
+            await tx.maintenanceRequestItem.update({
+                where: { id: data.itemId },
+                data: {
+                    status: 'in_progress',
+                    rejectionReason: data.reason,
+                    resolvedAt: null,
+                    version: { increment: 1 },
+                },
+            });
+
+            await tx.maintenanceLog.create({
+                data: {
+                    requestId: data.requestId,
+                    itemId: item.item.id,
+                    userId: actorId,
+                    action: 'item_rejected',
+                    fromStatus: 'resolved',
+                    toStatus: 'in_progress',
+                    notes: data.reason,
+                },
+            });
+
+            const allItems = await tx.maintenanceRequestItem.findMany({
+                where: { requestId: data.requestId },
+                select: { status: true },
+            });
+            const newAggregate = computeRequestStatus(
+                allItems.map((i) => ({ status: i.status as ItemStatus })),
+                item.request.assignedToId,
+                item.request.status === 'cancelled',
+            );
+
+            const reqUpdate: { status: string; resolvedAt?: null } = { status: newAggregate };
+            if (newAggregate !== 'resolved' && newAggregate !== 'closed') {
+                reqUpdate.resolvedAt = null;
+            }
+            await tx.maintenanceRequest.update({
+                where: { id: data.requestId },
+                data: reqUpdate,
+            });
+
+            if (item.request.assignedToId) {
+                await tx.notification.create({
+                    data: {
+                        userId: item.request.assignedToId,
+                        text: `รายงานซ่อม #${data.requestId}: ผู้แจ้งปฏิเสธการแก้ไข - ${data.reason}`,
+                    },
+                });
+            }
+        });
+
+        revalidatePath('/maintenance');
+        revalidatePath(`/maintenance/${data.requestId}`);
+        return { success: true };
+    } catch (error) {
+        if (error instanceof OptimisticLockError) return { error: error.message, code: 'OPTIMISTIC_LOCK' };
+        const message = error instanceof Error ? error.message : 'Unknown error';
+        console.error('rejectItemResolution failed:', message);
+        return { error: message };
+    }
+}
