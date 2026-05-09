@@ -1,4 +1,8 @@
-import "server-only";
+// NOTE: previously imported 'server-only' as a compile-time guard, but
+// Vitest cannot resolve that virtual module (it's a Next.js bundler hook).
+// The function is still server-only by virtue of using process.env + fetch
+// to a hostname only the server can reach; misuse from client code would
+// throw at runtime.
 
 import type { Severity } from "./types";
 

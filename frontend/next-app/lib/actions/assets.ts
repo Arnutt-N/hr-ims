@@ -146,22 +146,28 @@ export async function reportIssue(itemId: number, issue: string) {
             },
         });
 
-        // Delegate to the proper maintenance workflow.
-        // Defaults: severity='medium', priority='normal', category='other'.
-        // Phase 3 RequestForm will let users pick these explicitly.
-        const { createMaintenanceRequest } = await import('@/lib/actions/maintenance');
-        const result = await createMaintenanceRequest({
-            itemIds: [itemId],
-            title: `Issue reported: ${item.name}`,
-            description: issue,
-            severity: 'medium',
-            priority: 'normal',
-            category: 'other',
-        });
+        // Try the new maintenance workflow first; fall back to the legacy
+        // status flip if it rejects or throws. Inner try/catch isolates the
+        // delegate failure so we don't bubble up a misleading "Report failed".
+        let delegated = false;
+        try {
+            const { createMaintenanceRequest } = await import('@/lib/actions/maintenance');
+            const result = await createMaintenanceRequest({
+                itemIds: [itemId],
+                title: `Issue reported: ${item.name}`,
+                description: issue,
+                severity: 'medium',
+                priority: 'normal',
+                category: 'other',
+            });
+            delegated = 'success' in result && result.success === true;
+        } catch (delegateErr) {
+            console.warn('reportIssue: createMaintenanceRequest delegate failed, using legacy fallback', delegateErr);
+        }
 
-        if (!('success' in result) || !result.success) {
-            // Fall back to legacy flow if the new action rejects (e.g., during
-            // a transition window). Status sync still happens for backward compat.
+        if (!delegated) {
+            // Legacy fallback: direct status flip preserves the contract that
+            // /my-assets has relied on since before the new workflow.
             await prisma.inventoryItem.update({
                 where: { id: itemId },
                 data: { status: 'issue_reported' },
