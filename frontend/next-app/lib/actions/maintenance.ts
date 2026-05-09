@@ -903,3 +903,131 @@ export async function reopenMaintenanceRequest(input: unknown) {
         return { error: message };
     }
 }
+
+// =============================================================================
+// Soft-delete + restore (Phase 2 commit #8) — PRP v6 Q19
+// =============================================================================
+
+const DeleteRequestSchema = z.object({
+    requestId: z.number().int().positive(),
+    reason: z.string().trim().min(1).max(2000),
+});
+
+/**
+ * Soft-delete a request — admin only.
+ * Sets deletedAt cascading to items. Subsequent reads via Prisma middleware
+ * will exclude this row by default (admin "Show deleted" view bypasses).
+ * Notifies reporter with the deletion reason.
+ */
+export async function deleteMaintenanceRequest(input: unknown) {
+    const session = await requireRole(...ADMIN_ROLES);
+    if (!session?.user?.id) return { error: 'Unauthorized - Admin only' };
+    const actorId = Number.parseInt(session.user.id, 10);
+
+    const parsed = DeleteRequestSchema.safeParse(input);
+    if (!parsed.success) return { error: 'Invalid input', issues: parsed.error.format() };
+    const { requestId, reason } = parsed.data;
+
+    try {
+        await prisma.$transaction(async (tx) => {
+            const req = await tx.maintenanceRequest.findUnique({
+                where: { id: requestId },
+                include: { items: { select: { id: true, itemId: true, status: true } } },
+            });
+            if (!req) throw new Error('Request not found');
+            if (req.deletedAt) throw new Error('Request already deleted');
+
+            const now = new Date();
+            await tx.maintenanceRequest.update({
+                where: { id: requestId },
+                data: { deletedAt: now },
+            });
+            await tx.maintenanceRequestItem.updateMany({
+                where: { requestId },
+                data: { deletedAt: now },
+            });
+            await tx.maintenanceLog.create({
+                data: {
+                    requestId,
+                    userId: actorId,
+                    action: 'deleted',
+                    notes: reason,
+                },
+            });
+
+            // Free inventory items that were tied to non-terminal items
+            const itemsToFree = req.items
+                .filter((i) => !['closed', 'cancelled'].includes(i.status))
+                .map((i) => i.itemId);
+            if (itemsToFree.length > 0) {
+                await tx.inventoryItem.updateMany({
+                    where: { id: { in: itemsToFree } },
+                    data: { status: 'available' },
+                });
+            }
+
+            // Notify reporter
+            await tx.notification.create({
+                data: {
+                    userId: req.reportedById,
+                    text: `รายงานซ่อม #${requestId} ถูกลบโดยผู้ดูแล - ${reason}`,
+                },
+            });
+        });
+
+        revalidatePath('/maintenance');
+        revalidatePath('/inventory');
+        return { success: true };
+    } catch (error) {
+        const message = error instanceof Error ? error.message : 'Unknown error';
+        console.error('deleteMaintenanceRequest failed:', message);
+        return { error: message };
+    }
+}
+
+/**
+ * Restore a soft-deleted request — admin only.
+ * Bypasses middleware via explicit deletedAt filter on the lookup.
+ */
+export async function restoreMaintenanceRequest(requestId: number) {
+    const session = await requireRole(...ADMIN_ROLES);
+    if (!session?.user?.id) return { error: 'Unauthorized - Admin only' };
+    const actorId = Number.parseInt(session.user.id, 10);
+
+    if (!Number.isInteger(requestId) || requestId <= 0) {
+        return { error: 'Invalid requestId' };
+    }
+
+    try {
+        await prisma.$transaction(async (tx) => {
+            // Explicit deletedAt filter bypasses middleware
+            const req = await tx.maintenanceRequest.findFirst({
+                where: { id: requestId, deletedAt: { not: null } },
+            });
+            if (!req) throw new Error('Deleted request not found');
+
+            await tx.maintenanceRequest.update({
+                where: { id: requestId },
+                data: { deletedAt: null },
+            });
+            await tx.maintenanceRequestItem.updateMany({
+                where: { requestId },
+                data: { deletedAt: null },
+            });
+            await tx.maintenanceLog.create({
+                data: {
+                    requestId,
+                    userId: actorId,
+                    action: 'restored',
+                },
+            });
+        });
+
+        revalidatePath('/maintenance');
+        return { success: true };
+    } catch (error) {
+        const message = error instanceof Error ? error.message : 'Unknown error';
+        console.error('restoreMaintenanceRequest failed:', message);
+        return { error: message };
+    }
+}
