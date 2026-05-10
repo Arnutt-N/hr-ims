@@ -75,6 +75,7 @@ const ROLE_PERMISSIONS: Record<string, Array<{ menu: string; path: string }>> = 
         { menu: 'My Assets', path: '/my-assets' },
         { menu: 'History', path: '/history' },
         { menu: 'Reports', path: '/reports' },
+        { menu: 'Maintenance Reports', path: '/reports/maintenance' }, // PRP v6
         { menu: 'Audit Logs', path: '/logs' },
     ],
     technician: [
@@ -83,6 +84,8 @@ const ROLE_PERMISSIONS: Record<string, Array<{ menu: string; path: string }>> = 
         { menu: 'Cart', path: '/cart' },
         { menu: 'My Assets', path: '/my-assets' },
         { menu: 'Maintenance', path: '/maintenance' },
+        { menu: 'Maintenance Dashboard', path: '/maintenance/dashboard' }, // PRP v6
+        { menu: 'Maintenance Reports', path: '/reports/maintenance' }, // PRP v6
         { menu: 'Scanner', path: '/scanner' },
     ],
     user: [

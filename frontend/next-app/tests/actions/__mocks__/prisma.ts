@@ -73,6 +73,10 @@ const MODELS = [
     'passwordHistory',
     'emailVerification',
     'session',
+    // PRP v6 maintenance workflow models
+    'maintenanceRequest',
+    'maintenanceRequestItem',
+    'maintenanceLog',
 ] as const;
 
 type ModelName = (typeof MODELS)[number];
