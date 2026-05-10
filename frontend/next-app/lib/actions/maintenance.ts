@@ -85,9 +85,39 @@ export async function createMaintenanceRequest(input: unknown) {
                 if (!dept) throw new Error('Location (department) not found');
             }
 
+            // PRP v6 Phase 5: auto-assign via CategoryAssigneeRule lookup
+            // (highest-priority enabled rule for the category). Falls back
+            // to no assignee if no rule matches.
+            const autoAssignRule = await tx.categoryAssigneeRule.findFirst({
+                where: { category: data.category, enabled: true },
+                orderBy: { priority: 'desc' },
+            });
+            const initialStatus = autoAssignRule ? 'assigned' : 'open';
+            const assignedToId = autoAssignRule?.assigneeUserId ?? null;
+            const now = new Date();
+
+            const logsToCreate = [
+                {
+                    userId: reporterId,
+                    action: 'created',
+                    toStatus: 'open',
+                },
+            ];
+            if (autoAssignRule) {
+                logsToCreate.push({
+                    userId: reporterId,
+                    action: 'assigned',
+                    fromStatus: 'open',
+                    toStatus: 'assigned',
+                    notes: 'auto-assigned via CategoryAssigneeRule',
+                } as never);
+            }
+
             const request = await tx.maintenanceRequest.create({
                 data: {
                     reportedById: reporterId,
+                    assignedToId,
+                    assignedAt: assignedToId !== null ? now : null,
                     locationId: data.locationId ?? null,
                     title: data.title,
                     description: data.description,
@@ -97,22 +127,14 @@ export async function createMaintenanceRequest(input: unknown) {
                     tags: data.tags ? JSON.stringify(data.tags) : null,
                     photos: data.photoUrls ? JSON.stringify(data.photoUrls) : null,
                     estimatedCost: data.estimatedCost ?? null,
-                    status: 'open',
+                    status: initialStatus,
                     items: {
                         create: data.itemIds.map((itemId) => ({
                             itemId,
                             status: 'open',
                         })),
                     },
-                    logs: {
-                        create: [
-                            {
-                                userId: reporterId,
-                                action: 'created',
-                                toStatus: 'open',
-                            },
-                        ],
-                    },
+                    logs: { create: logsToCreate },
                 },
                 include: {
                     items: { include: { item: { select: { id: true, name: true } } } },

@@ -42,6 +42,8 @@ model User {
   reportedMaintenanceRequests MaintenanceRequest[] @relation("ReportedMaintenanceRequests")
   assignedMaintenanceRequests MaintenanceRequest[] @relation("AssignedMaintenanceRequests")
   maintenanceLogs             MaintenanceLog[]     @relation("MaintenanceLogEntries")
+  // PRP v6 Phase 5 (automation)
+  categoryAssigneeRules       CategoryAssigneeRule[] @relation("CategoryAssignee")
 }
 
 // Note: SQLite doesn't support enums, so Role is now String
@@ -702,4 +704,25 @@ model MaintenanceLog {
   createdAt  DateTime @default(now())
 
   @@index([requestId])
+}
+
+// =============================================================================
+// PRP v6 Phase 5 — Workflow automation
+// =============================================================================
+
+// Auto-assignment rules: when createMaintenanceRequest fires with a given
+// category, look up the highest-priority enabled matching rule and pre-set
+// assignedToId. Multiple rules per category allowed (priority breaks ties);
+// disabled rules retained for audit trail.
+model CategoryAssigneeRule {
+  id             Int      @id @default(autoincrement())
+  category       String // electrical | mechanical | software | physical | other
+  assigneeUserId Int
+  assignee       User     @relation("CategoryAssignee", fields: [assigneeUserId], references: [id])
+  priority       Int      @default(0) // higher wins; 0 = default
+  enabled        Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([category, enabled, priority])
 }
