@@ -44,6 +44,8 @@ model User {
   maintenanceLogs             MaintenanceLog[]     @relation("MaintenanceLogEntries")
   // PRP v6 Phase 5 (automation)
   categoryAssigneeRules       CategoryAssigneeRule[] @relation("CategoryAssignee")
+  // PRP v6 Phase 6 (engagement)
+  maintenanceWatchers         MaintenanceRequestWatcher[] @relation("MaintenanceWatchers")
 }
 
 // Note: SQLite doesn't support enums, so Role is now String
@@ -628,8 +630,10 @@ model MaintenanceRequest {
   closedAt    DateTime? // set when ALL items reach 'closed' (reporter's verification)
   deletedAt   DateTime? // soft-delete; Prisma middleware injects WHERE deletedAt IS NULL
 
-  items MaintenanceRequestItem[]
-  logs  MaintenanceLog[]
+  items    MaintenanceRequestItem[]
+  logs     MaintenanceLog[]
+  // PRP v6 Phase 6 (engagement) — fan-out targets for state change notifications
+  watchers MaintenanceRequestWatcher[] @relation("MaintenanceWatchers")
 
   @@index([status])
   @@index([assignedToId])
@@ -725,4 +729,25 @@ model CategoryAssigneeRule {
   updatedAt      DateTime @updatedAt
 
   @@index([category, enabled, priority])
+}
+
+// =============================================================================
+// PRP v6 Phase 6 — Engagement & Visibility
+// =============================================================================
+
+// Watch subscriptions: any logged-in user can "watch" a request to receive
+// in-app notifications on every state change. Composite unique on
+// (userId, requestId) prevents double-watch; cascade delete with the request
+// keeps this table clean. Indexed on requestId for the fan-out lookup hot path.
+model MaintenanceRequestWatcher {
+  id        Int                @id @default(autoincrement())
+  userId    Int
+  user      User               @relation("MaintenanceWatchers", fields: [userId], references: [id], onDelete: Cascade)
+  requestId Int
+  request   MaintenanceRequest @relation("MaintenanceWatchers", fields: [requestId], references: [id], onDelete: Cascade)
+  createdAt DateTime           @default(now())
+
+  @@unique([userId, requestId])
+  @@index([requestId])
+  @@index([userId])
 }

@@ -12,6 +12,7 @@ import { SeverityIcon, PriorityBadge } from '@/components/maintenance/SeverityIc
 import { PhotoGallery } from '@/components/maintenance/PhotoGallery';
 import { RequestItemRow } from '@/components/maintenance/RequestItemRow';
 import { CancelRequestDialog, DeleteRequestDialog } from '@/components/maintenance/dialogs';
+import { WatchButton } from '@/components/maintenance/WatchButton';
 import type { ItemStatus, RequestStatus, Severity, Priority } from '@/lib/maintenance/types';
 
 interface DetailPageProps {
@@ -195,6 +196,7 @@ export default function MaintenanceDetailPage({ params }: DetailPageProps) {
                         </p>
                     </div>
                     <div className="flex flex-col gap-2">
+                        <WatchButton requestId={request.id} />
                         <Link href={`/maintenance/${request.id}/print`} target="_blank">
                             <Button variant="outline" size="sm" className="w-full">
                                 <Printer size={14} className="mr-1.5" /> พิมพ์

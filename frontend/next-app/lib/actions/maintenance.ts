@@ -256,6 +256,7 @@ export async function updateMaintenanceStatus(
 import { assertValidItemTransition, IllegalItemTransitionError } from '@/lib/maintenance/transitions';
 import { assertItemVersion, OptimisticLockError } from '@/lib/maintenance/optimistic-lock';
 import { computeRequestStatus } from '@/lib/maintenance/aggregate';
+import { fanOutToWatchers } from '@/lib/maintenance/fanout';
 import type { ItemStatus } from '@/lib/maintenance/types';
 
 const AssignSchema = z.object({
@@ -329,6 +330,14 @@ export async function assignMaintenanceRequest(input: unknown) {
                     toStatus: newAggregate,
                 },
             });
+
+            // PRP v6 Phase 6: notify watchers (excludes actor)
+            await fanOutToWatchers(
+                tx,
+                requestId,
+                actorId,
+                `รายงานซ่อม #${requestId}: มอบหมายให้ผู้รับผิดชอบใหม่`,
+            );
         });
 
         revalidatePath('/maintenance');
@@ -485,6 +494,18 @@ export async function updateMaintenanceItemStatus(input: unknown) {
                     data: { status: 'available' },
                 });
             }
+
+            // PRP v6 Phase 6: fan-out to watchers
+            const itemName = await tx.inventoryItem.findUnique({
+                where: { id: item.item.id },
+                select: { name: true },
+            });
+            await fanOutToWatchers(
+                tx,
+                data.requestId,
+                actorId,
+                `รายงานซ่อม #${data.requestId}: ${itemName?.name ?? 'อุปกรณ์'} → ${data.newStatus}`,
+            );
         });
 
         revalidatePath('/maintenance');
@@ -602,6 +623,14 @@ export async function approveItemResolution(input: unknown) {
                 where: { id: item.item.id },
                 data: { status: 'available' },
             });
+
+            // PRP v6 Phase 6: fan-out to watchers
+            await fanOutToWatchers(
+                tx,
+                data.requestId,
+                actorId,
+                `รายงานซ่อม #${data.requestId}: ผู้แจ้งตรวจรับ ปิดงานแล้ว`,
+            );
         });
 
         revalidatePath('/maintenance');
@@ -709,6 +738,14 @@ export async function rejectItemResolution(input: unknown) {
                     },
                 });
             }
+
+            // PRP v6 Phase 6: fan-out to watchers (assignee already notified above)
+            await fanOutToWatchers(
+                tx,
+                data.requestId,
+                actorId,
+                `รายงานซ่อม #${data.requestId}: ผู้แจ้งปฏิเสธการแก้ไข`,
+            );
         });
 
         revalidatePath('/maintenance');
@@ -811,6 +848,14 @@ export async function cancelMaintenanceRequest(input: unknown) {
                     data: { status: 'available' },
                 });
             }
+
+            // PRP v6 Phase 6: fan-out to watchers
+            await fanOutToWatchers(
+                tx,
+                requestId,
+                actorId,
+                `รายงานซ่อม #${requestId}: ถูกยกเลิก - ${reason}`,
+            );
         });
 
         revalidatePath('/maintenance');
@@ -913,6 +958,14 @@ export async function reopenMaintenanceRequest(input: unknown) {
                     data: { status: 'issue_reported' },
                 });
             }
+
+            // PRP v6 Phase 6: fan-out to watchers
+            await fanOutToWatchers(
+                tx,
+                requestId,
+                actorId,
+                `รายงานซ่อม #${requestId}: เปิดงานใหม่ - ${reason}`,
+            );
         });
 
         revalidatePath('/maintenance');

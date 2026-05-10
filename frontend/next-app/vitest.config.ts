@@ -9,6 +9,10 @@ export default defineConfig({
         globals: true,
         pool: 'forks',
         fileParallelism: false,
+        // Cold-start dynamic imports in beforeEach (Server Action under test)
+        // can take 10-15s on first invocation under Windows fork pools.
+        // Bumped from 10s default so first test in each file has runway.
+        hookTimeout: 30000,
         setupFiles: ['./tests/setup.ts'],
         include: ['**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
         exclude: ['**/node_modules/**', '**/dist/**', '**/tests/e2e/**'],
