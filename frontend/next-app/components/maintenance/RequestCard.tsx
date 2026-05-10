@@ -3,11 +3,12 @@ import { cn } from '@/lib/utils';
 import { Calendar, MapPin, Package, User as UserIcon } from 'lucide-react';
 import { StatusBadge } from './StatusBadge';
 import { SeverityIcon, PriorityBadge } from './SeverityIcon';
-import type { ItemStatus, RequestStatus, Severity, Priority } from '@/lib/maintenance/types';
+import type { RequestStatus, Severity, Priority } from '@/lib/maintenance/types';
 
 interface RequestCardItem {
     id: number;
-    status: ItemStatus;
+    // Stored as string column; cast to ItemStatus at usage site
+    status: string;
     item: { id: number; name: string };
 }
 

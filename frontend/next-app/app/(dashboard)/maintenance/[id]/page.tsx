@@ -98,6 +98,16 @@ export default function MaintenanceDetailPage({ params }: DetailPageProps) {
     const isReporter = !!request && request.reportedById === userId;
     const isAssignee = !!request && request.assignedToId === userId;
 
+    // Snapshot Date.now() once on mount — calling Date.now() during render
+    // violates react-hooks/purity (see ESLint rule). The 1-hour reporter
+    // cancel window is computed against this snapshot. If user keeps the
+    // page open past the boundary, they see a stale 'can cancel' state for
+    // a few seconds; reload corrects it. Acceptable trade-off.
+    const [mountTimestamp, setMountTimestamp] = useState<number | null>(null);
+    useEffect(() => {
+        setMountTimestamp(Date.now());
+    }, []);
+
     const load = useCallback(async () => {
         if (Number.isNaN(requestId)) return;
         setLoading(true);
@@ -160,7 +170,8 @@ export default function MaintenanceDetailPage({ params }: DetailPageProps) {
     const canCancelAsReporter =
         isReporter &&
         !isTerminal &&
-        Date.now() - new Date(request.createdAt).getTime() < 60 * 60 * 1000;
+        mountTimestamp !== null &&
+        mountTimestamp - new Date(request.createdAt).getTime() < 60 * 60 * 1000;
 
     return (
         <div className="space-y-6 max-w-5xl mx-auto">
