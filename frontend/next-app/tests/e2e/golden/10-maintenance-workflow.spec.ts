@@ -48,8 +48,11 @@ async function clickAndWaitForServerAction(
 test.describe('Golden 10 — Maintenance Workflow (PRP v6)', () => {
     test.setTimeout(360_000);
 
-    test('user can navigate to /maintenance and see the list page', async ({ page }) => {
-        await loginAs(page, 'user', { waitForUrlTimeoutMs: 180_000 });
+    test('admin can navigate to /maintenance and see the list page', async ({ page }) => {
+        // /maintenance is gated to admin/superadmin/technician (legacy RBAC
+        // rule); plain 'user' role does NOT have permission. Reporter entry
+        // points are /inventory + /my-assets which open the RequestForm modal.
+        await loginAs(page, 'admin', { waitForUrlTimeoutMs: 180_000 });
         await page.goto('/maintenance', { waitUntil: 'networkidle', timeout: 90_000 });
         await expect(page.getByRole('heading', { name: /รายการแจ้งซ่อม|Maintenance Requests/i })).toBeVisible({
             timeout: 30_000,
