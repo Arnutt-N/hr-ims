@@ -77,6 +77,7 @@ const MODELS = [
     'maintenanceRequest',
     'maintenanceRequestItem',
     'maintenanceLog',
+    'categoryAssigneeRule', // PRP v6 Phase 5
 ] as const;
 
 type ModelName = (typeof MODELS)[number];
