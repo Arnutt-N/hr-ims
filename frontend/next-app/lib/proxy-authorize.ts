@@ -40,6 +40,11 @@ export const PROTECTED_MODULES = [
 
 export const LEGACY_ROLE_RULES = [
     { prefix: '/requests', roles: ['superadmin', 'admin', 'approver'] },
+    // PRP v6 Phase 4: /reports/maintenance is the analytical view of the
+    // maintenance workflow — technicians need it to track their own work.
+    // Listed BEFORE /reports so the more specific match wins (rules are
+    // evaluated via .find() — first match wins).
+    { prefix: '/reports/maintenance', roles: ['superadmin', 'admin', 'technician', 'auditor'] },
     { prefix: '/maintenance', roles: ['superadmin', 'admin', 'technician'] },
     { prefix: '/history', roles: ['superadmin', 'admin', 'auditor'] },
     { prefix: '/reports', roles: ['superadmin', 'admin', 'auditor'] },
