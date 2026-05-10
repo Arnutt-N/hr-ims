@@ -1,172 +1,187 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { getMaintenanceItems, updateMaintenanceStatus } from '@/lib/actions/maintenance';
+import { useEffect, useState, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { toast } from 'sonner';
-import { CheckCircle } from 'lucide-react';
+import { Plus, Wrench } from 'lucide-react';
 import { PageLoader } from '@/components/ui/page-loader';
+import { useSession } from 'next-auth/react';
+import { RequestCard } from '@/components/maintenance/RequestCard';
+import { RequestForm } from '@/components/maintenance/RequestForm';
+import { TagFilterChips } from '@/components/maintenance/TagFilterChips';
 import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-} from '@/components/ui/dialog';
-import { Textarea } from '@/components/ui/textarea';
-import { useI18n } from '@/lib/i18n/provider';
+    SEVERITY_LEVELS,
+    type RequestStatus,
+} from '@/lib/maintenance/types';
 
-export default function MaintenancePage() {
-    const { t } = useI18n();
-    const [items, setItems] = useState<any[]>([]);
+const STATUS_FILTER_OPTIONS: Array<{ value: RequestStatus | 'all'; label: string }> = [
+    { value: 'all', label: 'ทั้งหมด' },
+    { value: 'open', label: 'รอดำเนินการ' },
+    { value: 'assigned', label: 'มอบหมายแล้ว' },
+    { value: 'in_progress', label: 'กำลังซ่อม' },
+    { value: 'awaiting_parts', label: 'รออะไหล่' },
+    { value: 'resolved', label: 'รอตรวจรับ' },
+    { value: 'closed', label: 'ปิดงาน' },
+    { value: 'cancelled', label: 'ยกเลิก' },
+];
+
+const SEVERITY_LABELS: Record<string, string> = {
+    low: 'ต่ำ',
+    medium: 'กลาง',
+    high: 'สูง',
+    critical: 'วิกฤต',
+};
+
+interface MaintenanceListItem {
+    id: number;
+    title: string;
+    status: string;
+    severity: string;
+    priority: string;
+    tags: string | null;
+    createdAt: Date | string;
+    items: { id: number; status: string; item: { id: number; name: string } }[];
+    reportedBy?: { id: number; name: string | null } | null;
+    assignedTo?: { id: number; name: string | null } | null;
+    location?: { id: number; name: string } | null;
+}
+
+export default function MaintenanceListPage() {
+    const { data: session } = useSession();
+    const [requests, setRequests] = useState<MaintenanceListItem[]>([]);
     const [loading, setLoading] = useState(true);
-    const [selectedItem, setSelectedItem] = useState<any>(null);
-    const [repairNotes, setRepairNotes] = useState('');
-    const [submitting, setSubmitting] = useState(false);
+    const [statusFilter, setStatusFilter] = useState<string>('all');
+    const [severityFilter, setSeverityFilter] = useState<string>('all');
+    const [tags, setTags] = useState<string[]>([]);
+    const [scopeFilter, setScopeFilter] = useState<'all' | 'me' | 'pending-approval' | 'deleted'>('all');
+    const [showNewForm, setShowNewForm] = useState(false);
+
+    const isAdmin = (() => {
+        const r = (session?.user as { roles?: string[] } | undefined)?.roles ?? [];
+        return r.includes('admin') || r.includes('superadmin');
+    })();
+
+    const load = useCallback(async () => {
+        setLoading(true);
+        try {
+            const { getMaintenanceRequests, getMyMaintenanceRequests } = await import(
+                '@/lib/actions/maintenance'
+            );
+            const filters: Record<string, unknown> = {};
+            if (statusFilter !== 'all') filters.status = statusFilter;
+            if (severityFilter !== 'all') filters.severity = severityFilter;
+            if (tags.length > 0) filters.tags = tags;
+            if (scopeFilter === 'me') filters.assignedToId = 'me';
+            if (scopeFilter === 'deleted') filters.view = 'deleted';
+
+            // 'pending-approval' uses a separate path: fetch own requests with resolved items
+            const result =
+                scopeFilter === 'pending-approval'
+                    ? await getMyMaintenanceRequests()
+                    : await getMaintenanceRequests(filters);
+
+            if (result && 'requests' in result && Array.isArray(result.requests)) {
+                let list = result.requests as MaintenanceListItem[];
+                if (scopeFilter === 'pending-approval') {
+                    list = list.filter((r) => r.items.some((it) => it.status === 'resolved'));
+                }
+                setRequests(list);
+            } else {
+                setRequests([]);
+            }
+        } finally {
+            setLoading(false);
+        }
+    }, [statusFilter, severityFilter, tags, scopeFilter]);
 
     useEffect(() => {
-        loadItems();
-    }, []);
-
-    const loadItems = async () => {
-        setLoading(true);
-        const res = await getMaintenanceItems();
-        if (res.success) {
-            setItems(res.items || []);
-        }
-        setLoading(false);
-    };
-
-    const handleComplete = async () => {
-        if (!selectedItem) return;
-
-        setSubmitting(true);
-        const res = await updateMaintenanceStatus(
-            selectedItem.id,
-            'available',
-            repairNotes || 'Repaired and returned to stock'
-        );
-        setSubmitting(false);
-
-        if (res.success) {
-            toast.success('Item marked as repaired');
-            setSelectedItem(null);
-            setRepairNotes('');
-            loadItems();
-        } else {
-            toast.error(res.error || 'Failed to update');
-        }
-    };
-
-    if (loading) return <PageLoader />;
+        void load();
+    }, [load]);
 
     return (
-        <div className="space-y-6 animate-fade-in-up max-w-7xl mx-auto">
-            <div className="flex justify-between items-center">
+        <div className="space-y-6 max-w-7xl mx-auto">
+            <div className="flex items-center justify-between">
                 <div>
-                    <h2 className="text-3xl font-bold text-slate-900">{t('maintenance.title')}</h2>
-                    <p className="text-slate-500 mt-1">{t('maintenance.subtitle')}</p>
+                    <h2 className="text-3xl font-bold text-slate-900">รายการแจ้งซ่อม</h2>
+                    <p className="text-slate-500 mt-1">จัดการคำขอซ่อมบำรุงทั้งหมด</p>
                 </div>
-                <div className="bg-slate-100 px-4 py-2 rounded-full font-bold text-slate-600">
-                    {items.length} Item{items.length !== 1 ? 's' : ''}
+                <Button onClick={() => setShowNewForm(true)}>
+                    <Plus size={16} className="mr-1.5" /> แจ้งซ่อมใหม่
+                </Button>
+            </div>
+
+            {/* Filter bar */}
+            <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+                <div className="grid gap-3 sm:grid-cols-3">
+                    <div>
+                        <label className="text-xs font-medium text-slate-600">สถานะ</label>
+                        <select
+                            value={statusFilter}
+                            onChange={(e) => setStatusFilter(e.target.value)}
+                            className="mt-1 block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm"
+                        >
+                            {STATUS_FILTER_OPTIONS.map((o) => (
+                                <option key={o.value} value={o.value}>
+                                    {o.label}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+                    <div>
+                        <label className="text-xs font-medium text-slate-600">ผลกระทบ</label>
+                        <select
+                            value={severityFilter}
+                            onChange={(e) => setSeverityFilter(e.target.value)}
+                            className="mt-1 block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm"
+                        >
+                            <option value="all">ทั้งหมด</option>
+                            {SEVERITY_LEVELS.map((s) => (
+                                <option key={s} value={s}>
+                                    {SEVERITY_LABELS[s]}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+                    <div>
+                        <label className="text-xs font-medium text-slate-600">ขอบเขต</label>
+                        <select
+                            value={scopeFilter}
+                            onChange={(e) =>
+                                setScopeFilter(e.target.value as typeof scopeFilter)
+                            }
+                            className="mt-1 block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm"
+                        >
+                            <option value="all">ทั้งหมด</option>
+                            <option value="me">มอบหมายให้ฉัน</option>
+                            <option value="pending-approval">รอฉันตรวจรับ</option>
+                            {isAdmin && <option value="deleted">ที่ถูกลบ (Admin)</option>}
+                        </select>
+                    </div>
+                </div>
+                <div className="mt-3">
+                    <TagFilterChips selected={tags} onChange={setTags} />
                 </div>
             </div>
 
-            {items.length === 0 ? (
-                <div className="text-center py-20 bg-white rounded-3xl border border-dashed border-slate-200">
-                    <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-6">
-                        <CheckCircle className="text-emerald-500" size={40} />
-                    </div>
-                    <h3 className="text-xl font-bold text-slate-700">All Clear!</h3>
-                    <p className="text-slate-400 mb-8 mt-2">No items currently in maintenance.</p>
+            {/* Results */}
+            {loading ? (
+                <PageLoader />
+            ) : requests.length === 0 ? (
+                <div className="rounded-3xl border border-dashed border-slate-200 bg-white py-20 text-center">
+                    <Wrench className="mx-auto mb-4 text-slate-300" size={48} />
+                    <h3 className="text-lg font-semibold text-slate-700">ไม่มีคำขอแจ้งซ่อม</h3>
+                    <p className="mt-1 text-sm text-slate-500">
+                        เริ่มแจ้งซ่อมโดยกดปุ่ม &ldquo;แจ้งซ่อมใหม่&rdquo; ด้านบน
+                    </p>
                 </div>
             ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {items.map((item) => (
-                        <div
-                            key={item.id}
-                            className="bg-white p-6 rounded-2xl shadow-sm border border-red-100 hover:shadow-md transition-all"
-                        >
-                            <div className="flex items-start gap-4">
-                                <div className="bg-red-50 p-3 rounded-xl text-red-500 text-2xl shrink-0">
-                                    {item.image || '🔧'}
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                    <h3 className="font-bold text-slate-800 truncate">{item.name}</h3>
-                                    <p className="text-xs text-slate-500 font-mono mb-2">{item.serial || 'NO-SERIAL'}</p>
-
-                                    <Badge variant="destructive" className="text-xs mb-3">
-                                        {item.status === 'maintenance' ? 'In Repair' : 'Issue Reported'}
-                                    </Badge>
-
-                                    {item.repairNotes && (
-                                        <div className="bg-slate-50 p-2 rounded-lg mb-3 text-xs text-slate-600 border border-slate-100">
-                                            <div className="font-bold text-slate-500 mb-1">Notes:</div>
-                                            {item.repairNotes}
-                                        </div>
-                                    )}
-
-                                    {item.currentHolder && (
-                                        <div className="text-xs text-slate-500 mb-3">
-                                            Last held by: <span className="font-bold text-slate-700">{item.currentHolder.name}</span>
-                                        </div>
-                                    )}
-
-                                    <Button
-                                        size="sm"
-                                        className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
-                                        onClick={() => setSelectedItem(item)}
-                                    >
-                                        <CheckCircle size={16} className="mr-2" /> {t('maintenance.action.mark-repaired')}
-                                    </Button>
-                                </div>
-                            </div>
-                        </div>
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                    {requests.map((r) => (
+                        <RequestCard key={r.id} request={r} />
                     ))}
                 </div>
             )}
 
-            {/* Repair Complete Dialog */}
-            <Dialog open={!!selectedItem} onOpenChange={() => setSelectedItem(null)}>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>Complete Repair</DialogTitle>
-                        <DialogDescription>
-                            Mark <strong>{selectedItem?.name}</strong> as repaired and return to inventory.
-                        </DialogDescription>
-                    </DialogHeader>
-
-                    <div className="space-y-4 py-4">
-                        <div>
-                            <label className="text-sm font-bold text-slate-700 mb-2 block">
-                                Repair Notes <span className="text-slate-400 font-normal">(Optional)</span>
-                            </label>
-                            <Textarea
-                                placeholder="Describe what was fixed or replaced..."
-                                value={repairNotes}
-                                onChange={(e) => setRepairNotes(e.target.value)}
-                                rows={4}
-                                className="resize-none"
-                            />
-                        </div>
-                    </div>
-
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setSelectedItem(null)}>
-                            Cancel
-                        </Button>
-                        <Button
-                            onClick={handleComplete}
-                            disabled={submitting}
-                            className="bg-emerald-600 hover:bg-emerald-700"
-                        >
-                            {submitting ? 'Updating...' : 'Complete Repair'}
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
+            <RequestForm open={showNewForm} onOpenChange={setShowNewForm} onSuccess={() => void load()} />
         </div>
     );
 }
