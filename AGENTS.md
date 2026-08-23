@@ -105,7 +105,7 @@ npm run dev
   ตัวอย่าง: `// [2026-01-29] Modified by Antigravity: Added rate limiting`
   
 - **Project Logs:** บันทึกที่ `project-log-md/[ai-name]/`  
-  โครงสร้าง: `project-log-md/antigravity/`, `project-log-md/claude_code/`, `project-log-md/kilo/`
+  โครงสร้าง: `project-log-md/antigravity/`, `project-log-md/claude_code/`, `project-log-md/codex/`, `project-log-md/kilo_code/`
 
 ---
 
@@ -178,6 +178,7 @@ npx prisma studio                 # Open Prisma Studio GUI (port 5555)
 npx prisma db seed                # Seed database with initial data
 
 # TiDB preparation flow (uses TIDB_DATABASE_URL in backend/.env)
+npm run db:prepare:tidb            # Generate TiDB-compatible schema from SQLite source-of-truth
 npm run db:generate:tidb          # Generate Prisma client from TiDB-compatible schema
 npm run db:push:tidb              # Push schema to TiDB
 npm run db:seed:tidb              # Seed TiDB
@@ -401,21 +402,34 @@ hr-ims/
 │       ├── schema.prisma       # Database schema (Single Source of Truth)
 │       └── dev.db              # SQLite database
 │
-├── .agents/                    # AI Configuration
+├── .agents/                    # AI Configuration (domain skills, workflows)
 │   ├── workflows/              # Slash commands
-│   ├── skills/                 # Knowledge base
+│   ├── skills/                 # Knowledge base (17 project-specific skills)
 │   └── AI_COLLABORATION_PROTOCOL.md
 │
+├── .claude/                    # Claude Code workspace
+│   ├── skills/                 # Feature-level skills (~95) + graft skill
+│   ├── helpers/                # graft statusline/hooks shims
+│   └── PRPs/                   # plans / reports / research-plans / reviews
+│
+├── docs/                       # User & admin guides (TH)
+├── plans/                      # Implementation plans
+├── PRPs/                       # Product Requirement Prompts
+├── reports/                    # Generated reports
+├── scripts/                    # Repo-level helper scripts
+│
 ├── research/                   # Research & Analysis (gitignored)
-│   ├── kilo/                   # Kilo Code analysis
+│   ├── kilo_code/              # Kilo Code analysis
 │   └── antigravity/            # Antigravity research
 │
 └── project-log-md/             # Project logs and handoff system
     ├── handoff/                # HANDOFF_BOARD.md + handoff logs
     ├── antigravity/
     ├── claude_code/
-    ├── kilo/
-    └── common/
+    ├── kilo_code/              # (renamed from kilo/)
+    ├── codex/
+    ├── common/
+    └── archive/
 ```
 
 ### 4.2 Shared Database Architecture (สำคัญ!)
@@ -593,24 +607,24 @@ User-facing strings ทุกตัวต้องผ่าน `lib/i18n/message
 
 ### 🔴 High Priority (ควรทำก่อน)
 
-- [ ] **Rate Limiting Implementation** - ป้องกัน brute force attacks
-  - Assigned: Any | Status: Pending | From: Kilo Analysis 2026-01-29
-  - ไฟล์ที่เกี่ยวข้อง: `backend/src/middleware/rateLimiter.ts`
+- [ ] **TiDB Schema Push for Maintenance Tables** - materialize 5 ตาราง maintenance ใน prod ก่อน deploy แรกที่แตะ maintenance
+  - Assigned: Any | Status: Pending | From: Handoff 2026-05-10 (claude_code)
+  - คำสั่ง: `cd backend && npm run db:generate:tidb && npm run db:push:tidb`
   
-- [ ] **Logging & Monitoring System** - Winston logger configuration
-  - Assigned: Any | Status: Pending | From: Kilo Analysis 2026-01-29
-  - ไฟล์ที่เกี่ยวข้อง: `backend/src/utils/logger.ts`
-  - Note: มีโครงสร้างพื้นฐานแล้ว ต้องปรับปรุงให้สมบูรณ์
+- [ ] **Wire maintenanceEscalationQueue Worker into BullMQ Bootstrap** - escalation cron ยังไม่ถูกรันใน worker process
+  - Assigned: Any | Status: Pending | From: Handoff 2026-05-10
+  - ไฟล์ที่เกี่ยวข้อง: `backend/src/queues/maintenanceEscalationQueue.ts`
+
+- [ ] **Set TELEGRAM_* Envs in Production** (optional) - critical-severity alerts; service fail-silent ถ้าไม่ตั้ง
+  - Assigned: Any | Status: Pending
 
 ### 🟠 Medium Priority (ควรทำถัดไป)
 
-- [ ] **Password Policy Enhancement** - นโยบายรหัสผ่านที่เข้มงวดขึ้น
-  - Assigned: Any | Status: Pending | From: Kilo Analysis 2026-01-29
-  - ไฟล์ที่เกี่ยวข้อง: `backend/src/utils/passwordPolicy.ts`
+- [ ] **Deferred PRP Stubs** - preventive scheduling, PDF export, Kanban view (แต่ละอัน ~1-2 สัปดาห์)
+  - Assigned: Any | Status: Deferred | See: `PRPs/claude/2026-05-09_182736_claude_stub_*.md`
   
-- [ ] **Backup & Recovery System** - ระบบสำรองข้อมูลอัตโนมัติ
-  - Assigned: Any | Status: Pending | From: Kilo Analysis 2026-01-29
-  - ไฟล์ที่เกี่ยวข้อง: `backend/src/services/backupService.ts`
+- [ ] **Re-enable 8 fixme E2E tests** - quarantine อยู่ใน `tests/e2e/golden/10-maintenance-workflow.spec.ts` ใช้ pattern `clickAndWaitForServerAction`
+  - Assigned: Any | Status: Pending
 
 ### 🟡 Low Priority / Maintenance (ทำเมื่อมีเวลา)
 
@@ -630,11 +644,39 @@ User-facing strings ทุกตัวต้องผ่าน `lib/i18n/message
   
 - [x] **System Analysis Report** - วิเคราะห์ระบบและแนะนำการปรับปรุง
   - Completed by: Kilo | Date: 2026-01-29
-  - Location: `research/kilo/`
+  - Location: `research/kilo_code/`
 
 - [x] **AI Workspace Rename** - เปลี่ยนชื่อโฟลเดอร์ AI workspace เป็น `.agents/`
   - Completed by: CodeX | Date: 2026-04-03
   - Location: `.agents/`
+
+- [x] **Rate Limiting Implementation** - brute force protection (ย้ายจาก Pending — implemented)
+  - Completed by: claude_code | Date: ≤2026-05-10
+  - Location: `backend/src/middleware/rateLimiter.ts` + settings integration (`rateLimitEnabled`, `getRateLimitSettings`)
+
+- [x] **Logging & Monitoring System** - Winston + daily-rotate-file (ย้ายจาก Pending — implemented)
+  - Completed by: claude_code | Date: ≤2026-05-10
+  - Location: `backend/src/utils/logger.ts` + `middleware/requestLogger.ts`
+
+- [x] **Password Policy Enhancement** - server-side policy enforcement (ย้ายจาก Pending — implemented)
+  - Completed by: claude_code | Date: ≤2026-05-10
+  - Location: `backend/src/utils/passwordPolicy.ts`
+
+- [x] **Backup & Recovery System** - auto backup service (ย้ายจาก Pending — implemented)
+  - Completed by: claude_code | Date: ≤2026-05-10
+  - Location: `backend/src/services/backupService.ts` + `queues/backupQueue.ts` + `jobs/backupJob.ts`
+
+- [x] **Superadmin RBAC Normalization** - menu/page/action guards across dashboard
+  - Completed by: CodeX | Date: 2026-04-11
+  - Location: handoff log `2026-04-11_2318_codex_to_all.md`
+
+- [x] **Maintenance Workflow PRP v6** - full state machine, RBAC, audit, watchers, dashboards (6 PRs #15–#20)
+  - Completed by: claude_code | Date: 2026-05-10
+  - Location: `lib/maintenance/`, `lib/actions/maintenance*.ts`, `app/(dashboard)/maintenance/`
+
+- [x] **Graft Integration + Doc Consolidation** - code graph wired; CLAUDE/GEMINI/QWEN.md → pointers to this file
+  - Completed by: Cline (ox-alpha) | Date: 2026-08-23
+  - Location: `.claude/skills/graft/`, `.mcp.json`, root pointer docs
 
 ---
 
@@ -857,6 +899,8 @@ TIDB_DATABASE_URL=optional (for TiDB pipeline)
 ---
 
 ## 14. 💡 Notes for AI Assistants (Key Gotchas)
+
+- **Graft code graph**: This repo is indexed by `graft/` (regenerable local cache). Before grepping or reading many files, query it first — `graft ask "<question>"`, `graft grep "<regex>"`, `graft callers <symbol>`, `graft skeleton <file>`, `graft map` — all `$0`, local-only, no API key. Rebuild with `graft build`; LLM-enriched nodes via `graft build --deep`.
 
 - **Database Path**: Use absolute paths or paths relative to project root. Both apps must agree on the same SQLite file.
 - **Prisma Client**: Always run `prisma generate` from `backend/` � the schema's `client_frontend` generator regenerates the frontend client too.
