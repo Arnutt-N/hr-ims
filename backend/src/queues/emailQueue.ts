@@ -1,16 +1,16 @@
-import { Queue, Worker, Job, type ConnectionOptions } from 'bullmq';
+﻿import { Queue, Worker, Job } from 'bullmq';
 import { sendEmail } from '../services/emailService';
 import { logError, logInfo } from '../utils/logger';
 import { createQueueConnection } from '../utils/queueConnection';
 
 // [2026-08-23] Modified by Cline: switched to shared queue connection factory;
-// cast needed because bullmq bundles its own incompatible ioredis typings (review #21 followup)
-const connection = createQueueConnection() as unknown as ConnectionOptions;
+// typing workaround centralized inside the factory itself (review #21/#22 followup)
+const connection = createQueueConnection();
 
 // Create the email queue
 export const emailQueue = new Queue('email-queue', { connection: connection });
 
-console.log('📬 Email Queue Initialized');
+console.log('๐“ฌ Email Queue Initialized');
 
 interface EmailJobData {
     to: string;

@@ -1,17 +1,17 @@
-import { Queue, Worker, Job, type ConnectionOptions } from 'bullmq';
+﻿import { Queue, Worker, Job } from 'bullmq';
 import { createBackup } from '../services/backupService';
 import { logError, logInfo } from '../utils/logger';
 import { getBackupSettings, isFeatureEnabled } from '../utils/settings';
 import { createQueueConnection } from '../utils/queueConnection';
 
 // [2026-08-23] Modified by Cline: switched to shared queue connection factory;
-// cast needed because bullmq bundles its own incompatible ioredis typings (review #21 followup)
-const connection = createQueueConnection() as unknown as ConnectionOptions;
+// typing workaround centralized inside the factory itself (review #21/#22 followup)
+const connection = createQueueConnection();
 
 // Create the backup queue
 export const backupQueue = new Queue('backup-queue', { connection: connection });
 
-console.log('💾 Backup Queue Initialized');
+console.log('๐’พ Backup Queue Initialized');
 
 export const backupWorker = new Worker(
     'backup-queue',

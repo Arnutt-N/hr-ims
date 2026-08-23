@@ -1,12 +1,12 @@
-/**
- * Maintenance escalation cron (PRP v6 Phase 5 — Q16).
+﻿/**
+ * Maintenance escalation cron (PRP v6 Phase 5 โ€” Q16).
  *
  * Runs hourly (configurable via MAINTENANCE_ESCALATION_CRON env). Finds
  * MaintenanceRequest rows where:
  *   - assignedToId IS NOT NULL  (someone owns it)
- *   - status === 'open'         (no actual work started — assignee idle)
+ *   - status === 'open'         (no actual work started โ€” assignee idle)
  *   - now() - assignedAt > 24hr
- *   - escalatedAt IS NULL        (not yet escalated — idempotency guard)
+ *   - escalatedAt IS NULL        (not yet escalated โ€” idempotency guard)
  *
  * For each match (in a single $transaction):
  *   - Set escalatedAt = now()
@@ -18,15 +18,15 @@
  * eligible requests (escalatedAt IS NULL filter).
  */
 
-import { Queue, Worker, Job, type ConnectionOptions } from 'bullmq';
+import { Queue, Worker, Job } from 'bullmq';
 import prisma from '../utils/prisma';
 import { logError, logInfo } from '../utils/logger';
 import { sendEscalationAlert } from '../services/maintenanceTelegramService';
 import { createQueueConnection } from '../utils/queueConnection';
 
 // [2026-08-23] Modified by Cline: switched to shared queue connection factory;
-// cast needed because bullmq bundles its own incompatible ioredis typings (review #21 followup)
-const connection = createQueueConnection() as unknown as ConnectionOptions;
+// typing workaround centralized inside the factory itself (review #21/#22 followup)
+const connection = createQueueConnection();
 
 const ESCALATION_THRESHOLD_HOURS = 24;
 const DEFAULT_CRON = '0 * * * *'; // hourly at :00
@@ -35,7 +35,7 @@ export const maintenanceEscalationQueue = new Queue('maintenance-escalation-queu
     connection: connection,
 });
 
-console.log('🔧 Maintenance Escalation Queue Initialized');
+console.log('๐”ง Maintenance Escalation Queue Initialized');
 
 export const maintenanceEscalationWorker = new Worker(
     'maintenance-escalation-queue',
@@ -61,7 +61,7 @@ export const maintenanceEscalationWorker = new Worker(
 
         await logInfo(`[escalation] processing ${eligible.length} stale request(s)`);
 
-        // Process sequentially to keep transaction logs clean — count is small.
+        // Process sequentially to keep transaction logs clean โ€” count is small.
         let escalated = 0;
         for (const req of eligible) {
             try {
@@ -99,7 +99,7 @@ export const maintenanceEscalationWorker = new Worker(
                         await tx.notification.createMany({
                             data: admins.map((a) => ({
                                 userId: a.id,
-                                text: `รายงานซ่อม #${req.id} ค้างเกิน ${hoursOverdue.toFixed(0)} ชม. — กรุณามอบหมายใหม่หรือติดตาม`,
+                                text: `เธฃเธฒเธขเธเธฒเธเธเนเธญเธก #${req.id} เธเนเธฒเธเน€เธเธดเธ ${hoursOverdue.toFixed(0)} เธเธก. โ€” เธเธฃเธธเธ“เธฒเธกเธญเธเธซเธกเธฒเธขเนเธซเธกเนเธซเธฃเธทเธญเธ•เธดเธ”เธ•เธฒเธก`,
                             })),
                         });
                     }
