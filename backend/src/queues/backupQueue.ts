@@ -4,7 +4,10 @@ import { createBackup } from '../services/backupService';
 import { logError, logInfo } from '../utils/logger';
 import { getBackupSettings, isFeatureEnabled } from '../utils/settings';
 
-const connection = new IORedis(process.env.REDIS_URL || 'redis://localhost:6379');
+// maxRetriesPerRequest: null is required by BullMQ Workers (blocking commands)
+const connection = new IORedis(process.env.REDIS_URL || 'redis://localhost:6379', {
+    maxRetriesPerRequest: null,
+});
 
 // Create the backup queue
 export const backupQueue = new Queue('backup-queue', { connection: connection as any });

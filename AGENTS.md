@@ -129,8 +129,10 @@ npm audit                # Security audit
 ```bash
 cd backend
 npm run dev              # Start with nodemon (hot reload)
+npm run dev:worker       # Start background worker with nodemon (needs Redis)
 npm run build            # Compile TypeScript to dist/
 npm start                # Run compiled code from dist/
+npm run start:worker     # Run background worker from dist/ (prod; needs Redis)
 npm test                 # Run all Jest tests
 npm run test:watch       # Watch mode
 npm run test:coverage    # Coverage report
@@ -611,10 +613,6 @@ User-facing strings ทุกตัวต้องผ่าน `lib/i18n/message
   - Assigned: Any | Status: Pending | From: Handoff 2026-05-10 (claude_code)
   - คำสั่ง: `cd backend && npm run db:generate:tidb && npm run db:push:tidb`
   
-- [ ] **Wire maintenanceEscalationQueue Worker into BullMQ Bootstrap** - escalation cron ยังไม่ถูกรันใน worker process
-  - Assigned: Any | Status: Pending | From: Handoff 2026-05-10
-  - ไฟล์ที่เกี่ยวข้อง: `backend/src/queues/maintenanceEscalationQueue.ts`
-
 - [ ] **Set TELEGRAM_* Envs in Production** (optional) - critical-severity alerts; service fail-silent ถ้าไม่ตั้ง
   - Assigned: Any | Status: Pending
 
@@ -677,6 +675,11 @@ User-facing strings ทุกตัวต้องผ่าน `lib/i18n/message
 - [x] **Graft Integration + Doc Consolidation** - code graph wired; CLAUDE/GEMINI/QWEN.md → pointers to this file
   - Completed by: Cline (ox-alpha) | Date: 2026-08-23
   - Location: `.claude/skills/graft/`, `.mcp.json`, root pointer docs
+
+- [x] **BullMQ Worker Bootstrap** - dedicated `src/worker.ts` hosting escalation/backup/email workers; escalation cron wired via `scheduleMaintenanceEscalation()`; graceful shutdown + `WORKER_ENABLED` flag; fixed missing `maxRetriesPerRequest: null` on all queue connections (ย้ายจาก High Priority)
+  - Completed by: Cline (ox-alpha) | Date: 2026-08-23
+  - Location: `backend/src/worker.ts` + scripts `start:worker` / `dev:worker`
+  - Deploy note: prod ต้องรัน process ที่สอง (`npm run start:worker`) คู่กับ API server
 
 ---
 
