@@ -18,22 +18,21 @@
  * eligible requests (escalatedAt IS NULL filter).
  */
 
-import { Queue, Worker, Job } from 'bullmq';
-import IORedis from 'ioredis';
+import { Queue, Worker, Job, type ConnectionOptions } from 'bullmq';
 import prisma from '../utils/prisma';
 import { logError, logInfo } from '../utils/logger';
 import { sendEscalationAlert } from '../services/maintenanceTelegramService';
+import { createQueueConnection } from '../utils/queueConnection';
 
-// maxRetriesPerRequest: null is required by BullMQ Workers (blocking commands)
-const connection = new IORedis(process.env.REDIS_URL || 'redis://localhost:6379', {
-    maxRetriesPerRequest: null,
-});
+// [2026-08-23] Modified by Cline: switched to shared queue connection factory;
+// cast needed because bullmq bundles its own incompatible ioredis typings (review #21 followup)
+const connection = createQueueConnection() as unknown as ConnectionOptions;
 
 const ESCALATION_THRESHOLD_HOURS = 24;
 const DEFAULT_CRON = '0 * * * *'; // hourly at :00
 
 export const maintenanceEscalationQueue = new Queue('maintenance-escalation-queue', {
-    connection: connection as any,
+    connection: connection,
 });
 
 console.log('🔧 Maintenance Escalation Queue Initialized');
@@ -124,12 +123,12 @@ export const maintenanceEscalationWorker = new Worker(
         await logInfo(`[escalation] escalated ${escalated} request(s)`);
         return { processed: eligible.length, escalated };
     },
-    { connection: connection as any, concurrency: 1 },
+    { connection: connection, concurrency: 1 },
 );
 
 maintenanceEscalationWorker.on('completed', (job, result) => {
-    if (result?.escalated > 0) {
-        logInfo(`Maintenance escalation job ${job.id}: escalated ${result.escalated}`);
+    if ((result?.escalated ?? 0) > 0) {
+        logInfo(`Maintenance escalation job ${job.id}: escalated ${result?.escalated}`);
     }
 });
 
