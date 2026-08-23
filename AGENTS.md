@@ -710,6 +710,8 @@ cd backend && npx prisma generate
 | ไฟล์ | รายละเอียด |
 |------|-----------|
 | `CLAUDE.md` | Pointer → ชี้มาที่ไฟล์นี้ (AGENTS.md คือ single source of truth) |
+| `GEMINI.md` | Pointer → ชี้มาที่ไฟล์นี้ (Antigravity quick notes) |
+| `QWEN.md` | Pointer → ชี้มาที่ไฟล์นี้ (Qwen quick notes) |
 | `.agents/AI_COLLABORATION_PROTOCOL.md` | โปรโตคอลการทำงานร่วมกันระหว่าง AI |
 | `project-log-md/handoff/HANDOFF_BOARD.md` | Dashboard กลางสำหรับ handoff ระหว่าง AI |
 | `backend/prisma/schema.prisma` | Database schema (Single Source of Truth) |
