@@ -1,6 +1,6 @@
 ﻿# 🤝 Cross-Agent Handoff Board
 
-> **Last Updated:** 2026-04-11 23:18 | **Updated By:** codex
+> **Last Updated:** 2026-05-10 14:37 | **Updated By:** claude_code
 >
 > ไฟล์นี้เป็น Dashboard กลาง ทุก Agent ต้องอ่านก่อนเริ่มงาน และอัพเดทเมื่อจบงาน
 
@@ -12,8 +12,9 @@
 |-------|--------|-------------|-------------------|-------------|
 | **antigravity** | 🟢 AVAILABLE | 2026-02-20 08:25 | Sync pending tasks | - |
 | **kilo** | ⚪ IDLE | 2026-01-30 | Codebase Analysis Report | [session_2026-01-30](../kilo/session_2026-01-30_185739.md) |
-| **claude_code** | ⚪ IDLE | - | - | - |
+| **claude_code** | 🟢 AVAILABLE | 2026-05-10 14:37 | Maintenance Workflow PRP v6 — all 6 PRs (#15-#20) merged | [2026-05-10_1437_claude_code_to_any](logs/2026-05-10_1437_claude_code_to_any.md) |
 | **codex** | 🟢 AVAILABLE | 2026-04-11 23:18 | Normalize superadmin RBAC across menu/page/action guards | [2026-04-11_superadmin-rbac-normalization](../codex/2026-04-11_superadmin-rbac-normalization.md) |
+| **cline** | 🟢 AVAILABLE | 2026-08-23 17:58 | Graft integration + handoff/repo sync backfill | [2026-08-23_1758_cline_to_all](logs/2026-08-23_1758_cline_to_all.md) |
 | **gemini_cli** | ⚪ IDLE | - | - | - |
 | **open_code** | ⚪ IDLE | - | - | - |
 
@@ -48,7 +49,9 @@
 
 | # | From | To | Task | Priority | Handoff Log | Date |
 |---|------|----|------|----------|-------------|------|
-| 1 | codex | all | Superadmin RBAC normalization complete; verify on deployed Vercel/TiDB environment | 🟡 Medium | [log](logs/2026-04-11_2318_codex_to_all.md) | 2026-04-11 |
+| 1 | cline | all | Graft installed (v0.12.0, Claude Code wiring, telemetry off); handoff logs + PRP v6 artifacts backfilled and pushed. Optional: `graft build --deep` with LLM key | 🟡 Medium | [log](logs/2026-08-23_1758_cline_to_all.md) | 2026-08-23 |
+| 2 | claude_code | any | Maintenance Workflow PRP v6 COMPLETE — 6 PRs merged. Optional: TiDB schema push for 5 new tables, set TELEGRAM_* envs in prod, register escalation worker in BullMQ bootstrap | 🟡 Medium | [log](logs/2026-05-10_1437_claude_code_to_any.md) | 2026-05-10 |
+| 2 | codex | all | Superadmin RBAC normalization complete; verify on deployed Vercel/TiDB environment | 🟡 Medium | [log](logs/2026-04-11_2318_codex_to_all.md) | 2026-04-11 |
 | 2 | codex | all | `.agents` cutover and canonical handoff path complete; update external tooling if needed | 🟡 Medium | [log](logs/2026-04-03_1232_codex_to_all.md) | 2026-04-03 |
 | 3 | antigravity | all | Sync pending tasks (Backend, Frontend, Release) | 🟡 Medium | [log](logs/2026-02-20_0825_antigravity_to_all.md) | 2026-02-20 |
 | 4 | antigravity | all | Git Release v1.5.0 ready; verify log | 🔴 High | [log](logs/2026-02-13_1215_antigravity_to_all.md) | 2026-02-13 |
@@ -77,7 +80,8 @@
 
 | # | Date | Agent | Action | Details |
 |---|------|-------|--------|---------|
-| 1 | 2026-04-11 23:18 | codex | 📤 HANDOFF | Normalized superadmin RBAC across menu/page/action guards |
+| 1 | 2026-05-10 14:37 | claude_code | ✅ COMPLETE | Maintenance Workflow PRP v6 — all 6 PRs (#15-#20) merged; 5 new tables; ~6000 LOC |
+| 2 | 2026-04-11 23:18 | codex | 📤 HANDOFF | Normalized superadmin RBAC across menu/page/action guards |
 | 2 | 2026-04-03 12:32 | codex | 📤 HANDOFF | Canonicalized `.agents` and handoff path to `project-log-md/handoff/logs/` |
 | 3 | 2026-02-20 08:25 | antigravity | 📤 HANDOFF | Status sync and pending task handoff |
 | 4 | 2026-02-13 12:15 | antigravity | 📤 HANDOFF | Sent v1.5.0 release preparation to all |
