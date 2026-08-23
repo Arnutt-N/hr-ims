@@ -1,16 +1,15 @@
-import { Queue, Worker, Job } from 'bullmq';
-import IORedis from 'ioredis';
+import { Queue, Worker, Job, type ConnectionOptions } from 'bullmq';
 import { createBackup } from '../services/backupService';
 import { logError, logInfo } from '../utils/logger';
 import { getBackupSettings, isFeatureEnabled } from '../utils/settings';
+import { createQueueConnection } from '../utils/queueConnection';
 
-// maxRetriesPerRequest: null is required by BullMQ Workers (blocking commands)
-const connection = new IORedis(process.env.REDIS_URL || 'redis://localhost:6379', {
-    maxRetriesPerRequest: null,
-});
+// [2026-08-23] Modified by Cline: switched to shared queue connection factory;
+// cast needed because bullmq bundles its own incompatible ioredis typings (review #21 followup)
+const connection = createQueueConnection() as unknown as ConnectionOptions;
 
 // Create the backup queue
-export const backupQueue = new Queue('backup-queue', { connection: connection as any });
+export const backupQueue = new Queue('backup-queue', { connection: connection });
 
 console.log('💾 Backup Queue Initialized');
 
@@ -36,7 +35,7 @@ export const backupWorker = new Worker(
             throw new Error(result.error || 'Backup failed');
         }
     },
-    { connection: connection as any, concurrency: 1 } // Only run 1 backup at a time!
+    { connection: connection, concurrency: 1 } // Only run 1 backup at a time!
 );
 
 backupWorker.on('completed', (job, result) => {

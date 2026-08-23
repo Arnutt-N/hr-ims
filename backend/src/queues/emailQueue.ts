@@ -1,15 +1,14 @@
-import { Queue, Worker, Job } from 'bullmq';
-import IORedis from 'ioredis';
+import { Queue, Worker, Job, type ConnectionOptions } from 'bullmq';
 import { sendEmail } from '../services/emailService';
 import { logError, logInfo } from '../utils/logger';
+import { createQueueConnection } from '../utils/queueConnection';
 
-// Redis connection — maxRetriesPerRequest: null is required by BullMQ Workers (blocking commands)
-const connection = new IORedis(process.env.REDIS_URL || 'redis://localhost:6379', {
-    maxRetriesPerRequest: null,
-});
+// [2026-08-23] Modified by Cline: switched to shared queue connection factory;
+// cast needed because bullmq bundles its own incompatible ioredis typings (review #21 followup)
+const connection = createQueueConnection() as unknown as ConnectionOptions;
 
 // Create the email queue
-export const emailQueue = new Queue('email-queue', { connection: connection as any });
+export const emailQueue = new Queue('email-queue', { connection: connection });
 
 console.log('📬 Email Queue Initialized');
 
@@ -31,7 +30,7 @@ export const emailWorker = new Worker(
         }
         return result;
     },
-    { connection: connection as any, concurrency: 5 } // process up to 5 emails concurrently
+    { connection: connection, concurrency: 5 } // process up to 5 emails concurrently
 );
 
 emailWorker.on('completed', (job) => {
