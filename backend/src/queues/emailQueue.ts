@@ -3,8 +3,10 @@ import IORedis from 'ioredis';
 import { sendEmail } from '../services/emailService';
 import { logError, logInfo } from '../utils/logger';
 
-// Redis connection
-const connection = new IORedis(process.env.REDIS_URL || 'redis://localhost:6379');
+// Redis connection — maxRetriesPerRequest: null is required by BullMQ Workers (blocking commands)
+const connection = new IORedis(process.env.REDIS_URL || 'redis://localhost:6379', {
+    maxRetriesPerRequest: null,
+});
 
 // Create the email queue
 export const emailQueue = new Queue('email-queue', { connection: connection as any });

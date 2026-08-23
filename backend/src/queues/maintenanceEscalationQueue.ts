@@ -24,7 +24,10 @@ import prisma from '../utils/prisma';
 import { logError, logInfo } from '../utils/logger';
 import { sendEscalationAlert } from '../services/maintenanceTelegramService';
 
-const connection = new IORedis(process.env.REDIS_URL || 'redis://localhost:6379');
+// maxRetriesPerRequest: null is required by BullMQ Workers (blocking commands)
+const connection = new IORedis(process.env.REDIS_URL || 'redis://localhost:6379', {
+    maxRetriesPerRequest: null,
+});
 
 const ESCALATION_THRESHOLD_HOURS = 24;
 const DEFAULT_CRON = '0 * * * *'; // hourly at :00
