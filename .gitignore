@@ -90,6 +90,8 @@ temp/
 *.tmp
 *.bak
 *.swp
+.tmp-playwright-trace/
+.tmp-trace-extracted/
 diagnose-db.ts
 test-db.ts
 auth_debug.log
@@ -126,3 +128,6 @@ research/
 .claude/settings.local.json
 switch_mode.bat
 
+
+# graft's local graph cache — regenerable, not committed (run `graft build`).
+/graft/
