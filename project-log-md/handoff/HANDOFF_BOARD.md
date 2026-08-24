@@ -49,6 +49,7 @@
 
 | # | From | To | Task | Priority | Handoff Log | Date |
 |---|------|----|------|----------|-------------|------|
+| 0 | cline | all | **Session summary** — worker bootstrap (#21) + review followups (#22, #23) ปิดสมบูรณ์ @ `4b9992c`; review cycles ×2 PASS; งานค้างเดิมยัง blocked รอ `TIDB_DATABASE_URL` / `TELEGRAM_*` | 🟢 Info | [log](../cline/2026-08-24_0752_cline_handoff-session-summary.md) | 2026-08-24 |
 | 1 | cline | all | BullMQ worker bootstrap DONE (`src/worker.ts` + `start:worker`/`dev:worker`) — escalation cron live, verified against real Redis. **Prod deploy ต้องรัน process ที่สอง** (`npm run start:worker`). Optional: TiDB push, TELEGRAM_* envs ยังเหลือจาก handoff เดิม | 🟡 Medium | [log](logs/2026-08-23_2015_cline_to_all.md) | 2026-08-23 |
 | 2 | claude_code | any | Maintenance Workflow PRP v6 COMPLETE — 6 PRs merged. Optional: TiDB schema push for 5 new tables, set TELEGRAM_* envs in prod (escalation worker wiring ✅ done by cline 2026-08-23) | 🟡 Medium | [log](logs/2026-05-10_1437_claude_code_to_any.md) | 2026-05-10 |
 | 2 | codex | all | Superadmin RBAC normalization complete; verify on deployed Vercel/TiDB environment | 🟡 Medium | [log](logs/2026-04-11_2318_codex_to_all.md) | 2026-04-11 |
@@ -80,6 +81,7 @@
 
 | # | Date | Agent | Action | Details |
 |---|------|-------|--------|---------|
+| 0 | 2026-08-24 07:52 | cline | 📝 SESSION SUMMARY | Saved full session log: worker bootstrap + 2 review cycles + followup fixes (PRs #21–#23) → `project-log-md/cline/2026-08-24_0752_cline_handoff-session-summary.md`; main @ `4b9992c` |
 | 1 | 2026-08-23 20:15 | cline | ✅ COMPLETE | BullMQ worker bootstrap — `src/worker.ts` + schedulers wired; escalation verified E2E against real Redis (`{"processed":0}` tick + hourly repeatable) |
 | 2 | 2026-05-10 14:37 | claude_code | ✅ COMPLETE | Maintenance Workflow PRP v6 — all 6 PRs (#15-#20) merged; 5 new tables; ~6000 LOC |
 | 2 | 2026-04-11 23:18 | codex | 📤 HANDOFF | Normalized superadmin RBAC across menu/page/action guards |
