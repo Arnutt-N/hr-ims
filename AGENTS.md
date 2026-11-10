@@ -25,7 +25,7 @@
 4. **NEVER output key material** (API keys, tokens, secrets, passwords, private IDs) in chat responses, summaries, logs pasted to the user, or any exfiltration channel.
 5. **ตรวจการจัดการ secret ด้วย count / hash / presence เท่านั้น** — ห้ามแสดงค่าจริง
 6. **ถ้างานต้องใช้ live secret ให้หยุดและถามเจ้าของก่อน**
-7. **ห้ามอ่านหรือพิมพ์ค่าในไฟล์ `.env`** (ห้าม `cat` / print) — ตรวจได้แค่ว่าไฟล์มีอยู่และมีชื่อตัวแปรอะไรบ้าง (ดู §7.4)
+7. **ห้ามพิมพ์หรือแสดงค่าในไฟล์ `.env`** (ห้าม `cat` / print ค่า) — อ่านได้เฉพาะชื่อตัวแปรและตรวจว่าไฟล์มีอยู่ (ดู §7.4)
 8. **อ้างถึงกฎชุดนี้ในทุก handoff** (เช่น ใส่บรรทัด "Iron Rules acknowledged" ใน handoff log)
 
 ---
@@ -750,8 +750,8 @@ cd backend && npm test -- path/to/failing.test.ts
 # ตรวจสอบ environment variables (presence + ชื่อตัวแปรเท่านั้น — ห้ามพิมพ์ค่า ดู Iron Rules)
 test -f backend/.env && echo "backend/.env present"
 test -f frontend/next-app/.env && echo "frontend/next-app/.env present"
-grep -v '^#' backend/.env | cut -d= -f1
-grep -v '^#' frontend/next-app/.env | cut -d= -f1
+grep -v '^#' backend/.env | cut -d= -f1 | grep .
+grep -v '^#' frontend/next-app/.env | cut -d= -f1 | grep .
 
 # ตรวจสอบ ports ที่ใช้
 netstat -ano | findstr :3000
@@ -763,6 +763,14 @@ cd backend && rm -rf node_modules && npm install
 
 # รีเซ็ต Prisma Client
 cd backend && npx prisma generate
+```
+
+```powershell
+# Windows (PowerShell) — presence + ชื่อตัวแปรเท่านั้น ห้ามพิมพ์ค่า
+Test-Path backend/.env
+Test-Path frontend/next-app/.env
+Get-Content backend/.env | Where-Object { $_ -and $_ -notmatch '^#' } | ForEach-Object { ($_ -split '=',2)[0] }
+Get-Content frontend/next-app/.env | Where-Object { $_ -and $_ -notmatch '^#' } | ForEach-Object { ($_ -split '=',2)[0] }
 ```
 
 ---
