@@ -40,7 +40,7 @@ HR-IMS (Human Resource & Inventory Management System) is an enterprise-grade web
 |------|-----------|
 | **Frontend** | Next.js 16.1 (App Router, Webpack), React 19, TypeScript, Tailwind CSS v4, Shadcn UI (Radix primitives), Framer Motion, Recharts |
 | **Backend** | Express.js 4, TypeScript, Prisma ORM |
-| **Database** | SQLite (development source-of-truth schema) / MySQL-compatible TiDB (production, generated from the SQLite schema via a transform script) |
+| **Database** | MySQL 8 locally (Docker) and MySQL-compatible TiDB Cloud in production. One Prisma schema, `provider = "mysql"`. |
 | **Authentication** | NextAuth.js v5 (beta) with Credentials provider + JWT strategy |
 | **Validation** | Zod (frontend v4, backend v3) |
 | **Queues / Cache** | Redis + BullMQ (backups, email queue), node-cache (in-process) |
@@ -194,11 +194,14 @@ npx prisma migrate deploy         # Apply migrations (production)
 npx prisma studio                 # Open Prisma Studio GUI (port 5555)
 npx prisma db seed                # Seed database with initial data
 
-# TiDB preparation flow (uses TIDB_DATABASE_URL in backend/.env)
-npm run db:prepare:tidb            # Generate TiDB-compatible schema from SQLite source-of-truth
-npm run db:generate:tidb          # Generate Prisma client from TiDB-compatible schema
-npm run db:push:tidb              # Push schema to TiDB
-npm run db:seed:tidb              # Seed TiDB
+# Same commands for local MySQL 8 and production TiDB.
+# They read DATABASE_URL only (mysql://). Do not print that URL.
+npm run db:push                   # prisma db push
+npm run db:seed                   # prisma db seed
+npm run db:setup                  # push, then seed
+npm run db:migrate:deploy         # apply prisma/migrations (empty databases)
+npm run db:push:prod              # alias of db:push, for a shell whose DATABASE_URL is TiDB
+npm run db:seed:prod              # alias of db:seed
 ```
 
 ### 2.5 Quick Start (Windows)
@@ -215,7 +218,7 @@ Cloudflare Tunnel is optional. Install `cloudflared` on the machine — do not c
 
 ### 2.6 Local Infra (Docker)
 
-`docker-compose.yml` provisions Redis (port 6379) and Meilisearch (port 7700) for local development. Bring them up with `docker compose up -d` before running queue-dependent or search-dependent code paths (BullMQ workers in `backend/src/queues/`, `backend/src/jobs/`).
+`docker-compose.yml` provisions MySQL 8 (port 3306, database `hrims`), Redis (port 6379), and Meilisearch (port 7700) for local development. Bring them up with `docker compose up -d` before Prisma commands or queue-dependent code paths (BullMQ workers in `backend/src/queues/`, `backend/src/jobs/`). The MySQL credentials in compose and `backend/.env.example` are dev-only placeholders.
 
 ---
 
@@ -419,7 +422,7 @@ hr-ims/
 │   │   └── tests/              # Jest tests
 │   └── prisma/
 │       ├── schema.prisma       # Database schema (Single Source of Truth)
-│       └── dev.db              # SQLite database
+│       └── migrations/         # MySQL baseline (historical SQLite SQL is archived)
 │
 ├── .agents/                    # AI Configuration (domain skills, workflows)
 │   ├── workflows/              # Slash commands
@@ -455,8 +458,8 @@ hr-ims/
 
 **⚠️ CRITICAL:** โปรเจคนี้ใช้ Prisma schema ร่วมกันระหว่าง Frontend และ Backend โดย `backend/prisma/schema.prisma` เป็น source of truth
 
-- **Default local dev DB:** `backend/prisma/dev.db` (SQLite)
-- **TiDB prep/cutover:** ใช้ `TIDB_DATABASE_URL` + `npm run db:generate:tidb` / `npm run db:push:tidb`
+- **Local dev DB:** MySQL 8 from `docker-compose.yml` (`mysql://` on localhost:3306, database `hrims`)
+- **Production DB:** TiDB Cloud, same `provider = "mysql"` schema. Set `DATABASE_URL` to the TiDB URL only in the production environment, then `npm run db:push:prod`
 - **Schema Definition:** `backend/prisma/schema.prisma` (Single Source of Truth)
 - **Prisma Clients:**
   - Backend: `backend/node_modules/@prisma/client`
@@ -464,8 +467,8 @@ hr-ims/
 
 **การแก้ไข Schema:**
 1. แก้ไข `backend/prisma/schema.prisma`
-2. ถ้าเป็น local SQLite: รัน `cd backend && npx prisma generate` และ `cd backend && npx prisma db push`
-3. ถ้าเป็น TiDB: รัน `npm run db:generate:tidb` และ `npm run db:push:tidb`
+2. รัน `cd backend && npx prisma generate` แล้ว `npm run db:push` (local MySQL) หรือ `npm run db:migrate` เมื่อต้องการ migration ใหม่
+3. Production TiDB ใช้คำสั่งเดียวกันโดยชี้ `DATABASE_URL` ไปที่ TiDB — ห้ามเชื่อมต่อจากเครื่อง dev ถ้าไม่มีคำสั่งจากเจ้าของ
 4. ทดสอบว่าทั้ง frontend และ backend ใช้งานได้กับ `DATABASE_URL` เดียวกัน
 
 ### 4.3 Frontend Architecture (`frontend/next-app/`)
@@ -525,7 +528,7 @@ Express layer (`backend/src/`) = controllers / routes / middleware / services / 
 
 ### 4.6 Database Schema Highlights
 
-Defined in `backend/prisma/schema.prisma`. Provider is `sqlite` locally; production runs MySQL/TiDB via the transform script.
+Defined in `backend/prisma/schema.prisma`. Provider is `mysql` for local MySQL 8 and production TiDB. Closed value sets are Prisma enums. Long text uses `@db.Text`. `DateTime` is `@db.DateTime(3)`. Foreign keys and common lookup columns are indexed. No triggers or stored procedures.
 
 | Group | Models |
 |-------|--------|
@@ -626,9 +629,8 @@ User-facing strings ทุกตัวต้องผ่าน `lib/i18n/message
 
 ### 🔴 High Priority (ควรทำก่อน)
 
-- [ ] **TiDB Schema Push for Maintenance Tables** - materialize 5 ตาราง maintenance ใน prod ก่อน deploy แรกที่แตะ maintenance
-  - Assigned: Any | Status: Pending | From: Handoff 2026-05-10 (claude_code)
-  - คำสั่ง: `cd backend && npm run db:generate:tidb && npm run db:push:tidb`
+- [ ] **Prod TiDB schema push** - dev and prod now share the mysql schema. Push with `DATABASE_URL` set to TiDB (`npm run db:push:prod` from `backend/`). Preview with `prisma migrate diff` before applying. Do not use the removed sqlite transform scripts.
+  - Assigned: Any | Status: Pending | From: Handoff 2026-11-10 (cursor)
   
 - [ ] **Set TELEGRAM_* Envs in Production** (optional) - critical-severity alerts; service fail-silent ถ้าไม่ตั้ง
   - Assigned: Any | Status: Pending
@@ -710,8 +712,8 @@ cd backend
 # ตรวจสอบสถานะ database
 node check-db-status.js
 
-# ตรวจสอบว่า database file มีอยู่จริง
-ls -la prisma/dev.db
+# Dev database is MySQL 8 from docker compose, not a SQLite file.
+docker compose ps mysql
 
 # รีเซ็ต database (ระวัง! ข้อมูลจะหายทั้งหมด)
 npx prisma migrate reset
@@ -878,7 +880,7 @@ Examples:
 
 ### Frontend (`frontend/next-app/.env`)
 ```
-DATABASE_URL="file:../../backend/prisma/dev.db"   # absolute path also OK
+DATABASE_URL="mysql://root:root@localhost:3306/hrims"   # dev-only; same database as the backend
 NEXTAUTH_URL=http://localhost:3000
 NEXTAUTH_SECRET=...
 AUTH_SECRET=...
@@ -897,7 +899,7 @@ MEILISEARCH_API_KEY=...
 ### Backend (`backend/.env`)
 ```
 PORT=3000
-DATABASE_URL="file:./prisma/dev.db"
+DATABASE_URL="mysql://root:root@localhost:3306/hrims"   # dev-only placeholder
 JWT_SECRET=...
 SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587
@@ -909,10 +911,9 @@ MEILISEARCH_HOST=http://localhost:7700
 MEILISEARCH_API_KEY=...
 TELEGRAM_BOT_TOKEN=optional
 TELEGRAM_ADMIN_CHAT_ID=optional
-TIDB_DATABASE_URL=optional (for TiDB pipeline)
 ```
 
-`.env.example` files exist in both apps. **The two `DATABASE_URL`s must point at the same SQLite file.**
+`backend/.env.example` documents the dev MySQL URL. **Frontend and backend `DATABASE_URL` must be the same MySQL database.** Production TiDB replaces that value in the host environment only. There is no `TIDB_DATABASE_URL`.
 
 ---
 
@@ -933,7 +934,7 @@ TIDB_DATABASE_URL=optional (for TiDB pipeline)
 - Run only security tests: `npm test -- --testPathPattern=security`
 
 ### CI (GitHub Actions)
-- `.github/workflows/ci.yml` - frontend lint+test, backend test, vercel-build, TiDB schema validation
+- `.github/workflows/ci.yml` - frontend lint+test, backend test on MySQL 8, vercel-build, MySQL schema migrate check
 - `.github/workflows/security-e2e.yml` - security/E2E suite
 
 ---
@@ -942,7 +943,7 @@ TIDB_DATABASE_URL=optional (for TiDB pipeline)
 
 - **Graft code graph**: This repo is indexed by `graft/` (regenerable local cache). Before grepping or reading many files, query it first — `graft ask "<question>"`, `graft grep "<regex>"`, `graft callers <symbol>`, `graft skeleton <file>`, `graft map` — all `$0`, local-only, no API key. Rebuild with `graft build`; LLM-enriched nodes via `graft build --deep`.
 
-- **Database Path**: Use absolute paths or paths relative to project root. Both apps must agree on the same SQLite file.
+- **Database URL**: Both apps must use the same `mysql://` `DATABASE_URL`. Local default is the Docker MySQL 8 service. Do not print the URL.
 - **Prisma Client**: Always run `prisma generate` from `backend/` � the schema's `client_frontend` generator regenerates the frontend client too.
 - **Server Actions over API routes**: For frontend data flows, default to Server Actions. Reach for the Express API only when something external needs it.
 - **Authorization**: Check session and roles in every Server Action. The middleware/proxy is defense-in-depth, not the only line of defense.
@@ -952,7 +953,7 @@ TIDB_DATABASE_URL=optional (for TiDB pipeline)
 - **Multi-Role**: Sessions carry `roles: string[]` and `permissions: string[]`. Don't treat the legacy single `role` field as authoritative.
 - **Caches**: `lib/auth-cache.ts` and `lib/settings-cache.ts` are short-lived in-memory caches. If you change underlying data, ensure the cache key/TTL still makes sense.
 - **Queues**: BullMQ workers need Redis running locally � start `docker compose up -d` first.
-- **TiDB**: Don't hand-edit a MySQL schema; edit the SQLite source-of-truth and re-run the transform script.
+- **TiDB**: Edit `backend/prisma/schema.prisma` only. Local MySQL 8 and prod TiDB use that file directly. Push prod with `npm run db:push:prod` after setting `DATABASE_URL` to TiDB. Do not connect to prod from a dev session unless the owner asks.
 
 ---
 

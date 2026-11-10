@@ -49,7 +49,7 @@ function getDatabasePath(): string | null {
 }
 
 function getUnsupportedBackupMessage(operation: 'backup' | 'restore'): string {
-    return `Application-level ${operation} only supports SQLite file databases. Use TiDB-native backup tooling for TiDB deployments.`;
+    return `Application-level ${operation} does not support MySQL or TiDB server databases. Use mysqldump or TiDB backup tooling.`;
 }
 
 function resolveStoragePath(storagePath: string): string {

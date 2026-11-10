@@ -2,6 +2,11 @@
 description: Start the full development environment (Backend & Frontend)
 ---
 
+0. Start local MySQL 8 (same dialect as production TiDB)
+// turbo
+   - Run `docker compose up -d mysql`
+   - If `backend/.env` is missing, copy `backend/.env.example`. The example `DATABASE_URL` is a dev-only placeholder. Do not print it. Point the frontend env at the same database.
+
 1. Start the Backend Server
 // turbo
    - Run `start start_backend.bat`

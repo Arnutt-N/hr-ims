@@ -14,19 +14,14 @@ concurrency:
   cancel-in-progress: true
 
 # ---------------------------------------------------------------------------
-# Dual-provider strategy
+# Single MySQL dialect
 #
-# This repo uses SQLite as the Prisma "source of truth" schema and generates
-# a MySQL-flavored copy on-demand for TiDB via backend/scripts/prepare-tidb-prisma.js.
+# backend/prisma/schema.prisma uses provider = "mysql" for local MySQL 8 and
+# production TiDB. There is no SQLite schema and no sqlite-to-mysql transform.
 #
-# - `frontend` / `backend` / `vercel-build` jobs use the SQLite source schema.
-#   They are fast and validate the default dev/build flow. Prisma Client
-#   generated from SQLite has IDENTICAL TypeScript types to the MySQL client,
-#   so type-checking and building Next.js works the same either way.
-#
-# - `tidb-schema` job validates the TiDB schema transform and generates the
-#   MySQL-flavored client. This catches regressions in the transform script
-#   or the schema itself (e.g. new Prisma syntax the regex doesn't handle).
+# Jobs that execute SQL (backend tests, e2e, lighthouse, mysql-schema) start
+# a MySQL 8 service. Generate-only jobs (frontend lint, vercel build) do not
+# connect; prisma generate only reads the schema file.
 # ---------------------------------------------------------------------------
 
 jobs:
@@ -42,7 +37,7 @@ jobs:
       run:
         working-directory: frontend/next-app
     env:
-      DATABASE_URL: file:./dev.db
+      DATABASE_URL: mysql://root:root@127.0.0.1:3306/hrims
       NEXTAUTH_URL: http://localhost:3000
       NEXTAUTH_SECRET: ci-dummy-secret-do-not-use-in-production
       AUTH_SECRET: ci-dummy-secret-do-not-use-in-production
@@ -93,8 +88,22 @@ jobs:
     defaults:
       run:
         working-directory: backend
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: hrims
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -proot --silent"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=20
     env:
-      DATABASE_URL: file:./prisma/dev.db
+      # Dev-only CI credentials. Matches docker-compose and backend/.env.example.
+      DATABASE_URL: mysql://root:root@127.0.0.1:3306/hrims
       JWT_SECRET: ci-dummy-secret-do-not-use-in-production
       NODE_ENV: test
 
@@ -114,6 +123,9 @@ jobs:
 
       - name: Generate Prisma Client (backend default generator)
         run: npm run prisma:generate
+
+      - name: Push schema to MySQL 8
+        run: npm run db:push
 
       - name: TypeScript build (tsc)
         run: npm run build
@@ -156,7 +168,7 @@ jobs:
     env:
       # Prisma generate only reads the schema file — no DB connection is made
       # during postinstall or `next build`.
-      DATABASE_URL: file:./dev.db
+      DATABASE_URL: mysql://root:root@127.0.0.1:3306/hrims
       # NextAuth v5 statically analyzes Route Handlers at build time and
       # requires these to be present. Dummy values are safe — nothing actually
       # signs or verifies tokens during `next build`.
@@ -217,24 +229,30 @@ jobs:
           echo "outputDirectory '${{ steps.vercel.outputs.output }}' exists"
 
   # ---------------------------------------------------------------------------
-  # TiDB schema validation
-  # Validates that:
-  #   1. The SQLite -> MySQL transform (prepare-tidb-prisma.js) still works
-  #   2. The generated schema is a valid Prisma schema for mysql provider
-  #   3. `prisma generate` succeeds against the TiDB-flavored schema
-  #
-  # No real TiDB connection is made — dummy TIDB_DATABASE_URL satisfies the
-  # guard in scripts/prisma-tidb.js but `prisma generate` never touches it.
+  # MySQL schema check
+  # 1. prisma validate + generate against the single mysql schema
+  # 2. migrate deploy the committed baseline onto MySQL 8
+  # 3. fail if that database differs from schema.prisma
+  # No production TiDB connection is made.
   # ---------------------------------------------------------------------------
-  tidb-schema:
-    name: TiDB · schema transform + validate
+  mysql-schema:
+    name: MySQL 8 · schema validate + migrate
     runs-on: ubuntu-24.04
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: hrims
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -proot --silent"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=20
     env:
-      # Dummy TiDB URL — only used to satisfy scripts/prisma-tidb.js's presence
-      # check. Prisma generate reads the schema file only, it does NOT connect
-      # to the database. Do not put a real URL here.
-      TIDB_DATABASE_URL: mysql://dummy:dummy@127.0.0.1:4000/dummy?sslaccept=strict
-      DATABASE_URL: mysql://dummy:dummy@127.0.0.1:4000/dummy?sslaccept=strict
+      DATABASE_URL: mysql://root:root@127.0.0.1:3306/hrims
 
     steps:
       - name: Checkout
@@ -254,36 +272,52 @@ jobs:
         run: npm ci
 
       - name: Install frontend dependencies
-        # Required because the TiDB generator writes to
-        # frontend/next-app/node_modules/.prisma/client — that directory must
-        # exist (via npm ci) before `prisma generate` can write into it.
+        # prisma generate writes the client_frontend output under
+        # frontend/next-app/node_modules/.prisma/client.
         working-directory: frontend/next-app
         run: npm ci --legacy-peer-deps
 
-      - name: Prepare TiDB schema (sqlite -> mysql transform)
+      - name: Validate schema
         working-directory: backend
-        run: npm run db:prepare:tidb
+        run: npx prisma validate --schema prisma/schema.prisma
 
-      - name: Validate transformed schema parses as mysql
+      - name: Generate Prisma Client
         working-directory: backend
-        run: npx prisma validate --schema prisma/.generated/schema.tidb.prisma
+        run: npm run prisma:generate
 
-      - name: Generate Prisma Client from TiDB schema (dry run, no DB)
+      - name: Apply MySQL baseline migration
         working-directory: backend
-        run: npm run db:generate:tidb
+        run: npm run db:migrate:deploy
+
+      - name: Fail if migration SQL drifts from schema.prisma
+        working-directory: backend
+        run: npx prisma migrate diff --from-url "$DATABASE_URL" --to-schema-datamodel prisma/schema.prisma --exit-code
 
   # ---------------------------------------------------------------------------
   # Phase D — E2E golden paths (Playwright)
   # Runs the 9 spec files under tests/e2e/golden/ against a freshly seeded
-  # SQLite DB, with both `chromium` and `Mobile Chrome` Playwright projects.
+  # MySQL 8 database, with both `chromium` and `Mobile Chrome` Playwright projects.
   # Fails the build on the first non-flaky failure (retries: 2 in CI per
   # playwright.config.ts).
   # ---------------------------------------------------------------------------
   e2e-golden:
     name: E2E · golden paths (Playwright)
     runs-on: ubuntu-24.04
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: hrims
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -proot --silent"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=20
     env:
-      DATABASE_URL: file:./prisma/dev.db
+      DATABASE_URL: mysql://root:root@127.0.0.1:3306/hrims
       NEXTAUTH_URL: http://localhost:3000
       NEXTAUTH_SECRET: ci-dummy-secret-do-not-use-in-production
       AUTH_SECRET: ci-dummy-secret-do-not-use-in-production
@@ -313,9 +347,7 @@ jobs:
 
       - name: Push + seed Prisma schema
         working-directory: backend
-        run: |
-          npx prisma db push
-          npx prisma db seed
+        run: npm run db:setup
 
       - name: Install Playwright browsers (chromium only)
         working-directory: frontend/next-app
@@ -345,8 +377,21 @@ jobs:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-24.04
     needs: vercel-build
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: hrims
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -proot --silent"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=20
     env:
-      DATABASE_URL: file:./prisma/dev.db
+      DATABASE_URL: mysql://root:root@127.0.0.1:3306/hrims
       NEXTAUTH_URL: http://localhost:3000
       NEXTAUTH_SECRET: ci-dummy-secret-do-not-use-in-production
       AUTH_SECRET: ci-dummy-secret-do-not-use-in-production
@@ -375,9 +420,7 @@ jobs:
 
       - name: Push + seed Prisma schema
         working-directory: backend
-        run: |
-          npx prisma db push
-          npx prisma db seed
+        run: npm run db:setup
 
       - name: Build Next.js
         working-directory: frontend/next-app

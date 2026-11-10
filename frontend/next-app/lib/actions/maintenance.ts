@@ -1,5 +1,6 @@
 'use server';
 
+import { InventoryStatus, type Prisma } from '@prisma/client';
 import prisma from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
 import { auth } from '@/auth';
@@ -96,7 +97,8 @@ export async function createMaintenanceRequest(input: unknown) {
             const assignedToId = autoAssignRule?.assigneeUserId ?? null;
             const now = new Date();
 
-            const logsToCreate = [
+            // [2026-11-10] Modified by Cursor: log rows must match MaintenanceLogAction.
+            const logsToCreate: Prisma.MaintenanceLogUncheckedCreateWithoutRequestInput[] = [
                 {
                     userId: reporterId,
                     action: 'created',
@@ -110,7 +112,7 @@ export async function createMaintenanceRequest(input: unknown) {
                     fromStatus: 'open',
                     toStatus: 'assigned',
                     notes: 'auto-assigned via CategoryAssigneeRule',
-                } as never);
+                });
             }
 
             const request = await tx.maintenanceRequest.create({
@@ -221,12 +223,17 @@ export async function updateMaintenanceStatus(
     }
 
     try {
+        const parsedStatus = z.nativeEnum(InventoryStatus).safeParse(status);
+        if (!parsedStatus.success) {
+            return { error: 'Invalid status' };
+        }
+
         await prisma.inventoryItem.update({
             where: { id },
             data: {
-                status,
+                status: parsedStatus.data,
                 repairNotes,
-                currentHolderId: status === 'available' ? null : undefined // Release holder if fixed
+                currentHolderId: parsedStatus.data === InventoryStatus.available ? null : undefined // Release holder if fixed
             }
         });
 
@@ -437,7 +444,7 @@ export async function updateMaintenanceItemStatus(input: unknown) {
             });
 
             // Determine log action label
-            let logAction: string = 'status_changed';
+            let logAction: Prisma.MaintenanceLogCreateInput['action'] = 'status_changed';
             if (data.newStatus === 'awaiting_parts') logAction = 'item_marked_awaiting_parts';
             else if (fromStatus === 'awaiting_parts' && data.newStatus === 'in_progress')
                 logAction = 'item_resumed_work';
@@ -468,7 +475,7 @@ export async function updateMaintenanceItemStatus(input: unknown) {
             );
 
             const requestUpdate: {
-                status: string;
+                status: Prisma.MaintenanceRequestUpdateInput['status'];
                 resolvedAt?: Date;
             } = { status: newAggregate };
             if (newAggregate === 'resolved' && !item.request.resolvedAt) {
@@ -601,7 +608,10 @@ export async function approveItemResolution(input: unknown) {
                 item.request.status === 'cancelled',
             );
 
-            const reqUpdate: { status: string; closedAt?: Date } = { status: newAggregate };
+            const reqUpdate: {
+                status: Prisma.MaintenanceRequestUpdateInput['status'];
+                closedAt?: Date;
+            } = { status: newAggregate };
             if (newAggregate === 'closed' && !item.request.closedAt) {
                 reqUpdate.closedAt = new Date();
                 await tx.maintenanceLog.create({
@@ -721,7 +731,10 @@ export async function rejectItemResolution(input: unknown) {
                 item.request.status === 'cancelled',
             );
 
-            const reqUpdate: { status: string; resolvedAt?: null } = { status: newAggregate };
+            const reqUpdate: {
+                status: Prisma.MaintenanceRequestUpdateInput['status'];
+                resolvedAt?: null;
+            } = { status: newAggregate };
             if (newAggregate !== 'resolved' && newAggregate !== 'closed') {
                 reqUpdate.resolvedAt = null;
             }

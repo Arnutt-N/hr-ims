@@ -8,7 +8,7 @@
 - **Frontend:** Next.js 15 (App Router), React 19, TypeScript
 - **Styling:** Tailwind CSS, Shadcn UI
 - **Backend:** Next.js Server Actions (Integrated) + Express.js (Optional for External API)
-- **Database:** SQLite (Default for Dev) / PostgreSQL (Production)
+- **Database:** MySQL 8 (เครื่องพัฒนา, ผ่าน Docker) / TiDB Cloud ที่เข้ากันได้กับ MySQL (โปรดักชัน) — สคีมา Prisma เดียวกัน `provider = "mysql"`
 - **ORM:** Prisma
 - **Authentication:** NextAuth.js (Auth.js v5)
 - **Deployment:** Docker, Node.js
@@ -44,7 +44,9 @@
 ---
 
 ## 🛠️ 5. การดูแลรักษา (Maintenance)
-- **Schema Update:** หากมีการเปลี่ยน Schema ใน `schema.prisma` ให้รัน `npx prisma generate` และ `npx prisma db push` ทั้งในฝั่ง backend และ frontend
+- **Schema Update:** แก้ที่ `backend/prisma/schema.prisma` เท่านั้น จากนั้นใน `backend/` รัน `npx prisma generate` และ `npm run db:push` (อ่าน `DATABASE_URL` แบบ `mysql://`) แล้ว seed ด้วย `npm run db:seed` เมื่อต้องการข้อมูลตั้งต้น
+- **Local DB:** `docker compose up -d mysql` แล้วใช้ URL ใน `backend/.env.example` (รหัสในไฟล์ตัวอย่างเป็นของเครื่องพัฒนาเท่านั้น) ทั้ง frontend และ backend ต้องชี้ฐานเดียวกัน
+- **Production:** ตั้ง `DATABASE_URL` เป็น TiDB แล้วรัน `npm run db:push:prod` — ไม่มีสคริปต์แปลงจาก SQLite แล้ว ดู `docs/TIDB_SETUP.md`
 - **Log Management:** ระบบ Audit Logs จะดักจับคำสั่ง `CREATE`, `UPDATE`, `DELETE` ผ่าน Server Action ทั้งหมด
 
 ---

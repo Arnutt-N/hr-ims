@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, TransferStatus } from '@prisma/client';
 import { requireAuth, requireRole } from '../middleware/auth';
 
 const router = Router();
@@ -9,10 +9,14 @@ const prisma = new PrismaClient();
 router.get('/', async (req, res) => {
     try {
         const { status, warehouseId } = req.query;
+        // [2026-11-10] Modified by Cursor: status filter must be a TransferStatus enum value.
+        const transferStatus = typeof status === 'string' && (Object.values(TransferStatus) as string[]).includes(status)
+            ? status as TransferStatus
+            : undefined;
 
         const transfers = await prisma.stockTransfer.findMany({
             where: {
-                ...(status && { status: status as string }),
+                ...(transferStatus && { status: transferStatus }),
                 ...(warehouseId && {
                     OR: [
                         { fromWarehouseId: parseInt(warehouseId as string) },

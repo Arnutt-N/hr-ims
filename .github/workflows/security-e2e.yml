@@ -44,10 +44,22 @@ jobs:
           --health-interval 5s
           --health-timeout 3s
           --health-retries 5
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: hrims
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -proot --silent"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=20
 
     env:
-      # SQLite file database — fast to create and seed, scoped to this runner.
-      DATABASE_URL: file:./prisma/dev.db
+      # Dev-only CI credentials for the MySQL 8 service container.
+      DATABASE_URL: mysql://root:root@127.0.0.1:3306/hrims
       # Backend must listen on 3001 to match securityConfig.targets.backend
       PORT: '3001'
       TEST_BACKEND_URL: http://localhost:3001
@@ -79,9 +91,9 @@ jobs:
         working-directory: backend
         run: npm run prisma:generate
 
-      - name: Push schema to SQLite
+      - name: Push schema to MySQL 8
         working-directory: backend
-        run: npx prisma db push --schema prisma/schema.prisma --skip-generate
+        run: npm run db:push
 
       - name: Seed demo users required by security/config.ts
         working-directory: backend

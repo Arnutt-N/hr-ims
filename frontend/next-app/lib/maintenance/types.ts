@@ -1,11 +1,10 @@
 /**
  * Maintenance workflow shared types.
  *
- * String-literal unions are the source of truth — Prisma stores these as
- * String columns (SQLite has no enums). Keep this file in sync with the
- * comments in `backend/prisma/schema.prisma` for MaintenanceRequest and
- * MaintenanceRequestItem `status` fields, and with PRP section 6 (Decisions)
- * for the state machine.
+ * String-literal unions mirror the Prisma enums in
+ * `backend/prisma/schema.prisma` (MaintenanceRequestStatus, MaintenanceItemStatus,
+ * and the severity, priority, and category enums). Keep this file in sync with
+ * those enums and with PRP section 6 (Decisions) for the state machine.
  */
 
 export type ItemStatus =

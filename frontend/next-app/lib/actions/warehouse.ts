@@ -1,5 +1,6 @@
 'use server';
 
+import { WarehouseKind } from '@prisma/client';
 import prisma from '@/lib/prisma';
 import { auth } from '@/auth';
 import { revalidatePath } from 'next/cache';
@@ -11,7 +12,7 @@ import { requireRole, ADMIN_ROLES } from '@/lib/auth-guards';
 const warehouseSchema = z.object({
     name: z.string().min(2, 'Name must be at least 2 characters'),
     code: z.string().min(2, 'Code is required'),
-    type: z.string(), // "main", "division", "provincial"
+    type: z.nativeEnum(WarehouseKind), // main | division | provincial
     divisionId: z.number().nullable().optional(),
     provinceId: z.number().nullable().optional(),
     managerIds: z.array(z.number()).optional(),

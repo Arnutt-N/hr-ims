@@ -1,5 +1,6 @@
 'use server';
 
+import { AccountRole } from '@prisma/client';
 import prisma from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
 import { logActivity } from '@/lib/actions/audit';
@@ -45,10 +46,14 @@ export async function updatePermission(role: string, menu: string, path: string,
                 }
             });
 
+            // [2026-11-10] Modified by Cursor: User.role is an enum; unknown slugs match only Role.slug.
+            const accountRole = (Object.values(AccountRole) as string[]).includes(role)
+                ? (role as AccountRole)
+                : undefined;
             const affectedUsers = await tx.user.findMany({
                 where: {
                     OR: [
-                        { role },
+                        ...(accountRole ? [{ role: accountRole }] : []),
                         {
                             userRoles: {
                                 some: {
