@@ -1,5 +1,5 @@
 
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, type AccountRole, type InventoryStatus, type InventoryType } from '@prisma/client';
 import bcrypt from 'bcrypt';
 
 const prisma = new PrismaClient();
@@ -152,7 +152,8 @@ async function main() {
     // Settings
     // Demo Users
     const demoPassword = await bcrypt.hash('demo123', 10);
-    const demoUsers = [
+    // [2026-11-10] Modified by Cursor: role is an AccountRole enum on MySQL.
+    const demoUsers: { email: string; name: string; role: AccountRole; department: string }[] = [
         { email: 'superadmin@demo.com', name: 'Demo Superadmin', role: 'superadmin', department: 'Executive' },
         { email: 'admin@demo.com', name: 'Demo Admin', role: 'admin', department: 'IT' },
         { email: 'approver@demo.com', name: 'Demo Approver', role: 'approver', department: 'Management' },
@@ -369,7 +370,15 @@ async function main() {
     // ==========================================
 
     // 6. Test Inventory Items
-    const itemsData = [
+    const itemsData: {
+        name: string;
+        category: string;
+        type: InventoryType;
+        serial?: string;
+        status: InventoryStatus;
+        image: string;
+        stock: number;
+    }[] = [
         { name: 'MacBook Pro M3', category: 'IT', type: 'durable', serial: 'MBP-M3-001', status: 'available', image: '💻', stock: 10 },
         { name: 'Dell XPS 15', category: 'IT', type: 'durable', serial: 'DELL-XPS-001', status: 'available', image: '💻', stock: 5 },
         { name: 'iPad Air 5', category: 'IT', type: 'durable', serial: 'IPAD-A5-001', status: 'borrowed', image: '📱', stock: 3 },
@@ -461,7 +470,7 @@ async function main() {
     // SEED DEPARTMENT USERS
     // ==========================================
     console.log('Creating Department Users...');
-    const deptUsers = [
+    const deptUsers: { email: string; name: string; dept: string; role: AccountRole }[] = [
         { email: 'it_staff@demo.com', name: 'IT Staff', dept: 'IT', role: 'user' },
         { email: 'hr_staff@demo.com', name: 'HR Staff', dept: 'Human Resources', role: 'user' },
         { email: 'finance_staff@demo.com', name: 'Finance Staff', dept: 'Finance', role: 'auditor' },

@@ -13,7 +13,7 @@ import * as fs from 'node:fs';
  *   npx playwright test tests/e2e/screenshot-tour.spec.ts
  *
  * Requires:
- *   - backend/prisma/dev.db created and seeded (superadmin@demo.com / demo123)
+ *   - MySQL 8 from docker compose, schema pushed and seeded (demo accounts)
  *   - frontend/next-app/.env.local with NEXTAUTH_SECRET, AUTH_SECRET, DATABASE_URL
  *   - Playwright's webServer config auto-starts `npm run dev` on :3000
  */

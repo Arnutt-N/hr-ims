@@ -100,6 +100,6 @@ describe('Settings API', () => {
 
 ```env
 NODE_ENV=test
-DATABASE_URL=file:./test.db
+DATABASE_URL=mysql://root:root@127.0.0.1:3306/hrims
 JWT_SECRET=test-secret
 ```

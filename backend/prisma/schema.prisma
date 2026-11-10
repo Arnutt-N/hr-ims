@@ -10,57 +10,208 @@ generator client_frontend {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "mysql"
   url      = env("DATABASE_URL")
+}
+
+// [2026-11-10] Modified by Cursor: native MySQL/TiDB enums. Values match the
+// previous String comments. Role.slug stays a String because roles are data.
+
+enum AccountRole {
+  superadmin
+  admin
+  approver
+  auditor
+  technician
+  user
+}
+
+enum AccountStatus {
+  active
+  inactive
+}
+
+enum InventoryType {
+  durable
+  consumable
+}
+
+enum InventoryStatus {
+  available
+  borrowed
+  maintenance
+  issue_reported
+}
+
+enum BorrowRequestStatus {
+  pending
+  approved
+  rejected
+  cancelled
+}
+
+enum BorrowRequestType {
+  withdraw
+  borrow
+  return
+}
+
+enum TransferStatus {
+  pending
+  approved
+  completed
+  rejected
+}
+
+enum WarehouseKind {
+  main
+  division
+  provincial
+}
+
+enum PersonnelStatus {
+  active
+  pending
+  terminated
+}
+
+enum StockMoveType {
+  inbound
+  outbound
+  transfer_in
+  transfer_out
+  adjustment
+}
+
+enum OrgUnitType {
+  ministry
+  department
+  division
+  workgroup1
+  workgroup2
+}
+
+enum VerificationPurpose {
+  EMAIL_VERIFICATION
+  PASSWORD_RESET
+}
+
+enum LogLevel {
+  debug
+  info
+  warn
+  error
+}
+
+enum MaintenanceSeverity {
+  low
+  medium
+  high
+  critical
+}
+
+enum MaintenancePriority {
+  low
+  normal
+  high
+  urgent
+}
+
+enum MaintenanceCategory {
+  electrical
+  mechanical
+  software
+  physical
+  other
+}
+
+enum MaintenanceRequestStatus {
+  open
+  assigned
+  in_progress
+  awaiting_parts
+  resolved
+  closed
+  cancelled
+}
+
+enum MaintenanceItemStatus {
+  open
+  in_progress
+  awaiting_parts
+  resolved
+  closed
+  cancelled
+}
+
+enum MaintenanceLogAction {
+  created
+  assigned
+  unassigned
+  status_changed
+  item_marked_awaiting_parts
+  item_resumed_work
+  item_resolved
+  item_approved
+  item_rejected
+  request_resolved
+  request_closed
+  reopened
+  cancelled
+  escalated
+  deleted
+  restored
+  note_added
 }
 
 // User model
 model User {
-  id                          Int                  @id @default(autoincrement())
-  email                       String               @unique
-  password                    String
-  role                        String               @default("user") // superadmin, admin, approver, auditor, technician, user
+  id                          Int                         @id @default(autoincrement())
+  email                       String                      @unique @db.VarChar(255)
+  password                    String                      @db.VarChar(255)
+  role                        AccountRole                 @default(user) // superadmin, admin, approver, auditor, technician, user
   name                        String?
   department                  String?
-  status                      String               @default("active")
-  avatar                      String?
-  createdAt                   DateTime             @default(now())
-  updatedAt                   DateTime             @updatedAt
+  status                      AccountStatus               @default(active)
+  avatar                      String?                     @db.Text
+  createdAt                   DateTime                    @default(now()) @db.DateTime(3)
+  updatedAt                   DateTime                    @updatedAt @db.DateTime(3)
   requests                    Request[]
   history                     History[]
   notifications               Notification[]
   cartItems                   CartItem[]
-  heldItems                   InventoryItem[]      @relation("CurrentHolder")
+  heldItems                   InventoryItem[]             @relation("CurrentHolder")
   stockTransactions           StockTransaction[]
-  tokenVersion                Int                  @default(1) // For session invalidation
-  managedWarehouses           Warehouse[]          @relation("WarehouseManagers")
+  tokenVersion                Int                         @default(1) // For session invalidation
+  managedWarehouses           Warehouse[]                 @relation("WarehouseManagers")
   userRoles                   UserRole[] // Relation to roles
   auditLogs                   AuditLog[] // Relation to AuditLog
   passwordHistory             PasswordHistory[] // Relation to PasswordHistory
   emailVerification           EmailVerification[] // Relation to EmailVerification
   // Maintenance workflow (PRP v6 — added 2026-05-09)
-  reportedMaintenanceRequests MaintenanceRequest[] @relation("ReportedMaintenanceRequests")
-  assignedMaintenanceRequests MaintenanceRequest[] @relation("AssignedMaintenanceRequests")
-  maintenanceLogs             MaintenanceLog[]     @relation("MaintenanceLogEntries")
+  reportedMaintenanceRequests MaintenanceRequest[]        @relation("ReportedMaintenanceRequests")
+  assignedMaintenanceRequests MaintenanceRequest[]        @relation("AssignedMaintenanceRequests")
+  maintenanceLogs             MaintenanceLog[]            @relation("MaintenanceLogEntries")
   // PRP v6 Phase 5 (automation)
-  categoryAssigneeRules       CategoryAssigneeRule[] @relation("CategoryAssignee")
+  categoryAssigneeRules       CategoryAssigneeRule[]      @relation("CategoryAssignee")
   // PRP v6 Phase 6 (engagement)
   maintenanceWatchers         MaintenanceRequestWatcher[] @relation("MaintenanceWatchers")
-}
 
-// Note: SQLite doesn't support enums, so Role is now String
-// Valid values: "superadmin", "admin", "approver", "auditor", "technician", "user"
+  @@index([role])
+  @@index([status])
+  @@index([department])
+}
 
 // New Multi-Role System
 model Role {
   id          Int              @id @default(autoincrement())
   slug        String           @unique // e.g. "admin", "approver"
   name        String // Display Name e.g. "Administrator"
-  description String?
+  description String?          @db.Text
   userRoles   UserRole[]
   permissions RolePermission[]
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
+  createdAt   DateTime         @default(now()) @db.DateTime(3)
+  updatedAt   DateTime         @updatedAt @db.DateTime(3)
 }
 
 model UserRole {
@@ -69,22 +220,23 @@ model UserRole {
   roleId     Int
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   role       Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
-  assignedAt DateTime @default(now())
+  assignedAt DateTime @default(now()) @db.DateTime(3)
 
   @@unique([userId, roleId])
+  @@index([roleId])
 }
 
 model InventoryItem {
   id                      Int                      @id @default(autoincrement())
   name                    String
   category                String
-  type                    String // durable, consumable
+  type                    InventoryType // durable, consumable
   serial                  String?                  @unique
-  status                  String                   @default("available") // available, borrowed, maintenance, issue_reported
-  image                   String?
+  status                  InventoryStatus          @default(available) // available, borrowed, maintenance, issue_reported
+  image                   String?                  @db.Text
   stock                   Int                      @default(1) // DEPRECATED: Use stockLevels instead
-  createdAt               DateTime                 @default(now())
-  updatedAt               DateTime                 @updatedAt
+  createdAt               DateTime                 @default(now()) @db.DateTime(3)
+  updatedAt               DateTime                 @updatedAt @db.DateTime(3)
   cartItems               CartItem[]
   requestItems            RequestItem[]
   stockLevels             StockLevel[] // NEW: Stock per warehouse
@@ -93,32 +245,43 @@ model InventoryItem {
   // @deprecated since PRP v6 (2026-05-09) — new flow stores per-item resolution
   // on MaintenanceRequestItem.resolution. Existing values stay as legacy data;
   // UI shows them under "Legacy repair note" disclosure on item detail page.
-  repairNotes             String?
+  repairNotes             String?                  @db.Text
   categoryId              Int?
   categoryRef             Category?                @relation(fields: [categoryId], references: [id])
   currentHolderId         Int?
   currentHolder           User?                    @relation("CurrentHolder", fields: [currentHolderId], references: [id])
   // Maintenance workflow (PRP v6 — added 2026-05-09)
   maintenanceRequestItems MaintenanceRequestItem[]
+
+  @@index([categoryId])
+  @@index([currentHolderId])
+  @@index([status])
+  @@index([category])
+  @@index([type])
 }
 
 model Request {
-  id           Int           @id @default(autoincrement())
+  id           Int                 @id @default(autoincrement())
   userId       Int
-  user         User          @relation(fields: [userId], references: [id])
-  items        String? // JSON string (Deprecated, use requestItems)
-  date         DateTime      @default(now())
-  status       String        @default("pending") // pending, approved, rejected
-  type         String // withdraw, borrow, return
+  user         User                @relation(fields: [userId], references: [id])
+  items        String?             @db.Text // JSON string (Deprecated, use requestItems)
+  date         DateTime            @default(now()) @db.DateTime(3)
+  status       BorrowRequestStatus @default(pending) // pending, approved, rejected, cancelled
+  type         BorrowRequestType // withdraw, borrow, return
   assetId      Int? // For return requests
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
+  createdAt    DateTime            @default(now()) @db.DateTime(3)
+  updatedAt    DateTime            @updatedAt @db.DateTime(3)
   requestItems RequestItem[]
   warehouseId  Int?
-  warehouse    Warehouse?    @relation(fields: [warehouseId], references: [id])
-  dueDate      DateTime? // For borrow requests - when item should be returned
-  returnedAt   DateTime? // Actual return date
-  isOverdue    Boolean       @default(false) // Automatically marked when past due
+  warehouse    Warehouse?          @relation(fields: [warehouseId], references: [id])
+  dueDate      DateTime?           @db.DateTime(3) // For borrow requests - when item should be returned
+  returnedAt   DateTime?           @db.DateTime(3) // Actual return date
+  isOverdue    Boolean             @default(false) // Automatically marked when past due
+
+  @@index([userId])
+  @@index([warehouseId])
+  @@index([status])
+  @@index([type])
 }
 
 model RequestItem {
@@ -128,6 +291,9 @@ model RequestItem {
   itemId    Int
   item      InventoryItem @relation(fields: [itemId], references: [id])
   quantity  Int           @default(1)
+
+  @@index([requestId])
+  @@index([itemId])
 }
 
 model CartItem {
@@ -137,10 +303,11 @@ model CartItem {
   itemId    Int
   item      InventoryItem @relation(fields: [itemId], references: [id])
   quantity  Int           @default(1)
-  createdAt DateTime      @default(now())
-  updatedAt DateTime      @updatedAt
+  createdAt DateTime      @default(now()) @db.DateTime(3)
+  updatedAt DateTime      @updatedAt @db.DateTime(3)
 
   @@unique([userId, itemId])
+  @@index([itemId])
 }
 
 model History {
@@ -150,17 +317,22 @@ model History {
   action    String
   item      String
   status    String
-  date      DateTime @default(now())
-  createdAt DateTime @default(now())
+  date      DateTime @default(now()) @db.DateTime(3)
+  createdAt DateTime @default(now()) @db.DateTime(3)
+
+  @@index([userId])
+  @@index([createdAt])
 }
 
 model Notification {
   id        Int      @id @default(autoincrement())
   userId    Int? // Optional: if null, global notification
   user      User?    @relation(fields: [userId], references: [id])
-  text      String
+  text      String   @db.Text
   read      Boolean  @default(false)
-  createdAt DateTime @default(now())
+  createdAt DateTime @default(now()) @db.DateTime(3)
+
+  @@index([userId, read])
 }
 
 // ==========================================
@@ -172,14 +344,14 @@ model Warehouse {
   id                 Int                 @id @default(autoincrement())
   name               String // ชื่อคลัง เช่น "คลังกลาง - กองบริหารการคลัง"
   code               String              @unique // รหัสคลัง เช่น "WH-CENTRAL", "WH-IT"
-  type               String // "main" | "division" | "provincial"
+  type               WarehouseKind // "main" | "division" | "provincial"
   divisionId         Int? // Link to Division (if type = division)
   division           Division?           @relation(fields: [divisionId], references: [id])
   provinceId         Int? // Link to Province (if type = provincial)
   province           Province?           @relation(fields: [provinceId], references: [id])
   isActive           Boolean             @default(true)
-  createdAt          DateTime            @default(now())
-  updatedAt          DateTime            @updatedAt
+  createdAt          DateTime            @default(now()) @db.DateTime(3)
+  updatedAt          DateTime            @updatedAt @db.DateTime(3)
   managers           User[]              @relation("WarehouseManagers")
   stockLevels        StockLevel[]
   transfersOut       StockTransfer[]     @relation("TransferFrom")
@@ -187,6 +359,11 @@ model Warehouse {
   stockTransactions  StockTransaction[]
   departmentMappings DepartmentMapping[]
   requests           Request[] // Requests targeting this warehouse
+
+  @@index([divisionId])
+  @@index([provinceId])
+  @@index([type])
+  @@index([isActive])
 }
 
 model DepartmentMapping {
@@ -194,8 +371,10 @@ model DepartmentMapping {
   department  String    @unique // e.g., "IT", "Engineering"
   warehouseId Int
   warehouse   Warehouse @relation(fields: [warehouseId], references: [id])
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  createdAt   DateTime  @default(now()) @db.DateTime(3)
+  updatedAt   DateTime  @updatedAt @db.DateTime(3)
+
+  @@index([warehouseId])
 }
 
 // ระดับสต็อก (จำนวนคงเหลือแยกตามคลัง)
@@ -209,28 +388,35 @@ model StockLevel {
   reserved    Int           @default(0) // จำนวนที่ถูก request แต่ยังไม่ approve
   minStock    Int? // แจ้งเตือนเมื่อต่ำกว่า
   maxStock    Int? // จำนวนสูงสุด
-  updatedAt   DateTime      @updatedAt
+  updatedAt   DateTime      @updatedAt @db.DateTime(3)
 
   @@unique([warehouseId, itemId])
+  @@index([itemId])
 }
 
 // การโอนพัสดุระหว่างคลัง
 model StockTransfer {
-  id              Int           @id @default(autoincrement())
+  id              Int            @id @default(autoincrement())
   fromWarehouseId Int
-  fromWarehouse   Warehouse     @relation("TransferFrom", fields: [fromWarehouseId], references: [id])
+  fromWarehouse   Warehouse      @relation("TransferFrom", fields: [fromWarehouseId], references: [id])
   toWarehouseId   Int
-  toWarehouse     Warehouse     @relation("TransferTo", fields: [toWarehouseId], references: [id])
+  toWarehouse     Warehouse      @relation("TransferTo", fields: [toWarehouseId], references: [id])
   itemId          Int
-  item            InventoryItem @relation(fields: [itemId], references: [id])
+  item            InventoryItem  @relation(fields: [itemId], references: [id])
   quantity        Int
-  status          String        @default("pending") // pending, approved, completed, rejected
+  status          TransferStatus @default(pending) // pending, approved, completed, rejected
   requestedBy     Int // User ID ผู้ขอโอน
   approvedBy      Int? // User ID ผู้อนุมัติ
-  note            String?
-  createdAt       DateTime      @default(now())
-  completedAt     DateTime?
-  updatedAt       DateTime      @updatedAt
+  note            String?        @db.Text
+  createdAt       DateTime       @default(now()) @db.DateTime(3)
+  completedAt     DateTime?      @db.DateTime(3)
+  updatedAt       DateTime       @updatedAt @db.DateTime(3)
+
+  @@index([fromWarehouseId])
+  @@index([toWarehouseId])
+  @@index([itemId])
+  @@index([status])
+  @@index([requestedBy])
 }
 
 model Settings {
@@ -240,7 +426,7 @@ model Settings {
   checkInterval     Int     @default(7)
   maintenanceAlert  Boolean @default(true)
   allowRegistration Boolean @default(false)
-  footerText        String? @default("IMS Asset Management System")
+  footerText        String? @default("IMS Asset Management System") @db.VarChar(512)
 
   // Rate Limiting Settings
   rateLimitEnabled         Boolean @default(true)
@@ -249,16 +435,16 @@ model Settings {
   rateLimitAuthMaxRequests Int     @default(5)
 
   // Logging Settings
-  loggingEnabled   Boolean @default(true)
-  logLevel         String  @default("info")
-  logRetentionDays Int     @default(30)
-  auditLogEnabled  Boolean @default(true)
+  loggingEnabled   Boolean  @default(true)
+  logLevel         LogLevel @default(info)
+  logRetentionDays Int      @default(30)
+  auditLogEnabled  Boolean  @default(true)
 
   // Backup Settings
   backupEnabled        Boolean @default(true)
   backupSchedule       String  @default("0 2 * * *")
   backupRetentionCount Int     @default(7)
-  backupStoragePath    String  @default("./backups")
+  backupStoragePath    String  @default("./backups") @db.VarChar(512)
   backupIncludeUploads Boolean @default(true)
 
   // Password Policy Settings
@@ -281,16 +467,16 @@ model Settings {
   emailSmtpHost            String?
   emailSmtpPort            Int     @default(587)
   emailSmtpUser            String?
-  emailSmtpPass            String?
-  emailFromAddress         String  @default("noreply@hr-ims.local")
+  emailSmtpPass            String? @db.Text
+  emailFromAddress         String  @default("noreply@hr-ims.local") @db.VarChar(255)
 
   // System Info
-  lastBackupAt     DateTime?
+  lastBackupAt     DateTime? @db.DateTime(3)
   lastBackupStatus String?
-  lastBackupPath   String?
+  lastBackupPath   String?   @db.Text
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @default(now()) @updatedAt
+  createdAt DateTime @default(now()) @db.DateTime(3)
+  updatedAt DateTime @default(now()) @updatedAt @db.DateTime(3)
   updatedBy Int?
 }
 
@@ -303,8 +489,8 @@ model Ministry {
   id          Int          @id @default(autoincrement())
   name        String // ชื่อกระทรวง
   abbr        String? // ชื่อย่อ
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
+  createdAt   DateTime     @default(now()) @db.DateTime(3)
+  updatedAt   DateTime     @updatedAt @db.DateTime(3)
   departments Department[]
 }
 
@@ -315,11 +501,13 @@ model Department {
   abbr                String? // ชื่อย่อ
   ministryId          Int
   ministry            Ministry             @relation(fields: [ministryId], references: [id])
-  createdAt           DateTime             @default(now())
-  updatedAt           DateTime             @updatedAt
+  createdAt           DateTime             @default(now()) @db.DateTime(3)
+  updatedAt           DateTime             @updatedAt @db.DateTime(3)
   divisions           Division[]
   // Maintenance workflow (PRP v6 — added 2026-05-09)
   maintenanceRequests MaintenanceRequest[] @relation("MaintenanceLocations")
+
+  @@index([ministryId])
 }
 
 // กอง
@@ -329,10 +517,12 @@ model Division {
   abbr         String? // ชื่อย่อ
   departmentId Int
   department   Department   @relation(fields: [departmentId], references: [id])
-  createdAt    DateTime     @default(now())
-  updatedAt    DateTime     @updatedAt
+  createdAt    DateTime     @default(now()) @db.DateTime(3)
+  updatedAt    DateTime     @updatedAt @db.DateTime(3)
   workGroups1  WorkGroup1[]
   warehouses   Warehouse[]
+
+  @@index([departmentId])
 }
 
 // กลุ่มงาน ระดับ 1
@@ -341,9 +531,11 @@ model WorkGroup1 {
   name        String
   divisionId  Int
   division    Division     @relation(fields: [divisionId], references: [id])
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
+  createdAt   DateTime     @default(now()) @db.DateTime(3)
+  updatedAt   DateTime     @updatedAt @db.DateTime(3)
   workGroups2 WorkGroup2[]
+
+  @@index([divisionId])
 }
 
 // กลุ่มงาน ระดับ 2
@@ -352,8 +544,10 @@ model WorkGroup2 {
   name         String
   workGroup1Id Int
   workGroup1   WorkGroup1 @relation(fields: [workGroup1Id], references: [id])
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
+  createdAt    DateTime   @default(now()) @db.DateTime(3)
+  updatedAt    DateTime   @updatedAt @db.DateTime(3)
+
+  @@index([workGroup1Id])
 }
 
 // จังหวัด
@@ -365,18 +559,21 @@ model Province {
   region           Region?              @relation(fields: [regionId], references: [id])
   inspectionZoneId Int?
   inspectionZone   InspectionZone?      @relation(fields: [inspectionZoneId], references: [id])
-  createdAt        DateTime             @default(now())
-  updatedAt        DateTime             @updatedAt
+  createdAt        DateTime             @default(now()) @db.DateTime(3)
+  updatedAt        DateTime             @updatedAt @db.DateTime(3)
   customZones      CustomProvinceZone[]
   warehouses       Warehouse[]
+
+  @@index([regionId])
+  @@index([inspectionZoneId])
 }
 
 // เขตจังหวัด (ภาค)
 model Region {
   id        Int        @id @default(autoincrement())
   name      String // เช่น ภาคเหนือ, ภาคกลาง
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
+  createdAt DateTime   @default(now()) @db.DateTime(3)
+  updatedAt DateTime   @updatedAt @db.DateTime(3)
   provinces Province[]
 }
 
@@ -385,8 +582,8 @@ model InspectionZone {
   id        Int        @id @default(autoincrement())
   name      String // เช่น เขตตรวจราชการที่ 1
   code      String?
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
+  createdAt DateTime   @default(now()) @db.DateTime(3)
+  updatedAt DateTime   @updatedAt @db.DateTime(3)
   provinces Province[]
 }
 
@@ -396,8 +593,10 @@ model CustomProvinceZone {
   name       String // ชื่อเขตที่กำหนดเอง
   provinceId Int
   province   Province @relation(fields: [provinceId], references: [id])
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  createdAt  DateTime @default(now()) @db.DateTime(3)
+  updatedAt  DateTime @updatedAt @db.DateTime(3)
+
+  @@index([provinceId])
 }
 
 // ==========================================
@@ -408,7 +607,7 @@ model CustomProvinceZone {
 model PersonnelType {
   id        Int         @id @default(autoincrement())
   name      String // ข้าราชการ, ลูกจ้างประจำ, พนักงานราชการ, etc.
-  createdAt DateTime    @default(now())
+  createdAt DateTime    @default(now()) @db.DateTime(3)
   personnel Personnel[]
 }
 
@@ -416,7 +615,7 @@ model PersonnelType {
 model NamePrefix {
   id        Int         @id @default(autoincrement())
   name      String // นาย, นาง, นางสาว, ดร., etc.
-  createdAt DateTime    @default(now())
+  createdAt DateTime    @default(now()) @db.DateTime(3)
   personnel Personnel[]
 }
 
@@ -424,7 +623,7 @@ model NamePrefix {
 model PositionCategory {
   id        Int         @id @default(autoincrement())
   name      String // วิชาการ, ทั่วไป, อำนวยการ, etc.
-  createdAt DateTime    @default(now())
+  createdAt DateTime    @default(now()) @db.DateTime(3)
   personnel Personnel[]
 }
 
@@ -433,24 +632,27 @@ model PositionLevel {
   id        Int         @id @default(autoincrement())
   name      String // ปฏิบัติการ, ชำนาญการ, ชำนาญการพิเศษ, etc.
   rank      Int? // ลำดับขั้น
-  createdAt DateTime    @default(now())
+  createdAt DateTime    @default(now()) @db.DateTime(3)
   personnel Personnel[]
 }
 
 // หน่วยงาน (Organization Unit) - สำหรับเชื่อมกับบุคลากร
 model OrganizationUnit {
-  id         Int      @id @default(autoincrement())
+  id         Int         @id @default(autoincrement())
   name       String
   code       String?
-  unitType   String // ministry, department, division, workgroup1, workgroup2
+  unitType   OrgUnitType // ministry, department, division, workgroup1, workgroup2
   parentId   Int? // For hierarchy
-  isLegal    Boolean  @default(true) // ตามกฎหมาย
-  isAssigned Boolean  @default(false) // ตามมอบหมายงาน
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  isLegal    Boolean     @default(true) // ตามกฎหมาย
+  isAssigned Boolean     @default(false) // ตามมอบหมายงาน
+  createdAt  DateTime    @default(now()) @db.DateTime(3)
+  updatedAt  DateTime    @updatedAt @db.DateTime(3)
 
   personnelLegal    Personnel[] @relation("LegalOrg")
   personnelAssigned Personnel[] @relation("AssignedOrg")
+
+  @@index([unitType])
+  @@index([parentId])
 }
 
 // บุคลากร (Personnel)
@@ -487,15 +689,23 @@ model Personnel {
   assignedOrg   OrganizationUnit? @relation("AssignedOrg", fields: [assignedOrgId], references: [id])
 
   // สถานะ
-  status String @default("active") // active, pending, terminated
+  status PersonnelStatus @default(active) // active, pending, terminated
 
   // ติดต่อ
-  email       String?
+  email       String? @db.VarChar(255)
   phoneNumber String?
 
   // Timestamps
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @db.DateTime(3)
+  updatedAt DateTime @updatedAt @db.DateTime(3)
+
+  @@index([personnelTypeId])
+  @@index([prefixId])
+  @@index([positionCategoryId])
+  @@index([positionLevelId])
+  @@index([legalOrgId])
+  @@index([assignedOrgId])
+  @@index([status])
 }
 
 // ==========================================
@@ -509,12 +719,18 @@ model StockTransaction {
   itemId      Int
   item        InventoryItem @relation(fields: [itemId], references: [id])
   quantity    Int // จำนวนที่เปลี่ยนแปลง (+ เพิ่ม, - ลด)
-  type        String // "inbound", "outbound", "transfer_in", "transfer_out", "adjustment"
+  type        StockMoveType // "inbound", "outbound", "transfer_in", "transfer_out", "adjustment"
   referenceId String? // อ้างอิงเอกสาร เช่น Ref No., Request ID, Transfer ID
-  note        String?
+  note        String?       @db.Text
   userId      Int
   user        User          @relation(fields: [userId], references: [id])
-  createdAt   DateTime      @default(now())
+  createdAt   DateTime      @default(now()) @db.DateTime(3)
+
+  @@index([warehouseId])
+  @@index([itemId])
+  @@index([userId])
+  @@index([type])
+  @@index([createdAt])
 }
 
 model RolePermission {
@@ -525,8 +741,8 @@ model RolePermission {
   menu      String // e.g., "inventory", "settings"
   path      String // e.g., "/inventory", "/settings"
   canView   Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @db.DateTime(3)
+  updatedAt DateTime @updatedAt @db.DateTime(3)
 
   @@unique([role, menu]) // Keep for now until migrated
   @@index([roleId])
@@ -535,9 +751,9 @@ model RolePermission {
 model Category {
   id          Int             @id @default(autoincrement())
   name        String          @unique
-  description String?
-  createdAt   DateTime        @default(now())
-  updatedAt   DateTime        @updatedAt
+  description String?         @db.Text
+  createdAt   DateTime        @default(now()) @db.DateTime(3)
+  updatedAt   DateTime        @updatedAt @db.DateTime(3)
   items       InventoryItem[]
 }
 
@@ -548,14 +764,14 @@ model AuditLog {
   action    String // CREATE, UPDATE, DELETE, LOGIN, LOGOUT, EXPORT, VIEW
   entity    String // ชื่อ Table/Entity
   entityId  String? // ID ของ Record
-  oldValue  String? // JSON ค่าเก่า
-  newValue  String? // JSON ค่าใหม่
-  details   String? // รายละเอียดเพิ่มเติม
-  ipAddress String?
-  userAgent String?
+  oldValue  String?  @db.Text // JSON ค่าเก่า
+  newValue  String?  @db.Text // JSON ค่าใหม่
+  details   String?  @db.Text // รายละเอียดเพิ่มเติม
+  ipAddress String?  @db.VarChar(64)
+  userAgent String?  @db.Text
   requestId String? // UUID propagated from requestLogger middleware so a single
   // request's audit rows can be correlated with backend logs.
-  createdAt DateTime @default(now())
+  createdAt DateTime @default(now()) @db.DateTime(3)
 
   @@index([userId])
   @@index([action])
@@ -569,22 +785,22 @@ model PasswordHistory {
   id        Int      @id @default(autoincrement())
   userId    Int
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  password  String // เก็บ Hash
-  createdAt DateTime @default(now())
+  password  String   @db.VarChar(255) // เก็บ Hash
+  createdAt DateTime @default(now()) @db.DateTime(3)
 
   @@index([userId])
 }
 
 // Email Verification
 model EmailVerification {
-  id         Int       @id @default(autoincrement())
+  id         Int                 @id @default(autoincrement())
   userId     Int
-  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  token      String    @unique
-  type       String    @default("EMAIL_VERIFICATION") // EMAIL_VERIFICATION, PASSWORD_RESET
-  expiresAt  DateTime
-  verifiedAt DateTime?
-  createdAt  DateTime  @default(now())
+  user       User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token      String              @unique
+  type       VerificationPurpose @default(EMAIL_VERIFICATION) // EMAIL_VERIFICATION, PASSWORD_RESET
+  expiresAt  DateTime            @db.DateTime(3)
+  verifiedAt DateTime?           @db.DateTime(3)
+  createdAt  DateTime            @default(now()) @db.DateTime(3)
 
   @@index([token])
   @@index([userId])
@@ -612,23 +828,23 @@ model MaintenanceRequest {
   location   Department? @relation("MaintenanceLocations", fields: [locationId], references: [id])
 
   title       String
-  description String
-  severity    String  @default("medium") // low | medium | high | critical (IMPACT axis)
-  priority    String  @default("normal") // low | normal | high | urgent (URGENCY axis)
-  category    String  @default("other") // electrical | mechanical | software | physical | other
-  tags        String? // JSON array of free-form labels (max 10, each ≤32 chars)
-  status      String  @default("open") // open | assigned | in_progress | awaiting_parts | resolved | closed | cancelled (AGGREGATE)
-  photos      String? // JSON array of UploadThing URLs (max 5)
+  description String                   @db.Text
+  severity    MaintenanceSeverity      @default(medium) // low | medium | high | critical (IMPACT axis)
+  priority    MaintenancePriority      @default(normal) // low | normal | high | urgent (URGENCY axis)
+  category    MaintenanceCategory      @default(other) // electrical | mechanical | software | physical | other
+  tags        String?                  @db.Text // JSON array of free-form labels (max 10, each ≤32 chars)
+  status      MaintenanceRequestStatus @default(open) // open | assigned | in_progress | awaiting_parts | resolved | closed | cancelled (AGGREGATE)
+  photos      String?                  @db.Text // JSON array of UploadThing URLs (max 5)
 
   estimatedCost Float? // aggregate estimate; per-item actuals on join row
 
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  assignedAt  DateTime? // set when assignedToId first assigned (used by escalation cron)
-  escalatedAt DateTime? // set when escalation cron has notified admin (idempotency guard)
-  resolvedAt  DateTime? // set when ALL items reach 'resolved' (technician's claim)
-  closedAt    DateTime? // set when ALL items reach 'closed' (reporter's verification)
-  deletedAt   DateTime? // soft-delete; Prisma middleware injects WHERE deletedAt IS NULL
+  createdAt   DateTime  @default(now()) @db.DateTime(3)
+  updatedAt   DateTime  @updatedAt @db.DateTime(3)
+  assignedAt  DateTime? @db.DateTime(3) // set when assignedToId first assigned (used by escalation cron)
+  escalatedAt DateTime? @db.DateTime(3) // set when escalation cron has notified admin (idempotency guard)
+  resolvedAt  DateTime? @db.DateTime(3) // set when ALL items reach 'resolved' (technician's claim)
+  closedAt    DateTime? @db.DateTime(3) // set when ALL items reach 'closed' (reporter's verification)
+  deletedAt   DateTime? @db.DateTime(3) // soft-delete; Prisma middleware injects WHERE deletedAt IS NULL
 
   items    MaintenanceRequestItem[]
   logs     MaintenanceLog[]
@@ -639,6 +855,8 @@ model MaintenanceRequest {
   @@index([assignedToId])
   @@index([reportedById])
   @@index([locationId])
+  @@index([category])
+  @@index([severity])
 }
 
 // Join table — one row per (request, item). Per-item state machine:
@@ -658,17 +876,17 @@ model MaintenanceRequestItem {
   itemId    Int
   item      InventoryItem      @relation(fields: [itemId], references: [id])
 
-  status          String    @default("open") // open | in_progress | awaiting_parts | resolved | closed | cancelled
-  resolution      String? // per-item repair note from technician (set on → 'resolved')
-  rejectionReason String? // set when reporter rejects → goes back to 'in_progress'; cleared on next 'resolved'
+  status          MaintenanceItemStatus @default(open) // open | in_progress | awaiting_parts | resolved | closed | cancelled
+  resolution      String?               @db.Text // per-item repair note from technician (set on → 'resolved')
+  rejectionReason String?               @db.Text // set when reporter rejects → goes back to 'in_progress'; cleared on next 'resolved'
   actualCost      Float? // per-item cost
-  resolvedAt      DateTime? // when technician marked 'resolved'
-  closedAt        DateTime? // when reporter approved → 'closed'
-  deletedAt       DateTime? // soft-delete cascaded from parent request
-  version         Int       @default(0) // optimistic lock — incremented on every state mutation
+  resolvedAt      DateTime?             @db.DateTime(3) // when technician marked 'resolved'
+  closedAt        DateTime?             @db.DateTime(3) // when reporter approved → 'closed'
+  deletedAt       DateTime?             @db.DateTime(3) // soft-delete cascaded from parent request
+  version         Int                   @default(0) // optimistic lock — incremented on every state mutation
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @db.DateTime(3)
+  updatedAt DateTime @updatedAt @db.DateTime(3)
 
   @@unique([requestId, itemId]) // one item appears once per request
   @@index([itemId])
@@ -686,7 +904,7 @@ model MaintenanceLog {
   userId    Int
   user      User               @relation("MaintenanceLogEntries", fields: [userId], references: [id])
 
-  action     String
+  action     MaintenanceLogAction
   // Action catalog:
   //   created
   //   assigned | unassigned
@@ -702,12 +920,14 @@ model MaintenanceLog {
   //   escalated                  — escalation cron notified admin (Phase 5)
   //   deleted | restored         — soft-delete operations (admin only)
   //   note_added                 — free-text note, no state change
-  fromStatus String?
-  toStatus   String?
-  notes      String?
-  createdAt  DateTime @default(now())
+  fromStatus MaintenanceRequestStatus?
+  toStatus   MaintenanceRequestStatus?
+  notes      String?                   @db.Text
+  createdAt  DateTime                  @default(now()) @db.DateTime(3)
 
   @@index([requestId])
+  @@index([itemId])
+  @@index([userId])
 }
 
 // =============================================================================
@@ -719,16 +939,17 @@ model MaintenanceLog {
 // assignedToId. Multiple rules per category allowed (priority breaks ties);
 // disabled rules retained for audit trail.
 model CategoryAssigneeRule {
-  id             Int      @id @default(autoincrement())
-  category       String // electrical | mechanical | software | physical | other
+  id             Int                 @id @default(autoincrement())
+  category       MaintenanceCategory // electrical | mechanical | software | physical | other
   assigneeUserId Int
-  assignee       User     @relation("CategoryAssignee", fields: [assigneeUserId], references: [id])
-  priority       Int      @default(0) // higher wins; 0 = default
-  enabled        Boolean  @default(true)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  assignee       User                @relation("CategoryAssignee", fields: [assigneeUserId], references: [id])
+  priority       Int                 @default(0) // higher wins; 0 = default
+  enabled        Boolean             @default(true)
+  createdAt      DateTime            @default(now()) @db.DateTime(3)
+  updatedAt      DateTime            @updatedAt @db.DateTime(3)
 
   @@index([category, enabled, priority])
+  @@index([assigneeUserId])
 }
 
 // =============================================================================
@@ -745,7 +966,7 @@ model MaintenanceRequestWatcher {
   user      User               @relation("MaintenanceWatchers", fields: [userId], references: [id], onDelete: Cascade)
   requestId Int
   request   MaintenanceRequest @relation("MaintenanceWatchers", fields: [requestId], references: [id], onDelete: Cascade)
-  createdAt DateTime           @default(now())
+  createdAt DateTime           @default(now()) @db.DateTime(3)
 
   @@unique([userId, requestId])
   @@index([requestId])

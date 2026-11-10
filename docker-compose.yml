@@ -23,6 +23,29 @@ services:
       - meilisearch_data:/meili_data
     restart: unless-stopped
 
+  # Local dev only. Same MySQL 8 dialect as production TiDB.
+  # Credentials below are placeholders for a developer machine, not production.
+  mysql:
+    image: mysql:8.0
+    container_name: hr-ims-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: hrims
+    ports:
+      - "3306:3306"
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-proot", "--silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
 volumes:
   redis_data:
   meilisearch_data:
+  mysql_data:

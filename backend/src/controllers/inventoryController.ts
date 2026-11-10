@@ -1,15 +1,17 @@
 
 import { Request, Response } from 'express';
+import { InventoryStatus, InventoryType } from '@prisma/client';
 import { z } from 'zod';
 import prisma from '../utils/prisma';
 import { syncItemToMeilisearch, removeItemFromMeilisearch } from '../services/searchService';
 
+// [2026-11-10] Modified by Cursor: match the MySQL enums on InventoryItem.
 const itemSchema = z.object({
     name: z.string(),
     category: z.string(),
-    type: z.string(),
+    type: z.nativeEnum(InventoryType),
     serial: z.string().optional(),
-    status: z.string().optional(),
+    status: z.nativeEnum(InventoryStatus).optional(),
     image: z.string().optional(),
     stock: z.number().int().min(0).default(1),
     repairNotes: z.string().optional(),

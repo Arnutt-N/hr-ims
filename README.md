@@ -24,30 +24,35 @@ Run `npm run dev:backend` in a second terminal if you want the API separately. F
 
 ## Database
 
-The Prisma schema source of truth is `backend/prisma/schema.prisma`.
+Local development and production use the same MySQL dialect. The Prisma schema source of truth is `backend/prisma/schema.prisma` (`provider = "mysql"`). Production stays on TiDB Cloud. Local dev uses MySQL 8 from Docker.
+
+```bash
+docker compose up -d mysql
+cp backend/.env.example backend/.env
+```
+
+Set the same `DATABASE_URL` for the frontend environment. The example value is dev-only:
+
+`mysql://root:root@localhost:3306/hrims`
 
 ```bash
 cd backend
 npx prisma generate
-npx prisma db push
-npx prisma db seed
+npm run db:setup
 ```
 
-Run the seed step on a fresh clone or any time you need the demo/admin data recreated after rebuilding `backend/prisma/dev.db`.
+`db:setup` pushes the schema and seeds demo data. `npm run db:migrate:deploy` applies `backend/prisma/migrations` on an empty MySQL database. See `docs/TIDB_SETUP.md` for the production TiDB push, which uses `DATABASE_URL` only.
 
 ## TiDB
 
-This repo now includes a TiDB preparation path without breaking the default SQLite local dev setup.
+There is no SQLite schema and no sqlite-to-mysql transform. To push or seed production, set `DATABASE_URL` to the TiDB connection string in that environment and run:
 
 ```bash
-npm run db:generate:tidb
-npm run db:push:tidb
-npm run db:seed:tidb
+npm run db:push:prod
+npm run db:seed:prod
 ```
 
-Set `TIDB_DATABASE_URL` in `backend/.env` before running those commands, then cut over runtime `DATABASE_URL` in both `backend/.env` and `frontend/next-app/.env` when you are ready to run the app on TiDB.
-
-See `docs/TIDB_SETUP.md` for the full cutover notes and backup limitations.
+Those scripts refuse to run unless `DATABASE_URL` uses the `mysql://` scheme, and they do not print the URL. Do not commit a production URL. App-level backup still does not dump server databases; use TiDB backup tooling.
 
 ## Tests
 

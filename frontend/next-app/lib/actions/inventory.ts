@@ -1,8 +1,17 @@
 'use server';
 
+import { InventoryType } from '@prisma/client';
 import prisma from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
+
+// [2026-11-10] Modified by Cursor: inventory type is a MySQL enum.
+function inventoryTypeFilter(type?: string): { type: InventoryType } | Record<string, never> {
+    if (type === InventoryType.durable || type === InventoryType.consumable) {
+        return { type };
+    }
+    return {};
+}
 import { checkLowStockInternal } from './notifications';
 import { requireRole, ADMIN_ROLES } from '@/lib/auth-guards';
 
@@ -50,7 +59,7 @@ export async function fetchInventoryItems(
     warehouseId?: number,
 ) {
     const offset = (currentPage - 1) * ITEMS_PER_PAGE;
-    const typeFilter = type && type !== 'all' ? { type: type } : {};
+    const typeFilter = inventoryTypeFilter(type);
     const searchFilter = await buildSearchFilter(query);
 
     try {
@@ -92,7 +101,7 @@ export async function fetchInventoryItems(
 }
 
 export async function fetchInventoryPages(query: string, type?: string) {
-    const typeFilter = type && type !== 'all' ? { type: type } : {};
+    const typeFilter = inventoryTypeFilter(type);
     const searchFilter = await buildSearchFilter(query);
 
     try {

@@ -1,72 +1,69 @@
-# TiDB Setup
+# Database setup (MySQL 8 locally, TiDB in production)
 
-This repository still keeps SQLite as the default local development database so current dev flows keep working.
+Dev and production use one Prisma schema: `backend/prisma/schema.prisma` with `provider = "mysql"`. Production stays on TiDB Cloud. Local development uses the MySQL 8 service in `docker-compose.yml`.
 
-Use the TiDB workflow below to prepare and cut over to TiDB without rewriting the main Prisma schema in place.
+There is no SQLite database and no schema conversion script.
 
-## 1. Prepare the TiDB connection string
-
-Add your TiDB Prisma connection string to `backend/.env`:
-
-```env
-TIDB_DATABASE_URL="mysql://<user>:<password>@<host>:4000/<database>?sslaccept=strict"
-```
-
-Notes:
-
-- For TiDB Cloud Starter public endpoints, append `?sslaccept=strict`.
-- Make sure your TiDB IP allow list already includes the machine that runs Prisma commands.
-
-## 2. Generate and push the TiDB schema
+## 1. Local MySQL 8
 
 From the repo root:
 
 ```bash
-npm run db:generate:tidb
-npm run db:push:tidb
-npm run db:seed:tidb
+docker compose up -d mysql
 ```
 
-What these commands do:
-
-- Generate a temporary Prisma schema at `backend/prisma/.generated/schema.tidb.prisma`
-- Switch only that generated schema to `provider = "mysql"`
-- Reuse the existing data model for TiDB without breaking the default SQLite dev flow
-- Regenerate the Prisma client for TiDB before seeding
-
-## 3. Cut over the app runtime
-
-When you are ready for the app itself to run on TiDB, replace `DATABASE_URL` in both files with the same TiDB connection string:
-
-- `backend/.env`
-- `frontend/next-app/.env`
-
-Example:
+Copy `backend/.env.example` to `backend/.env`. The example `DATABASE_URL` is a dev-only placeholder:
 
 ```env
-DATABASE_URL="mysql://<user>:<password>@<host>:4000/<database>?sslaccept=strict"
+DATABASE_URL="mysql://root:root@localhost:3306/hrims"
 ```
 
-Both the frontend and backend must point to the same TiDB database.
+Put the same URL in the frontend env file (`frontend/next-app/.env` or `.env.local`). Both processes must use one database.
 
-If you later switch local dev back to SQLite, rerun the default Prisma generate flow:
+Then:
 
 ```bash
 cd backend
 npx prisma generate
+npm run db:setup
 ```
 
-## 4. Migration history note
+`npm run db:setup` is `db push` plus seed. It reads `DATABASE_URL` and does not print it.
 
-The checked-in Prisma migration history was created for SQLite.
+On an empty database you can also apply the committed SQL:
 
-For the TiDB path in this repo, use `prisma db push` through the TiDB scripts above unless you intentionally create a fresh MySQL/TiDB migration baseline.
+```bash
+npm run db:migrate:deploy
+npm run db:seed
+```
 
-## 5. Backup and restore note
+Historical SQLite migration SQL lives in `backend/prisma/migrations-sqlite-archive/` and is not applied.
 
-The in-app backup/restore flow currently supports SQLite file databases only.
+## 2. Production TiDB
 
-If you run the application on TiDB:
+Do this from a trusted environment, not from a laptop session that should not see production.
 
-- app-level backup routes will return an explicit unsupported message
-- use TiDB-native backup or data migration tooling outside the app for database backups
+1. Set `DATABASE_URL` to the TiDB Cloud connection string (`mysql://`, port `4000`, and `sslaccept=strict` for public endpoints).
+2. Allow that machine's IP in the TiDB allow list.
+3. Preview the diff before writing:
+
+```bash
+cd backend
+npx prisma migrate diff --from-url "$DATABASE_URL" --to-schema-datamodel prisma/schema.prisma --script
+```
+
+4. Apply the schema. This does not load demo rows:
+
+```bash
+npm run db:push:prod
+```
+
+`npm run db:seed:prod` is the same seed as local dev. It upserts demo users and **deletes** requests, stock levels, cart rows, stock transactions, transfers, and inventory items before inserting sample rows. Do not run it on a production database that already has real data.
+
+`db:push:prod` and `db:seed:prod` are the same scripts as local `db:push` and `db:seed`. They use `DATABASE_URL` only. There is no `TIDB_DATABASE_URL`.
+
+Do not run `npm run db:migrate:deploy` against the existing production database. That database was created with `db push` and has no Prisma migration history. Deploying the baseline would try to create tables that already exist. `db push` is the production path. After a push that leaves prod matching the baseline, an owner can mark the baseline applied with `prisma migrate resolve --applied 20261110120000_mysql_baseline` if they later want `migrate deploy`.
+
+## 3. Backup
+
+In-app backup and restore do not dump MySQL or TiDB. Use `mysqldump` locally and TiDB's own backup tools in production.
