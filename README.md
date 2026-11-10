@@ -67,4 +67,5 @@ cd backend && npm test -- --testPathPattern=integration
 - Root `npm run dev` starts the Next.js frontend.
 - Root `npm run dev:backend` starts the Express backend.
 - Windows shortcuts are still available via `start_frontend.bat` and `start_backend.bat`.
+- Optional public access uses Cloudflare Tunnel. Install `cloudflared` on the machine (`winget install --id Cloudflare.cloudflared -e`, `choco install cloudflared`, or `brew install cloudflared`), then run `start_tunnel.bat`. The repo does not include the binary. See `CLOUDFLARE-TUNNEL.md`.
 - Use `backend/prisma/schema.prisma` only; do not maintain a separate frontend Prisma schema.

@@ -1,3 +1,12 @@
+# Cloudflare Tunnel client binary (install on the machine; do not commit)
+/cloudflared
+/cloudflared.exe
+/cloudflared-*.exe
+cloudflared.exe
+cloudflared-*.exe
+# Local tunnel credentials created by `cloudflared tunnel login` / `tunnel create`
+.cloudflared/
+
 # Security & Secrets (Highest Priority)
 **/.env
 **/.env.local
