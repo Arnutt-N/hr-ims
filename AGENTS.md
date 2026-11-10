@@ -207,9 +207,11 @@ npm run db:seed:tidb              # Seed TiDB
 # รัน batch scripts จาก root directory
 start_backend.bat          # Start Express server
 start_frontend.bat         # Start Next.js dev server
-start_tunnel.bat           # Start Cloudflare Tunnel (optional)
+start_tunnel.bat           # Start Cloudflare Tunnel (optional; needs cloudflared on PATH)
 fix-db.bat                 # Local DB recovery helper
 ```
+
+Cloudflare Tunnel is optional. Install `cloudflared` on the machine — do not commit a copy of the binary. Windows: `winget install --id Cloudflare.cloudflared -e` or `choco install cloudflared` (`install-cf.bat` runs the winget command). macOS: `brew install cloudflared`. See `CLOUDFLARE-TUNNEL.md`.
 
 ### 2.6 Local Infra (Docker)
 
