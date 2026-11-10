@@ -37,7 +37,7 @@ jobs:
   # ---------------------------------------------------------------------------
   frontend:
     name: Frontend · lint + test
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     defaults:
       run:
         working-directory: frontend/next-app
@@ -89,7 +89,7 @@ jobs:
   # ---------------------------------------------------------------------------
   backend:
     name: Backend · typecheck + test
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     defaults:
       run:
         working-directory: backend
@@ -149,7 +149,7 @@ jobs:
   # ---------------------------------------------------------------------------
   vercel-build:
     name: Vercel · parity build (vercel.json)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     defaults:
       run:
         working-directory: frontend/next-app
@@ -228,7 +228,7 @@ jobs:
   # ---------------------------------------------------------------------------
   tidb-schema:
     name: TiDB · schema transform + validate
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     env:
       # Dummy TiDB URL — only used to satisfy scripts/prisma-tidb.js's presence
       # check. Prisma generate reads the schema file only, it does NOT connect
@@ -281,7 +281,7 @@ jobs:
   # ---------------------------------------------------------------------------
   e2e-golden:
     name: E2E · golden paths (Playwright)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     env:
       DATABASE_URL: file:./prisma/dev.db
       NEXTAUTH_URL: http://localhost:3000
@@ -343,7 +343,7 @@ jobs:
   lighthouse:
     name: Lighthouse · PR budgets
     if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: vercel-build
     env:
       DATABASE_URL: file:./prisma/dev.db

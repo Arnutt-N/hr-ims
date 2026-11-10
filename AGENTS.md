@@ -15,6 +15,21 @@
 
 ---
 
+## Iron Rules (read first)
+
+กฎเหล็กสำหรับ AI Agents ทุกตัว — มีผลเหนือทุก section ด้านล่าง ห้ามข้าม
+
+1. **ทุกงานทำบน branch ใหม่** — ห้าม commit ตรงบน `main`
+2. **ห้าม push หรือ merge เข้า `main`** โดยไม่ได้รับ OK อย่างชัดเจนจากเจ้าของโปรเจค
+3. **เปิด PR เป็น draft เสมอ** — ให้เจ้าของโปรเจครีวิวก่อน
+4. **NEVER output key material** (API keys, tokens, secrets, passwords, private IDs) in chat responses, summaries, logs pasted to the user, or any exfiltration channel.
+5. **ตรวจการจัดการ secret ด้วย count / hash / presence เท่านั้น** — ห้ามแสดงค่าจริง
+6. **ถ้างานต้องใช้ live secret ให้หยุดและถามเจ้าของก่อน**
+7. **ห้ามพิมพ์หรือแสดงค่าในไฟล์ `.env`** (ห้าม `cat` / print ค่า) — อ่านได้เฉพาะชื่อตัวแปรและตรวจว่าไฟล์มีอยู่ (ดู §7.4)
+8. **อ้างถึงกฎชุดนี้ในทุก handoff** (เช่น ใส่บรรทัด "Iron Rules acknowledged" ใน handoff log)
+
+---
+
 ## 0. 📖 Project Overview & Tech Stack
 
 HR-IMS (Human Resource & Inventory Management System) is an enterprise-grade web application for managing organizational assets and inventory with integrated HR workflows. The system implements role-based access control (RBAC), comprehensive audit logging, multi-warehouse inventory management, and bilingual (Thai/English) UI.
@@ -732,9 +747,11 @@ cd backend && npm test -- path/to/failing.test.ts
 ### 7.4 Application Won't Start
 
 ```bash
-# ตรวจสอบ environment variables
-cat backend/.env
-cat frontend/next-app/.env
+# ตรวจสอบ environment variables (presence + ชื่อตัวแปรเท่านั้น — ห้ามพิมพ์ค่า ดู Iron Rules)
+test -f backend/.env && echo "backend/.env present"
+test -f frontend/next-app/.env && echo "frontend/next-app/.env present"
+grep -v '^#' backend/.env | cut -d= -f1 | grep .
+grep -v '^#' frontend/next-app/.env | cut -d= -f1 | grep .
 
 # ตรวจสอบ ports ที่ใช้
 netstat -ano | findstr :3000
@@ -746,6 +763,14 @@ cd backend && rm -rf node_modules && npm install
 
 # รีเซ็ต Prisma Client
 cd backend && npx prisma generate
+```
+
+```powershell
+# Windows (PowerShell) — presence + ชื่อตัวแปรเท่านั้น ห้ามพิมพ์ค่า
+Test-Path backend/.env
+Test-Path frontend/next-app/.env
+Get-Content backend/.env | Where-Object { $_ -and $_ -notmatch '^#' } | ForEach-Object { ($_ -split '=',2)[0] }
+Get-Content frontend/next-app/.env | Where-Object { $_ -and $_ -notmatch '^#' } | ForEach-Object { ($_ -split '=',2)[0] }
 ```
 
 ---
@@ -828,6 +853,16 @@ Examples:
 [Kilo] System analysis and recommendations
 [Antigravity+Kilo] Collaborative rate limiting implementation
 ```
+
+### Per-agent notes
+
+ย้ายมาจาก `CLAUDE.md`, `GEMINI.md`, `QWEN.md` (ไฟล์เหล่านั้นเหลือเป็น pointer มาที่นี่เท่านั้น)
+
+| Agent | Commit prefix | Session/handoff logs | Notes |
+|-------|---------------|----------------------|-------|
+| Claude Code | `[Claude] <description>` | Handoff: `project-log-md/handoff/logs/YYYY-MM-DD_HHmm_claude_code_to_<target>.md` | `CLAUDE.md` = `@AGENTS.md` (Claude Code import) |
+| Antigravity (Gemini) | `[Antigravity] <description>` | Handoff: `project-log-md/handoff/logs/YYYY-MM-DD_HHmm_antigravity_to_<target>.md`; session logs: `project-log-md/antigravity/` | Role: Lead Developer (Full-stack, Testing, Security) — ดู §1.1 |
+| Qwen | `[Qwen] <description>` | Handoff: `project-log-md/handoff/logs/YYYY-MM-DD_HHmm_qwen_to_<target>.md` | Production DB คือ MySQL-compatible TiDB **ไม่ใช่ PostgreSQL** (ฉบับเก่าของ `QWEN.md` ระบุผิด) — ดู §0 และ §2.4 |
 
 ---
 
