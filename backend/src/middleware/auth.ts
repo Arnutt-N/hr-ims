@@ -57,6 +57,16 @@ export const requireAuth = (req: AuthRequest, res: Response, next: NextFunction)
     const userRole = req.headers['x-user-role'] as string;
     const internalKey = req.headers['x-internal-key'] as string;
 
+    // Fail closed: without a configured shared secret every request is
+    // rejected — otherwise the key check above degenerates to
+    // undefined === undefined and any caller passes.
+    if (!INTERNAL_API_KEY) {
+        return res.status(401).json({
+            error: 'Unauthorized',
+            message: 'Internal API key not configured on the server.'
+        });
+    }
+
     // Verify internal shared secret to prevent direct header spoofing
     if (internalKey !== INTERNAL_API_KEY) {
         return res.status(401).json({

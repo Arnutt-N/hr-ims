@@ -67,6 +67,66 @@ describe('Auth middleware', () => {
     });
 });
 
+describe('requireAuth fail-closed', () => {
+    test('returns 401 for every request when INTERNAL_API_KEY is unset', () => {
+        const prevKey = process.env.INTERNAL_API_KEY;
+        delete process.env.INTERNAL_API_KEY;
+        jest.resetModules();
+        const { requireAuth } = require('../../middleware/auth');
+
+        const req: any = {
+            headers: {
+                'x-user-id': '123',
+                'x-user-role': 'superadmin',
+            },
+        };
+        const res = createRes();
+        const next = jest.fn();
+
+        requireAuth(req, res, next);
+
+        expect(res.status).toHaveBeenCalledWith(401);
+        expect(next).not.toHaveBeenCalled();
+        expect(res.json).toHaveBeenCalledWith(
+            expect.objectContaining({ error: 'Unauthorized' }),
+        );
+
+        if (prevKey === undefined) {
+            delete process.env.INTERNAL_API_KEY;
+        } else {
+            process.env.INTERNAL_API_KEY = prevKey;
+        }
+    });
+
+    test('rejects a spoofed key even if it matches the old hardcoded fallback', () => {
+        const prevKey = process.env.INTERNAL_API_KEY;
+        delete process.env.INTERNAL_API_KEY;
+        jest.resetModules();
+        const { requireAuth } = require('../../middleware/auth');
+
+        const req: any = {
+            headers: {
+                'x-user-id': '123',
+                'x-user-role': 'admin',
+                'x-internal-key': 'test-internal-key',
+            },
+        };
+        const res = createRes();
+        const next = jest.fn();
+
+        requireAuth(req, res, next);
+
+        expect(res.status).toHaveBeenCalledWith(401);
+        expect(next).not.toHaveBeenCalled();
+
+        if (prevKey === undefined) {
+            delete process.env.INTERNAL_API_KEY;
+        } else {
+            process.env.INTERNAL_API_KEY = prevKey;
+        }
+    });
+});
+
 describe('RBAC authorize middleware', () => {
     test('authorize allows when any role matches', () => {
         const req: any = {

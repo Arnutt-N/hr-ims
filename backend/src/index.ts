@@ -7,7 +7,7 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 const app = express();
-const port = process.env.PORT || 3000;
+const port = Number(process.env.PORT || 3000);
 
 import authRoutes from './routes/auth';
 import inventoryRoutes from './routes/inventory';
@@ -68,7 +68,9 @@ app.get('/api/health-check', (req, res) => {
 export { app };
 
 if (require.main === module) {
-    app.listen(port, () => {
-        console.log(`Server running at http://localhost:${port}`);
+    // Bind to loopback only: the backend must never be reachable from the
+    // network — x-user-* headers are trusted only from the Next.js proxy.
+    app.listen(port, '127.0.0.1', () => {
+        console.log(`Server running at http://127.0.0.1:${port}`);
     });
 }
