@@ -633,6 +633,9 @@ User-facing strings ทุกตัวต้องผ่าน `lib/i18n/message
 - [ ] **Set TELEGRAM_* Envs in Production** (optional) - critical-severity alerts; service fail-silent ถ้าไม่ตั้ง
   - Assigned: Any | Status: Pending
 
+- [ ] **Remove *@demo.com users from the production seed and database before real data** — `backend/prisma/seed.ts` (also `npm run db:seed:tidb`) upserts the demo role accounts, including superadmin, plus department `*@demo.com` users on every seed. There is no env gate. The login Quick Demo panel is hidden unless `NEXT_PUBLIC_DEMO_MODE=true`, but the rows still exist if that seed runs against prod.
+  - Assigned: Any | Status: Pending | From: Handoff 2026-11-10 (cursor)
+
 ### 🟠 Medium Priority (ควรทำถัดไป)
 
 - [ ] **Deferred PRP Stubs** - preventive scheduling, PDF export, Kanban view (แต่ละอัน ~1-2 สัปดาห์)
@@ -892,6 +895,10 @@ CRON_SECRET=...
 UPLOADTHING_TOKEN=...
 MEILISEARCH_HOST=http://localhost:7700
 MEILISEARCH_API_KEY=...
+# Quick Demo panel on /login. Exact string true shows it; unset hides it (fail closed).
+# Build-time (NEXT_PUBLIC_* — redeploy after changing). Set to true ONLY on the
+# demo Vercel project (hr-ims / hrims-pro.vercel.app), never on a real-data deploy.
+NEXT_PUBLIC_DEMO_MODE=
 ```
 
 ### Backend (`backend/.env`)
