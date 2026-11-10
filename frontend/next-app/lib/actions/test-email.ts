@@ -3,7 +3,7 @@
 import { getSessionRoles, requireRole, SUPERADMIN_ONLY } from '@/lib/auth-guards';
 
 const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:3001';
-const INTERNAL_API_KEY = process.env.INTERNAL_API_KEY || 'test-internal-key';
+const INTERNAL_API_KEY = process.env.INTERNAL_API_KEY ?? '';
 
 export async function sendTestEmail() {
     const session = await requireRole(...SUPERADMIN_ONLY);
