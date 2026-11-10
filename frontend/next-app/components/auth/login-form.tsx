@@ -7,17 +7,12 @@ import { useActionState, useRef } from 'react';
 import { useFormStatus } from 'react-dom';
 import { authenticate } from '@/lib/actions/auth';
 import { motion } from 'framer-motion';
-import { Shield, Package, User, Lock, AlertCircle, Eye, EyeOff, Sparkles } from 'lucide-react';
+import { Shield, Package, User, Lock, AlertCircle, Eye, EyeOff } from 'lucide-react';
 import Link from 'next/link';
+import DemoQuickAccess from './demo-quick-access';
 
-const DEMO_ACCOUNTS = [
-    { role: 'Superadmin', email: 'superadmin@demo.com', password: 'demo123', color: 'from-purple-600 to-pink-600' },
-    { role: 'Admin', email: 'admin@demo.com', password: 'demo123', color: 'from-blue-600 to-cyan-600' },
-    { role: 'Approver', email: 'approver@demo.com', password: 'demo123', color: 'from-green-600 to-emerald-600' },
-    { role: 'Auditor', email: 'auditor@demo.com', password: 'demo123', color: 'from-orange-600 to-amber-600' },
-    { role: 'Technician', email: 'tech@demo.com', password: 'demo123', color: 'from-indigo-600 to-blue-600' },
-    { role: 'User', email: 'user@demo.com', password: 'demo123', color: 'from-slate-600 to-gray-600' },
-];
+// [2026-11-10] Modified by Cursor: fail closed unless the build-time flag is exactly "true".
+const demoModeEnabled = process.env.NEXT_PUBLIC_DEMO_MODE === 'true';
 
 export default function LoginForm() {
     const { t } = useI18n();
@@ -158,26 +153,7 @@ export default function LoginForm() {
                     </div>
                 </form>
 
-                {/* Demo Access Section */}
-                <div className="mt-8 pt-6 border-t border-white/10">
-                    <div className="flex items-center justify-center gap-2 mb-4">
-                        <Sparkles size={16} className="text-yellow-400" />
-                        <h3 className="text-sm font-semibold text-blue-200">{t('login.demo.title')}</h3>
-                    </div>
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                        {DEMO_ACCOUNTS.map((account) => (
-                            <button
-                                key={account.email}
-                                type="button"
-                                onClick={() => handleDemoLogin(account.email, account.password)}
-                                className={`px-3 py-2 rounded-lg bg-gradient-to-r ${account.color} text-white text-xs font-medium hover:opacity-90 transition-opacity shadow-md cursor-pointer`}
-                            >
-                                {account.role}
-                            </button>
-                        ))}
-                    </div>
-                    <p className="text-xs text-slate-400 mt-3">{t('login.demo.hint')}</p>
-                </div>
+                {demoModeEnabled ? <DemoQuickAccess onLogin={handleDemoLogin} /> : null}
 
                 <div className="mt-8 pt-6 border-t border-white/10 text-xs text-slate-400">
                     <p>System Version 4.0.0 (Next.js Edition)</p>
