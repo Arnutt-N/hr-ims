@@ -37,7 +37,8 @@ const formatItemsList = (items: any[]): string => {
 
 export const getRequests = async (req: AuthRequest, res: Response) => {
     try {
-        const { role, userId } = req.user;
+        const { role } = req.user;
+        const userId = req.user.userId ?? req.user.id;
 
         let where = {};
         if (role === 'user') {
@@ -78,7 +79,8 @@ const getUserWarehouse = async (department: string | null) => {
 
 export const createRequest = async (req: AuthRequest, res: Response) => {
     try {
-        const { userId, department } = req.user; // Ensure 'department' is available in token or fetched user
+        const { department } = req.user; // Ensure 'department' is available in token or fetched user
+        const userId = req.user.userId ?? req.user.id;
         const data = requestSchema.parse(req.body);
         const requestItems = JSON.parse(data.items); // Assuming items is JSON string of { itemId, quantity }
 

@@ -1,7 +1,8 @@
 
 import { Router } from 'express';
 import { PrismaClient } from '@prisma/client';
-import { authenticateToken } from '../middleware/auth';
+import { authenticateToken, requireAuth } from '../middleware/auth';
+import { getManagedWarehouseIds, isAdminTier } from '../lib/authz';
 import { z } from 'zod';
 
 const router = Router();
@@ -93,11 +94,20 @@ router.post('/receive', authenticateToken, async (req, res) => {
 });
 
 // GET /api/stock-transactions/history/:itemId
-router.get('/history/:itemId', authenticateToken, async (req, res) => {
+// [2026-11-13] Modified by Antigravity: requireAuth + warehouse scope (V4)
+router.get('/history/:itemId', requireAuth, async (req, res) => {
     try {
         const itemId = parseInt(req.params.itemId);
+        const user = (req as any).user;
+        const where: any = { itemId };
+
+        if (!isAdminTier(user)) {
+            const managed = await getManagedWarehouseIds(prisma, user);
+            where.warehouseId = { in: managed };
+        }
+
         const transactions = await prisma.stockTransaction.findMany({
-            where: { itemId },
+            where,
             include: {
                 user: { select: { name: true, email: true } },
                 warehouse: { select: { name: true } }

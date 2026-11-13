@@ -1,25 +1,38 @@
 import { Router } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { requireAuth, requireRole } from '../middleware/auth';
+import { assertWarehouseAccess, getManagedWarehouseIds, isAdminTier } from '../lib/authz';
 
 const router = Router();
 const prisma = new PrismaClient();
 
-// GET /api/stock-levels - ดึงระดับสต็อกทั้งหมด (with filters)
-router.get('/', async (req, res) => {
+// GET /api/stock-levels - ดึงระดับสต็อก (with filters)
+// [2026-11-12] Modified by Claude: requireAuth + warehouse scope (admin tier เห็นหมด)
+router.get('/', requireAuth, async (req, res) => {
     try {
         const { warehouseId, itemId, lowStock } = req.query;
+        const user = (req as any).user;
+
+        const where: any = {
+            ...(itemId && { itemId: parseInt(itemId as string) }),
+            ...(lowStock === 'true' && {
+                quantity: {
+                    lte: prisma.stockLevel.fields.minStock
+                }
+            })
+        };
+        if (isAdminTier(user)) {
+            if (warehouseId) where.warehouseId = parseInt(warehouseId as string);
+        } else {
+            const managed = await getManagedWarehouseIds(prisma, user);
+            where.warehouseId = {
+                in: managed,
+                ...(warehouseId ? { equals: parseInt(warehouseId as string) } : {})
+            };
+        }
 
         const stockLevels = await prisma.stockLevel.findMany({
-            where: {
-                ...(warehouseId && { warehouseId: parseInt(warehouseId as string) }),
-                ...(itemId && { itemId: parseInt(itemId as string) }),
-                ...(lowStock === 'true' && {
-                    quantity: {
-                        lte: prisma.stockLevel.fields.minStock
-                    }
-                })
-            },
+            where,
             include: {
                 warehouse: true,
                 item: true
@@ -35,13 +48,26 @@ router.get('/', async (req, res) => {
 });
 
 // GET /api/stock-levels/:warehouseId/:itemId - ดึงสต็อกของสินค้าในคลังเฉพาะ
-router.get('/:warehouseId/:itemId', async (req, res) => {
+// [2026-11-13] Modified by Antigravity: requireAuth + warehouse scope (V3)
+router.get('/:warehouseId/:itemId', requireAuth, async (req, res) => {
     try {
+        const user = (req as any).user;
+        const warehouseId = parseInt(req.params.warehouseId);
+        const itemId = parseInt(req.params.itemId);
+
+        if (!isAdminTier(user)) {
+            try {
+                await assertWarehouseAccess(prisma, user, warehouseId);
+            } catch {
+                return res.status(404).json({ error: 'Stock level not found' });
+            }
+        }
+
         const stockLevel = await prisma.stockLevel.findUnique({
             where: {
                 warehouseId_itemId: {
-                    warehouseId: parseInt(req.params.warehouseId),
-                    itemId: parseInt(req.params.itemId)
+                    warehouseId,
+                    itemId
                 }
             },
             include: {
@@ -99,10 +125,20 @@ router.post('/', requireAuth, requireRole(['superadmin', 'admin']), async (req, 
 });
 
 // PATCH /api/stock-levels/:warehouseId/:itemId/adjust - Adjust stock quantity (Approver/Admin)
+// [2026-11-12] Modified by Claude: warehouse scope (V16) + userId จาก session ไม่ใช่ body
 router.patch('/:warehouseId/:itemId/adjust', requireAuth, requireRole(['superadmin', 'admin', 'approver']), async (req, res) => {
     try {
+        const user = (req as any).user;
         const { warehouseId, itemId } = req.params;
-        const { adjustment, note, userId } = req.body; // adjustment can be +/- number
+        const { adjustment, note } = req.body; // adjustment can be +/- number
+
+        if (!isAdminTier(user)) {
+            try {
+                await assertWarehouseAccess(prisma, user, parseInt(warehouseId));
+            } catch {
+                return res.status(404).json({ error: 'Stock level not found' });
+            }
+        }
 
         const stockLevel = await prisma.$transaction(async (tx) => {
             // 1. Get current stock
@@ -134,7 +170,7 @@ router.patch('/:warehouseId/:itemId/adjust', requireAuth, requireRole(['superadm
                     quantity: parseInt(adjustment),
                     type: 'adjustment',
                     note,
-                    userId: parseInt(userId)
+                    userId: user.id
                 }
             });
 
@@ -149,10 +185,20 @@ router.patch('/:warehouseId/:itemId/adjust', requireAuth, requireRole(['superadm
 });
 
 // PATCH /api/stock-levels/:warehouseId/:itemId/limits - Update min/max limits (Admin/Approver)
+// [2026-11-12] Modified by Claude: warehouse scope (V16)
 router.patch('/:warehouseId/:itemId/limits', requireAuth, requireRole(['superadmin', 'admin', 'approver']), async (req, res) => {
     try {
+        const user = (req as any).user;
         const { warehouseId, itemId } = req.params;
         const { minStock, maxStock } = req.body;
+
+        if (!isAdminTier(user)) {
+            try {
+                await assertWarehouseAccess(prisma, user, parseInt(warehouseId));
+            } catch {
+                return res.status(404).json({ error: 'Stock level not found' });
+            }
+        }
 
         const stockLevel = await prisma.stockLevel.update({
             where: {
