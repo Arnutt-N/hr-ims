@@ -656,6 +656,8 @@ User-facing strings ทุกตัวต้องผ่าน `lib/i18n/message
 
 ### ✅ Recently Completed
 
+- [x] **IDOR / Object-Level Authorization Remediation (V1–V24)** - Backend `authz.ts` + route scoping, Frontend Server Actions + `warehouse-scope.ts`, unit & RBAC matrix tests (`fix/object-level-authz`)
+  - Completed by: Antigravity (from Claude Code handoff) | Date: 2026-11-13
 - [x] **Security Testing Framework** - OWASP Top 10 tests
   - Completed by: Antigravity | Date: 2026-01-29
   - Location: `backend/src/tests/security/`

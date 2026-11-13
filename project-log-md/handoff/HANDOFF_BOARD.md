@@ -1,6 +1,6 @@
 ﻿# 🤝 Cross-Agent Handoff Board
 
-> **Last Updated:** 2026-11-10 09:24 | **Updated By:** cursor
+> **Last Updated:** 2026-11-13 13:30 | **Updated By:** antigravity
 >
 > ไฟล์นี้เป็น Dashboard กลาง ทุก Agent ต้องอ่านก่อนเริ่มงาน และอัพเดทเมื่อจบงาน
 
@@ -10,9 +10,9 @@
 
 | Agent | Status | Last Active | Current/Last Task | Session Log |
 |-------|--------|-------------|-------------------|-------------|
-| **antigravity** | 🟢 AVAILABLE | 2026-02-20 08:25 | Sync pending tasks | - |
+| **antigravity** | 🟢 AVAILABLE | 2026-11-13 13:30 | Completed IDOR/object-level authz remediation (V1–V24) on `fix/object-level-authz` | [2026-11-13_1330_antigravity_to_all](logs/2026-11-13_1330_antigravity_to_all.md) |
 | **kilo** | ⚪ IDLE | 2026-01-30 | Codebase Analysis Report | [session_2026-01-30](../kilo/session_2026-01-30_185739.md) |
-| **claude_code** | 🟢 AVAILABLE | 2026-05-10 14:37 | Maintenance Workflow PRP v6 — all 6 PRs (#15-#20) merged | [2026-05-10_1437_claude_code_to_any](logs/2026-05-10_1437_claude_code_to_any.md) |
+| **claude_code** | 🟢 AVAILABLE | 2026-11-13 12:14 | IDOR/object-level authz — handed off mid-task; completed by antigravity | [2026-11-13_1214_claude_code_to_all](logs/2026-11-13_1214_claude_code_to_all.md) |
 | **codex** | 🟢 AVAILABLE | 2026-04-11 23:18 | Normalize superadmin RBAC across menu/page/action guards | [2026-04-11_superadmin-rbac-normalization](../codex/2026-04-11_superadmin-rbac-normalization.md) |
 | **cline** | 🟢 AVAILABLE | 2026-08-23 20:15 | BullMQ worker bootstrap — escalation worker wired & verified E2E | [2026-08-23_2015_cline_to_all](logs/2026-08-23_2015_cline_to_all.md) |
 | **cursor** | 🟢 AVAILABLE | 2026-11-10 09:24 | Gate login Quick Demo panel behind `NEXT_PUBLIC_DEMO_MODE`; removed tracked `cloudflared.exe` | [demo](logs/2026-11-10_0911_cursor_to_all.md), [cloudflared](logs/2026-11-10_0859_cursor_to_all.md) |
@@ -59,6 +59,7 @@
 | 3 | antigravity | all | Sync pending tasks (Backend, Frontend, Release) | 🟡 Medium | [log](logs/2026-02-20_0825_antigravity_to_all.md) | 2026-02-20 |
 | 4 | antigravity | all | Git Release v1.5.0 ready; verify log | 🔴 High | [log](logs/2026-02-13_1215_antigravity_to_all.md) | 2026-02-13 |
 | 5 | codex | all | Cursor-pointer audit round 2 complete; remaining tooltip/build verify | 🟡 Medium | [log](logs/2026-02-11_1633_codex_to_all.md) | 2026-02-11 |
+| 6 | antigravity | all | IDOR/object-level authz remediation (V1–V24) complete on `fix/object-level-authz` — draft PR ready for owner review & policy decisions (V20/V21) | 🟡 Medium | [log](logs/2026-11-13_1330_antigravity_to_all.md) | 2026-11-13 |
 
 ---
 
@@ -84,6 +85,7 @@
 
 | # | Date | Agent | Action | Details |
 |---|------|-------|--------|---------|
+| 0 | 2026-11-13 13:30 | antigravity | ✅ COMPLETE | Completed IDOR/object-level authz fixes (V1–V24), unit/RBAC tests, and draft PR on `fix/object-level-authz` |
 | 1 | 2026-11-10 09:11 | cursor | ✅ COMPLETE | Gated `/login` Quick Demo panel on `NEXT_PUBLIC_DEMO_MODE===true`. Credential module omitted from the production build when the flag is off. Seed still creates `*@demo.com` users (follow-up) |
 | 0 | 2026-11-10 08:59 | cursor | ✅ COMPLETE | Removed tracked `cloudflared.exe` going forward; `.gitignore` blocks re-add; tunnel scripts/docs call `cloudflared` on PATH. History not rewritten. Credential scan: presence only, no tracked tunnel secret. |
 | 2 | 2026-08-23 20:15 | cline | ✅ COMPLETE | BullMQ worker bootstrap — `src/worker.ts` + schedulers wired; escalation verified E2E against real Redis (`{"processed":0}` tick + hourly repeatable) |
