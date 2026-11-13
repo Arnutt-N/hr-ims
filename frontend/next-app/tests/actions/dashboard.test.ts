@@ -66,6 +66,25 @@ describe('dashboard Server Actions', () => {
             expect(result.recentActivity[2].action).toBe('Update');
         });
 
+        it('scopes stock queries to managed warehouses for non-admin users', async () => {
+            getCachedAuth.mockResolvedValue(sessionFor('user', { id: 8 }));
+            prismaMock.warehouse.findMany.mockResolvedValue([{ id: 3 }] as any);
+            prismaMock.user.findUnique.mockResolvedValue({ department: null } as any);
+            prismaMock.inventoryItem.count.mockResolvedValue(10);
+            prismaMock.stockLevel.count.mockResolvedValue(1);
+            prismaMock.request.count.mockResolvedValue(2);
+            prismaMock.stockLevel.findMany.mockResolvedValue([]);
+            prismaMock.stockTransaction.findMany.mockResolvedValue([]);
+
+            await dashboard.getDashboardStats();
+
+            expect(prismaMock.stockLevel.count).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    where: expect.objectContaining({ warehouseId: { in: [3] } }),
+                }),
+            );
+        });
+
         it('returns zeros + empty arrays on DB failure', async () => {
             getCachedAuth.mockResolvedValue(sessionFor('admin'));
             const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});

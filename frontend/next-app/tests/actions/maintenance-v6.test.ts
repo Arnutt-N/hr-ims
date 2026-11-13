@@ -27,13 +27,13 @@ describe('maintenance v6 Server Actions', () => {
 
     beforeEach(async () => {
         resetPrismaMock();
-        ({ auth: authMock } = (await import('@/auth')) as { auth: Mock });
-        ({ getCachedAuth: cachedAuthMock } = (await import('@/lib/auth-cache')) as {
+        ({ auth: authMock } = (await import('@/auth')) as unknown as { auth: Mock });
+        ({ getCachedAuth: cachedAuthMock } = (await import('@/lib/auth-cache')) as unknown as {
             getCachedAuth: Mock;
         });
         ({ sendMaintenanceAlert: telegramMock } = (await import(
             '@/lib/maintenance/telegram-service'
-        )) as { sendMaintenanceAlert: Mock });
+        )) as unknown as { sendMaintenanceAlert: Mock });
 
         authMock.mockReset();
         cachedAuthMock.mockReset();

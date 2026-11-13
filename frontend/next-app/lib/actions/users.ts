@@ -186,13 +186,18 @@ export async function updateUser(id: number, data: any) {
             }
         });
 
-        // Log activity
+        // Log activity (redact password hash)
+        const sanitizedUpdates = { ...updateData };
+        delete sanitizedUpdates.password;
         await logActivity(
             'USER_UPDATE',
             'User',
             id.toString(),
             {
-                updates: updateData,
+                updates: {
+                    ...sanitizedUpdates,
+                    ...(validated.password ? { passwordChanged: true } : {}),
+                },
                 targetUserEmail: targetUser.email
             }
         );

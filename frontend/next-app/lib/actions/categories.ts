@@ -12,6 +12,9 @@ const categorySchema = z.object({
 });
 
 export async function getCategories() {
+    const session = await requireRole();
+    if (!session) return { error: 'Unauthorized' };
+
     try {
         const categories = await prisma.category.findMany({
             orderBy: { name: 'asc' },
@@ -41,11 +44,24 @@ export async function createCategory(data: any) {
         });
         if (existing) return { error: 'Category already exists' };
 
-        const category = await prisma.category.create({
-            data: validated
+        const category = await prisma.$transaction(async (tx) => {
+            const created = await tx.category.create({
+                data: validated
+            });
+
+            await tx.auditLog.create({
+                data: {
+                    userId: parseInt(session.user.id),
+                    action: 'CREATE',
+                    entity: 'Category',
+                    entityId: String(created.id),
+                    details: JSON.stringify({ name: created.name }),
+                }
+            });
+
+            return created;
         });
 
-        await logActivity('CATEGORY_CREATE', 'Category', category.name, { id: category.id });
         revalidatePath('/settings/categories');
         return { success: true, category };
     } catch (error) {
@@ -61,12 +77,25 @@ export async function updateCategory(id: number, data: any) {
     try {
         const validated = categorySchema.partial().parse(data);
 
-        const category = await prisma.category.update({
-            where: { id },
-            data: validated
+        const category = await prisma.$transaction(async (tx) => {
+            const updated = await tx.category.update({
+                where: { id },
+                data: validated
+            });
+
+            await tx.auditLog.create({
+                data: {
+                    userId: parseInt(session.user.id),
+                    action: 'UPDATE',
+                    entity: 'Category',
+                    entityId: String(updated.id),
+                    details: JSON.stringify({ name: updated.name, updates: validated }),
+                }
+            });
+
+            return updated;
         });
 
-        await logActivity('CATEGORY_UPDATE', 'Category', category.name, { id, updates: validated });
         revalidatePath('/settings/categories');
         return { success: true, category };
     } catch (error) {
@@ -80,11 +109,22 @@ export async function deleteCategory(id: number) {
     if (!session) return { error: 'Unauthorized' };
 
     try {
-        const category = await prisma.category.delete({
-            where: { id }
+        await prisma.$transaction(async (tx) => {
+            const category = await tx.category.delete({
+                where: { id }
+            });
+
+            await tx.auditLog.create({
+                data: {
+                    userId: parseInt(session.user.id),
+                    action: 'DELETE',
+                    entity: 'Category',
+                    entityId: String(id),
+                    details: JSON.stringify({ name: category.name }),
+                }
+            });
         });
 
-        await logActivity('CATEGORY_DELETE', 'Category', category.name, { id });
         revalidatePath('/settings/categories');
         return { success: true };
     } catch (error) {

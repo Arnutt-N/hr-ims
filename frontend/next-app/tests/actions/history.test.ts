@@ -11,7 +11,7 @@ describe('history Server Action', () => {
 
     beforeEach(async () => {
         resetPrismaMock();
-        ({ auth: authMock } = (await import('@/auth')) as { auth: Mock });
+        ({ auth: authMock } = (await import('@/auth')) as unknown as { auth: Mock });
         authMock.mockReset();
         history = await import('@/lib/actions/history');
     });
@@ -33,9 +33,19 @@ describe('history Server Action', () => {
         expect(call.take).toBe(100);
     });
 
+    it('scopes history by userId for regular user', async () => {
+        authMock.mockResolvedValue(sessionFor('user', { id: 8 }));
+        prismaMock.history.findMany.mockResolvedValue([]);
+
+        await history.getHistory();
+
+        const call = prismaMock.history.findMany.mock.calls[0][0];
+        expect(call.where.userId).toBe(8);
+    });
+
     it('builds OR clause for free-text query', async () => {
         authMock.mockResolvedValue(sessionFor('admin'));
-        prismaMock.history.findMany.mockResolvedValue([] as any);
+        prismaMock.history.findMany.mockResolvedValue([]);
 
         await history.getHistory({ query: 'pen' });
 
@@ -49,7 +59,7 @@ describe('history Server Action', () => {
 
     it('filters by action when not "all"', async () => {
         authMock.mockResolvedValue(sessionFor('admin'));
-        prismaMock.history.findMany.mockResolvedValue([] as any);
+        prismaMock.history.findMany.mockResolvedValue([]);
 
         await history.getHistory({ action: 'borrow' });
 
@@ -59,7 +69,7 @@ describe('history Server Action', () => {
 
     it('does NOT filter when action is "all"', async () => {
         authMock.mockResolvedValue(sessionFor('admin'));
-        prismaMock.history.findMany.mockResolvedValue([] as any);
+        prismaMock.history.findMany.mockResolvedValue([]);
 
         await history.getHistory({ action: 'all' });
 
@@ -69,7 +79,7 @@ describe('history Server Action', () => {
 
     it('builds inclusive end-of-day date range', async () => {
         authMock.mockResolvedValue(sessionFor('admin'));
-        prismaMock.history.findMany.mockResolvedValue([] as any);
+        prismaMock.history.findMany.mockResolvedValue([]);
 
         await history.getHistory({ startDate: '2026-01-01', endDate: '2026-01-31' });
 
@@ -80,6 +90,17 @@ describe('history Server Action', () => {
         expect(lte.getHours()).toBe(23);
         expect(lte.getMinutes()).toBe(59);
         expect(lte.getMilliseconds()).toBe(999);
+    });
+
+    it('rejects invalid startDate/endDate strings (F-015)', async () => {
+        authMock.mockResolvedValue(sessionFor('admin'));
+
+        const badStart = await history.getHistory({ startDate: 'not-a-date' });
+        expect(badStart).toEqual({ error: 'Invalid start date' });
+
+        const badEnd = await history.getHistory({ endDate: 'not-a-date' });
+        expect(badEnd).toEqual({ error: 'Invalid end date' });
+        expect(prismaMock.history.findMany).not.toHaveBeenCalled();
     });
 
     it('returns generic error on DB failure', async () => {

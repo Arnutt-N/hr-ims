@@ -60,7 +60,6 @@ export default function GoodsReceiptForm({
                     itemId: parseInt(item.itemId),
                     quantity: item.quantity
                 })),
-                userId: 1, // Mock user ID, ideally simple mock for now or fetched from env
             };
 
             const result = await receiveGoods(payload);

@@ -1,14 +1,14 @@
 
-import { Request, Response } from 'express';
+import { Response } from 'express';
 import prisma from '../utils/prisma';
-
-interface AuthRequest extends Request {
-    user?: any;
-}
+import { AuthRequest } from '../middleware/auth';
 
 export const getMyAssets = async (req: AuthRequest, res: Response) => {
     try {
-        const { userId } = req.user;
+        const userId = req.user?.id ?? req.user?.userId;
+        if (!userId) {
+            return res.status(401).json({ message: 'Authentication required' });
+        }
 
         // For now, we simulate assets based on 'borrow' requests that are 'approved'
         // in a real app, you might have a dedicated Asset model linked to user

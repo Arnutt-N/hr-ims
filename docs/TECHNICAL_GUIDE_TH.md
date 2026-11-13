@@ -38,7 +38,8 @@
 
 ## 🔌 4. การเชื่อมต่อและ Tunnel
 - **Cloudflare Tunnel:** ใช้ในการเปิดระบบให้ออกอินเทอร์เน็ตโดยไม่ต้อง Forward Port
-- **Configuration:** ตั้งค่าผ่านไฟล์ `start_tunnel.bat` และ `.env` โดยระบุ `AUTH_TRUST_HOST=true`
+- **ติดตั้ง cloudflared:** ติดตั้งบนเครื่อง ไม่เก็บไบนารีใน repo — Windows: `winget install --id Cloudflare.cloudflared -e` หรือ `choco install cloudflared` / macOS: `brew install cloudflared` (ดู `CLOUDFLARE-TUNNEL.md`)
+- **Configuration:** เรียก `cloudflared` ที่อยู่ใน PATH ผ่าน `start_tunnel.bat` และตั้ง `AUTH_TRUST_HOST=true` ใน `.env`
 
 ---
 

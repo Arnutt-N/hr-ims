@@ -62,19 +62,36 @@ export async function getMyAssets() {
     }
 }
 
+async function isAssetHolder(userId: number, item: { id: number; currentHolderId?: number | null }): Promise<boolean> {
+    if (item.currentHolderId === userId) return true;
+    const approvedBorrow = await prisma.request.findFirst({
+        where: {
+            userId,
+            type: 'borrow',
+            status: 'approved',
+            requestItems: { some: { itemId: item.id } }
+        },
+        select: { id: true }
+    });
+    return Boolean(approvedBorrow);
+}
+
 // Check-in (Verify) Asset
 export async function checkInAsset(itemId: number) {
     const session = await auth();
     if (!session?.user?.email) return { error: 'Unauthorized' };
 
     try {
+        const userId = parseInt(session.user.id || '0');
         const item = await prisma.inventoryItem.findUnique({ where: { id: itemId } });
-        if (!item) return { error: 'Item not found' };
+        if (!item || !(await isAssetHolder(userId, item))) {
+            return { error: 'Asset not found' };
+        }
 
         // Log check in history
         await prisma.history.create({
             data: {
-                userId: parseInt(session.user.id || '0'),
+                userId,
                 action: 'check',
                 item: item.name,
                 status: 'verified',
@@ -96,6 +113,11 @@ export async function requestReturn(itemId: number) {
     try {
         const user = await prisma.user.findUnique({ where: { email: session.user.email } });
         if (!user) return { error: 'User not found' };
+
+        const item = await prisma.inventoryItem.findUnique({ where: { id: itemId } });
+        if (!item || !(await isAssetHolder(user.id, item))) {
+            return { error: 'Asset not found' };
+        }
 
         // Create return request
         await prisma.request.create({
@@ -133,13 +155,16 @@ export async function reportIssue(itemId: number, issue: string) {
     if (!session) return { error: 'Unauthorized' };
 
     try {
+        const userId = parseInt(session.user.id || '0');
         const item = await prisma.inventoryItem.findUnique({ where: { id: itemId } });
-        if (!item) return { error: 'Item not found' };
+        if (!item || !(await isAssetHolder(userId, item))) {
+            return { error: 'Item not found' };
+        }
 
         // History entry preserved for the existing /history view (legacy log).
         await prisma.history.create({
             data: {
-                userId: parseInt(session.user.id || '0'),
+                userId,
                 action: 'report',
                 item: item.name + ` (${issue})`,
                 status: 'issue_reported',

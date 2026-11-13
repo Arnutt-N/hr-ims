@@ -12,7 +12,7 @@ describe('assets Server Actions', () => {
 
     beforeEach(async () => {
         resetPrismaMock();
-        ({ auth: authMock } = (await import('@/auth')) as { auth: Mock });
+        ({ auth: authMock } = (await import('@/auth')) as unknown as { auth: Mock });
         authMock.mockReset();
         assets = await import('@/lib/actions/assets');
     });
@@ -65,16 +65,34 @@ describe('assets Server Actions', () => {
             expect(result).toEqual({ error: 'Unauthorized' });
         });
 
-        it('returns "Item not found" when item missing', async () => {
+        it('returns "Asset not found" when item missing', async () => {
             authMock.mockResolvedValue(sessionFor('user'));
             prismaMock.inventoryItem.findUnique.mockResolvedValue(null);
             const result = await assets.checkInAsset(10);
-            expect(result).toEqual({ error: 'Item not found' });
+            expect(result).toEqual({ error: 'Asset not found' });
+        });
+
+        it('returns "Asset not found" when user is not the holder', async () => {
+            authMock.mockResolvedValue(sessionFor('user', { id: 8 }));
+            prismaMock.inventoryItem.findUnique.mockResolvedValue({
+                id: 10,
+                name: 'Stapler',
+                currentHolderId: 99,
+            } as any);
+            prismaMock.request.findFirst.mockResolvedValue(null);
+
+            const result = await assets.checkInAsset(10);
+            expect(result).toEqual({ error: 'Asset not found' });
+            expect(prismaMock.history.create).not.toHaveBeenCalled();
         });
 
         it('writes a "check" history entry', async () => {
             authMock.mockResolvedValue(sessionFor('user', { id: 8 }));
-            prismaMock.inventoryItem.findUnique.mockResolvedValue({ id: 10, name: 'Stapler' } as any);
+            prismaMock.inventoryItem.findUnique.mockResolvedValue({
+                id: 10,
+                name: 'Stapler',
+                currentHolderId: 8,
+            } as any);
             prismaMock.history.create.mockResolvedValue({} as any);
 
             const result = await assets.checkInAsset(10);
@@ -97,9 +115,27 @@ describe('assets Server Actions', () => {
             expect(result).toEqual({ error: 'Unauthorized' });
         });
 
+        it('returns "Asset not found" when user is not the holder', async () => {
+            authMock.mockResolvedValue(sessionFor('user', { id: 8 }));
+            prismaMock.user.findUnique.mockResolvedValue({ id: 8 } as any);
+            prismaMock.inventoryItem.findUnique.mockResolvedValue({
+                id: 10,
+                currentHolderId: 99,
+            } as any);
+            prismaMock.request.findFirst.mockResolvedValue(null);
+
+            const result = await assets.requestReturn(10);
+            expect(result).toEqual({ error: 'Asset not found' });
+            expect(prismaMock.request.create).not.toHaveBeenCalled();
+        });
+
         it('creates a pending return request', async () => {
             authMock.mockResolvedValue(sessionFor('user'));
             prismaMock.user.findUnique.mockResolvedValue({ id: 8 } as any);
+            prismaMock.inventoryItem.findUnique.mockResolvedValue({
+                id: 10,
+                currentHolderId: 8,
+            } as any);
             prismaMock.request.create.mockResolvedValue({} as any);
 
             const result = await assets.requestReturn(10);
@@ -127,7 +163,11 @@ describe('assets Server Actions', () => {
 
         it('logs issue + flips item status to issue_reported', async () => {
             authMock.mockResolvedValue(sessionFor('user', { id: 8 }));
-            prismaMock.inventoryItem.findUnique.mockResolvedValue({ id: 10, name: 'Stapler' } as any);
+            prismaMock.inventoryItem.findUnique.mockResolvedValue({
+                id: 10,
+                name: 'Stapler',
+                currentHolderId: 8,
+            } as any);
             prismaMock.history.create.mockResolvedValue({} as any);
             prismaMock.inventoryItem.update.mockResolvedValue({} as any);
 

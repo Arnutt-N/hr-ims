@@ -91,6 +91,8 @@ export function UserFormDialog({ open, onOpenChange, onSubmit, initialData, mode
                 newErrors.password = 'Password must contain at least one lowercase letter';
             } else if (!/[0-9]/.test(formData.password)) {
                 newErrors.password = 'Password must contain at least one number';
+            } else if (!/[^A-Za-z0-9]/.test(formData.password)) {
+                newErrors.password = 'Password must contain at least one special character';
             }
         }
 

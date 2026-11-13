@@ -1,9 +1,8 @@
 import { Router } from 'express';
-import { PrismaClient } from '@prisma/client';
+import prisma from '../utils/prisma';
 import { requireAuth, requireRole } from '../middleware/auth';
 
 const router = Router();
-const prisma = new PrismaClient();
 
 // GET /api/departments/mappings - Get all department mappings
 router.get('/mappings', requireAuth, requireRole(['superadmin', 'admin']), async (req, res) => {

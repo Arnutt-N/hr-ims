@@ -11,7 +11,7 @@ describe('scanner Server Actions', () => {
 
     beforeEach(async () => {
         resetPrismaMock();
-        ({ auth: authMock } = (await import('@/auth')) as { auth: Mock });
+        ({ auth: authMock } = (await import('@/auth')) as unknown as { auth: Mock });
         authMock.mockReset();
         scanner = await import('@/lib/actions/scanner');
     });

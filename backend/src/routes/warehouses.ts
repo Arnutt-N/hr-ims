@@ -1,12 +1,11 @@
 import { Router } from 'express';
-import { PrismaClient } from '@prisma/client';
+import prisma from '../utils/prisma';
 import { requireAuth, requireRole } from '../middleware/auth';
 
 const router = Router();
-const prisma = new PrismaClient();
 
 // GET /api/warehouses - ดึงรายการคลังทั้งหมด
-router.get('/', async (req, res) => {
+router.get('/', requireAuth, async (req, res) => {
     try {
         const warehouses = await prisma.warehouse.findMany({
             where: { isActive: true },
@@ -25,7 +24,7 @@ router.get('/', async (req, res) => {
 });
 
 // GET /api/warehouses/:id - ดึงคลังตาม ID
-router.get('/:id', async (req, res) => {
+router.get('/:id', requireAuth, async (req, res) => {
     try {
         const warehouse = await prisma.warehouse.findUnique({
             where: { id: parseInt(req.params.id) },

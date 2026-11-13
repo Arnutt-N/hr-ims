@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Warehouse, TrendingUp, Settings } from 'lucide-react';
 import AdjustStockDialog from './AdjustStockDialog';
 import SetLimitsDialog from './SetLimitsDialog';
+import { APPROVER_ROLES, sessionHasAnyRole } from '@/lib/role-access';
 
 export default function StockLevelsTab({
     itemId,
@@ -18,10 +19,9 @@ export default function StockLevelsTab({
     stockLevels: any[]
 }) {
     const { data: session } = useSession();
-    const userRole = (session?.user as any)?.role || 'user';
 
     // Check if user can adjust stock or set limits
-    const canManageStock = ['superadmin', 'admin', 'approver'].includes(userRole);
+    const canManageStock = sessionHasAnyRole(session, ...APPROVER_ROLES);
 
     const [adjustDialog, setAdjustDialog] = useState<{ open: boolean; level: any | null }>({
         open: false,
