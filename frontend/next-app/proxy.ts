@@ -1,8 +1,9 @@
 import { auth } from './auth';
 import { NextResponse } from 'next/server';
 import { authorizeRequest, isLegacyFallbackEnabled } from './lib/proxy-authorize';
+import { buildBackendHeaders } from './lib/proxy-headers';
 
-const INTERNAL_API_KEY = process.env.INTERNAL_API_KEY || 'test-internal-key';
+const INTERNAL_API_KEY = process.env.INTERNAL_API_KEY;
 
 export default auth(async (req) => {
     const { nextUrl } = req;
@@ -18,13 +19,13 @@ export default auth(async (req) => {
 
     // Inject user headers for API calls to backend
     if (nextUrl.pathname.startsWith('/api/') && !nextUrl.pathname.startsWith('/api/auth/')) {
-        const requestHeaders = new Headers(req.headers);
-        requestHeaders.set('x-internal-key', INTERNAL_API_KEY);
-
-        if (userId && userRoles.length > 0) {
-            requestHeaders.set('x-user-id', userId.toString());
-            requestHeaders.set('x-user-role', userRoles.join(','));
-        }
+        // Client-sent x-user-* / x-internal-key are stripped inside the
+        // builder; identity comes from the session only.
+        const requestHeaders = buildBackendHeaders(
+            req.headers,
+            { id: userId, roles: userRoles },
+            INTERNAL_API_KEY,
+        );
 
         return NextResponse.next({ request: { headers: requestHeaders } });
     }
