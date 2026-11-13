@@ -137,7 +137,11 @@ export async function deleteWarehouse(id: number) {
     }
 }
 
+// [2026-11-13] Modified by Antigravity: require session on getDivisions/getProvinces (V14)
 export async function getDivisions() {
+    const session = await auth();
+    if (!session) return { error: 'Unauthorized' };
+
     try {
         const divisions = await prisma.division.findMany({
             orderBy: { name: 'asc' }
@@ -150,6 +154,9 @@ export async function getDivisions() {
 }
 
 export async function getProvinces() {
+    const session = await auth();
+    if (!session) return { error: 'Unauthorized' };
+
     try {
         const provinces = await prisma.province.findMany({
             orderBy: { name: 'asc' }

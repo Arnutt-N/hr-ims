@@ -3,7 +3,10 @@
 import prisma from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
+import { auth } from '@/auth';
+import { getManagedWarehouseIds, isAdminSession } from '@/lib/warehouse-scope';
 
+// [2026-11-13] Modified by Antigravity: remove userId from schema, enforce auth + warehouse scope (V11); remove duplicate getStockHistory (V12)
 const InboundSchema = z.object({
     warehouseId: z.coerce.number(),
     items: z.array(z.object({
@@ -12,19 +15,24 @@ const InboundSchema = z.object({
     })).min(1),
     note: z.string().optional(),
     referenceId: z.string().optional(),
-    userId: z.coerce.number(), // In real app, get from session
 });
 
 export async function receiveGoods(formData: any) {
-    // Note: formData here might be a raw object if called from client component via library, or standard FormData.
-    // For complex arrays, it's often easier to pass JSON or use a specific form handler.
-    // Assuming we pass a structured object for this action or handle parsing.
-
-    // For simplicity in this demo, let's assume the argument is a plain object 
-    // passed from a Client Component that handles the form state.
+    const session = await auth();
+    if (!session?.user?.id) {
+        return { success: false, message: 'Unauthorized' };
+    }
+    const userId = parseInt(session.user.id);
 
     try {
         const validated = InboundSchema.parse(formData);
+
+        if (!isAdminSession(session)) {
+            const managed = await getManagedWarehouseIds(userId);
+            if (!managed.includes(validated.warehouseId)) {
+                return { success: false, message: 'Warehouse not found' };
+            }
+        }
 
         await prisma.$transaction(async (tx) => {
             for (const item of validated.items) {
@@ -62,7 +70,7 @@ export async function receiveGoods(formData: any) {
                         type: 'inbound',
                         referenceId: validated.referenceId,
                         note: validated.note,
-                        userId: validated.userId
+                        userId
                     }
                 });
             }
@@ -74,23 +82,5 @@ export async function receiveGoods(formData: any) {
     } catch (error) {
         console.error('Receive Goods Error:', error);
         return { success: false, message: 'Failed to receive goods' };
-    }
-}
-
-export async function getStockHistory(itemId: number) {
-    try {
-        const history = await prisma.stockTransaction.findMany({
-            where: { itemId },
-            include: {
-                warehouse: true,
-                user: {
-                    select: { name: true, email: true }
-                }
-            },
-            orderBy: { createdAt: 'desc' }
-        });
-        return history;
-    } catch {
-        return [];
     }
 }

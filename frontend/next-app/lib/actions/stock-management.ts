@@ -2,15 +2,30 @@
 
 import prisma from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
+import { auth } from '@/auth';
+import { getManagedWarehouseIds, isAdminSession } from '@/lib/warehouse-scope';
 
+// [2026-11-13] Modified by Antigravity: remove userId param, use session + warehouse scope (V8)
 export async function adjustStockQuantity(
     warehouseId: number,
     itemId: number,
     adjustment: number,
-    note: string,
-    userId: number
+    note: string
 ) {
+    const session = await auth();
+    if (!session?.user?.id) {
+        return { success: false, message: 'Unauthorized' };
+    }
+    const userId = parseInt(session.user.id);
+
     try {
+        if (!isAdminSession(session)) {
+            const managed = await getManagedWarehouseIds(userId);
+            if (!managed.includes(warehouseId)) {
+                return { success: false, message: 'Stock level not found' };
+            }
+        }
+
         await prisma.$transaction(async (tx) => {
             // 1. Get current stock
             const current = await tx.stockLevel.findUnique({
@@ -53,13 +68,27 @@ export async function adjustStockQuantity(
     }
 }
 
+// [2026-11-13] Modified by Antigravity: auth + warehouse scope (V9)
 export async function updateStockLimits(
     warehouseId: number,
     itemId: number,
     minStock?: number,
     maxStock?: number
 ) {
+    const session = await auth();
+    if (!session?.user?.id) {
+        return { success: false, message: 'Unauthorized' };
+    }
+    const userId = parseInt(session.user.id);
+
     try {
+        if (!isAdminSession(session)) {
+            const managed = await getManagedWarehouseIds(userId);
+            if (!managed.includes(warehouseId)) {
+                return { success: false, message: 'Stock level not found' };
+            }
+        }
+
         await prisma.stockLevel.update({
             where: {
                 warehouseId_itemId: {
@@ -81,12 +110,20 @@ export async function updateStockLimits(
     }
 }
 
+// [2026-11-13] Modified by Antigravity: session check + warehouse scope (V10)
 export async function getItemDetail(itemId: number) {
+    const session = await auth();
+    if (!session?.user?.id) return null;
+
     try {
+        const isAdmin = isAdminSession(session);
+        const managed = isAdmin ? [] : await getManagedWarehouseIds(parseInt(session.user.id));
+
         const item = await prisma.inventoryItem.findUnique({
             where: { id: itemId },
             include: {
                 stockLevels: {
+                    ...(isAdmin ? {} : { where: { warehouseId: { in: managed } } }),
                     include: { warehouse: true }
                 }
             }
@@ -97,13 +134,27 @@ export async function getItemDetail(itemId: number) {
     }
 }
 
+// [2026-11-13] Modified by Antigravity: session check + warehouse scope (V10)
 export async function getStockHistory(itemId: number, page: number = 1, perPage: number = 20) {
+    const session = await auth();
+    if (!session?.user?.id) {
+        return {
+            transactions: [],
+            pagination: { page: 1, perPage, total: 0, totalPages: 0 }
+        };
+    }
+
     try {
         const skip = (page - 1) * perPage;
+        const where: any = { itemId };
+        if (!isAdminSession(session)) {
+            const managed = await getManagedWarehouseIds(parseInt(session.user.id));
+            where.warehouseId = { in: managed };
+        }
 
         const [transactions, total] = await Promise.all([
             prisma.stockTransaction.findMany({
-                where: { itemId },
+                where,
                 include: {
                     warehouse: { select: { name: true, code: true } },
                     user: { select: { name: true, email: true } }
@@ -112,7 +163,7 @@ export async function getStockHistory(itemId: number, page: number = 1, perPage:
                 take: perPage,
                 skip
             }),
-            prisma.stockTransaction.count({ where: { itemId } })
+            prisma.stockTransaction.count({ where })
         ]);
 
         return {

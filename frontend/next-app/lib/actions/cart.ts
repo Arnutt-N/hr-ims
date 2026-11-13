@@ -75,12 +75,21 @@ export async function addToCart(itemId: number, quantity: number = 1) {
 }
 
 // Remove from Cart
+// [2026-11-13] Modified by Antigravity: verify cartItem ownership before delete (V7)
 export async function removeFromCart(cartItemId: number) {
     const session = await auth();
-    if (!session) return { error: 'Unauthorized' };
+    if (!session?.user?.id) return { error: 'Unauthorized' };
 
     try {
-        await prisma.cartItem.delete({ where: { id: cartItemId } });
+        const userId = parseInt(session.user.id);
+        const existing = await prisma.cartItem.findFirst({
+            where: { id: cartItemId, userId }
+        });
+        if (!existing) {
+            return { error: 'Item not found' };
+        }
+
+        await prisma.cartItem.delete({ where: { id: existing.id } });
         revalidatePath('/cart');
         return { success: true };
     } catch {

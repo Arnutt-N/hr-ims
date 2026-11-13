@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { checkLowStockInternal } from './notifications';
 import { requireRole, ADMIN_ROLES } from '@/lib/auth-guards';
+import { getCachedAuth } from '@/lib/auth-cache';
 
 const InventorySchema = z.object({
     id: z.coerce.number(),
@@ -43,12 +44,16 @@ async function buildSearchFilter(query: string) {
     }
 }
 
+// [2026-11-13] Modified by Antigravity: require session on fetchInventoryItems/Pages (V17)
 export async function fetchInventoryItems(
     query: string,
     currentPage: number,
     type?: string,
     warehouseId?: number,
 ) {
+    const session = await getCachedAuth();
+    if (!session?.user) throw new Error('Unauthorized');
+
     const offset = (currentPage - 1) * ITEMS_PER_PAGE;
     const typeFilter = type && type !== 'all' ? { type: type } : {};
     const searchFilter = await buildSearchFilter(query);
@@ -92,6 +97,9 @@ export async function fetchInventoryItems(
 }
 
 export async function fetchInventoryPages(query: string, type?: string) {
+    const session = await getCachedAuth();
+    if (!session?.user) throw new Error('Unauthorized');
+
     const typeFilter = type && type !== 'all' ? { type: type } : {};
     const searchFilter = await buildSearchFilter(query);
 

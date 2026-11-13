@@ -62,19 +62,37 @@ export async function getMyAssets() {
     }
 }
 
+async function isAssetHolder(userId: number, item: { id: number; currentHolderId?: number | null }): Promise<boolean> {
+    if (item.currentHolderId === userId) return true;
+    const approvedBorrow = await prisma.request.findFirst({
+        where: {
+            userId,
+            type: 'borrow',
+            status: 'approved',
+            requestItems: { some: { itemId: item.id } }
+        },
+        select: { id: true }
+    });
+    return Boolean(approvedBorrow);
+}
+
 // Check-in (Verify) Asset
+// [2026-11-13] Modified by Antigravity: verify holder before check-in (V22)
 export async function checkInAsset(itemId: number) {
     const session = await auth();
     if (!session?.user?.email) return { error: 'Unauthorized' };
 
     try {
+        const userId = parseInt(session.user.id || '0');
         const item = await prisma.inventoryItem.findUnique({ where: { id: itemId } });
-        if (!item) return { error: 'Item not found' };
+        if (!item || !(await isAssetHolder(userId, item))) {
+            return { error: 'Asset not found' };
+        }
 
         // Log check in history
         await prisma.history.create({
             data: {
-                userId: parseInt(session.user.id || '0'),
+                userId,
                 action: 'check',
                 item: item.name,
                 status: 'verified',
@@ -89,6 +107,7 @@ export async function checkInAsset(itemId: number) {
 }
 
 // Request Return
+// [2026-11-13] Modified by Antigravity: verify holder before return request (V23)
 export async function requestReturn(itemId: number) {
     const session = await auth();
     if (!session?.user?.email) return { error: 'Unauthorized' };
@@ -96,6 +115,11 @@ export async function requestReturn(itemId: number) {
     try {
         const user = await prisma.user.findUnique({ where: { email: session.user.email } });
         if (!user) return { error: 'User not found' };
+
+        const item = await prisma.inventoryItem.findUnique({ where: { id: itemId } });
+        if (!item || !(await isAssetHolder(user.id, item))) {
+            return { error: 'Asset not found' };
+        }
 
         // Create return request
         await prisma.request.create({
@@ -166,6 +190,11 @@ export async function reportIssue(itemId: number, issue: string) {
         }
 
         if (!delegated) {
+            // [2026-11-13] Modified by Antigravity: verify holder in legacy fallback (V24)
+            const userId = parseInt(session.user.id || '0');
+            if (!(await isAssetHolder(userId, item))) {
+                return { error: 'Asset not found' };
+            }
             // Legacy fallback: direct status flip preserves the contract that
             // /my-assets has relied on since before the new workflow.
             await prisma.inventoryItem.update({

@@ -2,6 +2,7 @@
 
 import prisma from '@/lib/prisma';
 import { auth } from '@/auth';
+import { isAdminSession } from '@/lib/warehouse-scope';
 
 interface HistoryFilters {
     query?: string;
@@ -10,12 +11,16 @@ interface HistoryFilters {
     endDate?: string;
 }
 
+// [2026-11-13] Modified by Antigravity: scope history by userId for non-admin users (V19)
 export async function getHistory(filters: HistoryFilters = {}) {
     const session = await auth();
     if (!session?.user?.email) return { error: 'Unauthorized' };
 
     try {
         const where: any = {};
+        if (!isAdminSession(session) && session.user.id) {
+            where.userId = parseInt(session.user.id);
+        }
 
         // Keyword search (item name or status)
         if (filters.query) {

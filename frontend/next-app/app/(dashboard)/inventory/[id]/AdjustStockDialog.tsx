@@ -37,8 +37,7 @@ export default function AdjustStockDialog({
                 stockLevel.warehouseId,
                 itemId,
                 adjustment,
-                note,
-                1 // Mock user ID
+                note
             );
 
             if (result.success) {
