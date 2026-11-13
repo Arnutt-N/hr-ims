@@ -61,7 +61,7 @@ jest.mock('../../services/notificationService', () => ({
 
 import { app } from '../../index';
 
-const INTERNAL_KEY = process.env.INTERNAL_API_KEY;
+const INTERNAL_KEY = (process.env.INTERNAL_API_KEY ||= 'test-internal-key');
 
 function proxyHeaders(id: number, role: string) {
     return {
