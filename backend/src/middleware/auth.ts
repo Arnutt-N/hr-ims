@@ -61,9 +61,9 @@ export const requireAuth = (req: AuthRequest, res: Response, next: NextFunction)
     const expectedKey = process.env.INTERNAL_API_KEY;
 
     // Fail closed: without a configured shared secret every request is
-    // rejected — otherwise the key check above degenerates to
+    // rejected — otherwise the key check below degenerates to
     // undefined === undefined and any caller passes.
-    if (!INTERNAL_API_KEY) {
+    if (!expectedKey) {
         return res.status(401).json({
             error: 'Unauthorized',
             message: 'Internal API key not configured on the server.'
@@ -71,7 +71,7 @@ export const requireAuth = (req: AuthRequest, res: Response, next: NextFunction)
     }
 
     // Verify internal shared secret to prevent direct header spoofing
-    if (!expectedKey || internalKey !== expectedKey) {
+    if (internalKey !== expectedKey) {
         return res.status(401).json({
             error: 'Unauthorized',
             message: 'Invalid internal API key.'
