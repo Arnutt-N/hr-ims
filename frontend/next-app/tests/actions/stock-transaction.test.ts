@@ -12,7 +12,7 @@ describe('stock-transaction Server Actions', () => {
 
     beforeEach(async () => {
         resetPrismaMock();
-        ({ auth: authMock } = (await import('@/auth')) as { auth: Mock });
+        ({ auth: authMock } = (await import('@/auth')) as unknown as { auth: Mock });
         authMock.mockReset();
         authMock.mockResolvedValue(sessionFor('admin', { id: 4 }));
         stockTx = await import('@/lib/actions/stock-transaction');

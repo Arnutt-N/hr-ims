@@ -70,6 +70,20 @@ export async function receiveGoods(formData: any) {
                     }
                 });
             }
+
+            await tx.auditLog.create({
+                data: {
+                    userId,
+                    action: 'CREATE',
+                    entity: 'StockTransaction',
+                    entityId: String(validated.warehouseId),
+                    details: JSON.stringify({
+                        warehouseId: validated.warehouseId,
+                        itemCount: validated.items.length,
+                        referenceId: validated.referenceId,
+                    }),
+                }
+            });
         });
 
         revalidatePath('/inventory');

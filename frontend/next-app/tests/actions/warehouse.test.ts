@@ -15,8 +15,8 @@ describe('warehouse Server Actions', () => {
 
     beforeEach(async () => {
         resetPrismaMock();
-        ({ auth: authMock } = (await import('@/auth')) as { auth: Mock });
-        ({ getCachedAuth } = (await import('@/lib/auth-cache')) as { getCachedAuth: Mock });
+        ({ auth: authMock } = (await import('@/auth')) as unknown as { auth: Mock });
+        ({ getCachedAuth } = (await import('@/lib/auth-cache')) as unknown as { getCachedAuth: Mock });
         authMock.mockReset();
         getCachedAuth.mockReset();
         warehouse = await import('@/lib/actions/warehouse');

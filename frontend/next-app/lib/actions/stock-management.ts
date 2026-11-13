@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache';
 import { auth } from '@/auth';
 import { APPROVER_ROLES, sessionHasAnyRole } from '@/lib/role-access';
 import { canAccessWarehouse, getManagedWarehouseIds, isReadAllSession } from '@/lib/warehouse-scope';
+import { logActionError } from '@/lib/action-result';
 
 export async function adjustStockQuantity(
     warehouseId: number,
@@ -48,7 +49,6 @@ export async function adjustStockQuantity(
                 data: { quantity: { increment: adjustment } }
             });
 
-            // 3. Create transaction
             await tx.stockTransaction.create({
                 data: {
                     warehouseId,
@@ -59,12 +59,22 @@ export async function adjustStockQuantity(
                     userId
                 }
             });
+
+            await tx.auditLog.create({
+                data: {
+                    userId,
+                    action: 'UPDATE',
+                    entity: 'StockLevel',
+                    entityId: String(current.id),
+                    details: JSON.stringify({ warehouseId, itemId, adjustment, note }),
+                }
+            });
         });
 
         revalidatePath(`/inventory/${itemId}`);
         return { success: true, message: 'Stock adjusted successfully' };
     } catch (error) {
-        console.error('Adjust Stock Error:', error);
+        logActionError('adjustStockQuantity', error);
         return { success: false, message: 'Failed to adjust stock' };
     }
 }
@@ -85,23 +95,36 @@ export async function updateStockLimits(
             return { success: false, message: 'Stock level not found' };
         }
 
-        await prisma.stockLevel.update({
-            where: {
-                warehouseId_itemId: {
-                    warehouseId,
-                    itemId
+        const userId = parseInt(session.user.id);
+        await prisma.$transaction(async (tx) => {
+            const updated = await tx.stockLevel.update({
+                where: {
+                    warehouseId_itemId: {
+                        warehouseId,
+                        itemId
+                    }
+                },
+                data: {
+                    ...(minStock !== undefined && { minStock }),
+                    ...(maxStock !== undefined && { maxStock })
                 }
-            },
-            data: {
-                ...(minStock !== undefined && { minStock }),
-                ...(maxStock !== undefined && { maxStock })
-            }
+            });
+
+            await tx.auditLog.create({
+                data: {
+                    userId,
+                    action: 'UPDATE',
+                    entity: 'StockLevel',
+                    entityId: String(updated?.id ?? `${warehouseId}:${itemId}`),
+                    details: JSON.stringify({ warehouseId, itemId, minStock, maxStock }),
+                }
+            });
         });
 
         revalidatePath(`/inventory/${itemId}`);
         return { success: true, message: 'Limits updated successfully' };
     } catch (error) {
-        console.error('Update Limits Error:', error);
+        logActionError('updateStockLimits', error);
         return { success: false, message: 'Failed to update limits' };
     }
 }

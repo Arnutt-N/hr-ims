@@ -88,10 +88,21 @@ export async function removeFromCart(cartItemId: number) {
             return { error: 'Item not found' };
         }
 
-        await prisma.cartItem.delete({ where: { id: existing.id } });
+        await prisma.$transaction(async (tx) => {
+            await tx.cartItem.delete({ where: { id: existing.id } });
+            await tx.auditLog.create({
+                data: {
+                    userId,
+                    action: 'DELETE',
+                    entity: 'CartItem',
+                    entityId: String(existing.id),
+                }
+            });
+        });
         revalidatePath('/cart');
         return { success: true };
-    } catch {
+    } catch (error) {
+        console.error('[ActionError:removeFromCart]', error);
         return { error: 'Failed to delete item' };
     }
 }
