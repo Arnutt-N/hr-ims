@@ -17,7 +17,7 @@ describe('maintenance-watchers Server Actions', () => {
 
     beforeEach(async () => {
         resetPrismaMock();
-        ({ auth: authMock } = (await import('@/auth')) as { auth: Mock });
+        ({ auth: authMock } = (await import('@/auth')) as unknown as { auth: Mock });
         authMock.mockReset();
         actions = await import('@/lib/actions/maintenance-watchers');
     });

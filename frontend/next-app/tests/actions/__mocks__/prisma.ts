@@ -30,6 +30,7 @@ type Crud = {
     delete: Mock;
     deleteMany: Mock;
     count: Mock;
+    groupBy: Mock;
 };
 
 function makeCrud(): Crud {
@@ -45,6 +46,7 @@ function makeCrud(): Crud {
         delete: vi.fn(),
         deleteMany: vi.fn(),
         count: vi.fn(),
+        groupBy: vi.fn(),
     };
 }
 

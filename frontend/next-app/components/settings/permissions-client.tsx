@@ -67,7 +67,7 @@ export function PermissionsClient() {
             setPermissions(prev => {
                 const existing = prev.find(p => p.role === role && p.menu === menuLabel);
                 if (existing) {
-                    return prev.map(p => p.id === existing.id ? { ...p, canView: newChecked } : p);
+                    return prev.map(p => (p.role === role && p.menu === menuLabel) ? { ...p, canView: newChecked } : p);
                 } else {
                     return [...prev, { role, menu: menuLabel, path, canView: newChecked }];
                 }

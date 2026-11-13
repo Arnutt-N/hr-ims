@@ -16,7 +16,7 @@ export async function createVerificationToken(userId: number): Promise<string> {
 
     // ลบโทเค็นเก่าของผู้ใช้
     await prisma.emailVerification.deleteMany({
-        where: { userId },
+        where: { userId, type: 'EMAIL_VERIFICATION' },
     });
 
     // สร้างโทเค็นใหม่
@@ -24,6 +24,7 @@ export async function createVerificationToken(userId: number): Promise<string> {
         data: {
             userId,
             token,
+            type: 'EMAIL_VERIFICATION',
             expiresAt,
         },
     });
@@ -42,8 +43,8 @@ export async function verifyToken(token: string): Promise<{
     userId?: number;
 }> {
     try {
-        const verification = await prisma.emailVerification.findUnique({
-            where: { token },
+        const verification = await prisma.emailVerification.findFirst({
+            where: { token, type: 'EMAIL_VERIFICATION' },
             include: { user: true },
         });
 
@@ -118,7 +119,7 @@ export async function createPasswordResetToken(email: string): Promise<string | 
 
     // ลบโทเค็นเก่า
     await prisma.emailVerification.deleteMany({
-        where: { userId: user.id },
+        where: { userId: user.id, type: 'PASSWORD_RESET' },
     });
 
     // สร้างโทเค็นใหม่
@@ -126,6 +127,7 @@ export async function createPasswordResetToken(email: string): Promise<string | 
         data: {
             userId: user.id,
             token,
+            type: 'PASSWORD_RESET',
             expiresAt,
         },
     });
@@ -143,8 +145,8 @@ export async function verifyPasswordResetToken(token: string): Promise<{
     userId?: number;
     message?: string;
 }> {
-    const verification = await prisma.emailVerification.findUnique({
-        where: { token },
+    const verification = await prisma.emailVerification.findFirst({
+        where: { token, type: 'PASSWORD_RESET' },
     });
 
     if (!verification) {
@@ -176,10 +178,10 @@ export async function verifyPasswordResetToken(token: string): Promise<{
  */
 export async function usePasswordResetToken(token: string): Promise<boolean> {
     try {
-        await prisma.emailVerification.delete({
-            where: { token },
+        const result = await prisma.emailVerification.deleteMany({
+            where: { token, type: 'PASSWORD_RESET' },
         });
-        return true;
+        return result.count > 0;
     } catch {
         return false;
     }

@@ -20,8 +20,8 @@ describe('getUserActivity Server Action', () => {
 
     beforeEach(async () => {
         resetPrismaMock();
-        ({ auth: authMock } = (await import('@/auth')) as { auth: Mock });
-        ({ requireRole: requireRoleMock } = (await import('@/lib/auth-guards')) as {
+        ({ auth: authMock } = (await import('@/auth')) as unknown as { auth: Mock });
+        ({ requireRole: requireRoleMock } = (await import('@/lib/auth-guards')) as unknown as {
             requireRole: Mock;
         });
         authMock.mockReset();

@@ -2,6 +2,7 @@
 
 import prisma from '@/lib/prisma';
 import { auth } from '@/auth';
+import { isReadAllSession } from '@/lib/warehouse-scope';
 
 interface HistoryFilters {
     query?: string;
@@ -16,6 +17,9 @@ export async function getHistory(filters: HistoryFilters = {}) {
 
     try {
         const where: any = {};
+        if (!isReadAllSession(session) && session.user.id) {
+            where.userId = parseInt(session.user.id);
+        }
 
         // Keyword search (item name or status)
         if (filters.query) {
@@ -35,9 +39,15 @@ export async function getHistory(filters: HistoryFilters = {}) {
         if (filters.startDate || filters.endDate) {
             where.date = {};
             if (filters.startDate) {
+                if (Number.isNaN(Date.parse(filters.startDate))) {
+                    return { error: 'Invalid start date' };
+                }
                 where.date.gte = new Date(filters.startDate);
             }
             if (filters.endDate) {
+                if (Number.isNaN(Date.parse(filters.endDate))) {
+                    return { error: 'Invalid end date' };
+                }
                 const endDate = new Date(filters.endDate);
                 endDate.setHours(23, 59, 59, 999); // Include entire end date
                 where.date.lte = endDate;

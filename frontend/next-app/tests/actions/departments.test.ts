@@ -12,8 +12,8 @@ describe('departments Server Actions', () => {
     let fetchSpy: ReturnType<typeof vi.spyOn>;
 
     beforeEach(async () => {
-        ({ getCachedAuth } = (await import('@/lib/auth-cache')) as { getCachedAuth: Mock });
-        ({ auth: authMock } = (await import('@/auth')) as { auth: Mock });
+        ({ getCachedAuth } = (await import('@/lib/auth-cache')) as unknown as { getCachedAuth: Mock });
+        ({ auth: authMock } = (await import('@/auth')) as unknown as { auth: Mock });
         getCachedAuth.mockReset();
         authMock.mockReset();
         fetchSpy = vi.spyOn(global, 'fetch').mockReset();

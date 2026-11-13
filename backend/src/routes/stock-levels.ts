@@ -1,25 +1,44 @@
 import { Router } from 'express';
-import { PrismaClient } from '@prisma/client';
-import { requireAuth, requireRole } from '../middleware/auth';
+import { z } from 'zod';
+import prisma from '../utils/prisma';
+import { AuthRequest, requireAuth, requireRole } from '../middleware/auth';
+import { assertWarehouseAccess, getManagedWarehouseIds, isAdminTier, NotFoundError, parsePositiveInt } from '../lib/authz';
+
+const UpsertStockLevelSchema = z.object({
+    warehouseId: z.coerce.number().int().positive(),
+    itemId: z.coerce.number().int().positive(),
+    quantity: z.coerce.number().int().min(0),
+    minStock: z.coerce.number().int().min(0).optional(),
+    maxStock: z.coerce.number().int().min(0).optional(),
+});
 
 const router = Router();
-const prisma = new PrismaClient();
 
-// GET /api/stock-levels - ดึงระดับสต็อกทั้งหมด (with filters)
-router.get('/', async (req, res) => {
+router.get('/', requireAuth, async (req: AuthRequest, res) => {
     try {
         const { warehouseId, itemId, lowStock } = req.query;
+        const user = req.user!;
+
+        const where: any = {
+            ...(itemId && { itemId: parseInt(itemId as string) }),
+            ...(lowStock === 'true' && {
+                quantity: {
+                    lte: prisma.stockLevel.fields.minStock
+                }
+            })
+        };
+        if (isAdminTier(user)) {
+            if (warehouseId) where.warehouseId = parseInt(warehouseId as string);
+        } else {
+            const managed = await getManagedWarehouseIds(prisma, user);
+            where.warehouseId = {
+                in: managed,
+                ...(warehouseId ? { equals: parseInt(warehouseId as string) } : {})
+            };
+        }
 
         const stockLevels = await prisma.stockLevel.findMany({
-            where: {
-                ...(warehouseId && { warehouseId: parseInt(warehouseId as string) }),
-                ...(itemId && { itemId: parseInt(itemId as string) }),
-                ...(lowStock === 'true' && {
-                    quantity: {
-                        lte: prisma.stockLevel.fields.minStock
-                    }
-                })
-            },
+            where,
             include: {
                 warehouse: true,
                 item: true
@@ -35,13 +54,31 @@ router.get('/', async (req, res) => {
 });
 
 // GET /api/stock-levels/:warehouseId/:itemId - ดึงสต็อกของสินค้าในคลังเฉพาะ
-router.get('/:warehouseId/:itemId', async (req, res) => {
+router.get('/:warehouseId/:itemId', requireAuth, async (req: AuthRequest, res) => {
     try {
+        const user = req.user!;
+        const warehouseId = parsePositiveInt(req.params.warehouseId);
+        const itemId = parsePositiveInt(req.params.itemId);
+        if (!warehouseId || !itemId) {
+            return res.status(400).json({ error: 'Invalid warehouse or item ID' });
+        }
+
+        if (!isAdminTier(user)) {
+            try {
+                await assertWarehouseAccess(prisma, user, warehouseId);
+            } catch (err) {
+                if (err instanceof NotFoundError) {
+                    return res.status(404).json({ error: 'Stock level not found' });
+                }
+                throw err;
+            }
+        }
+
         const stockLevel = await prisma.stockLevel.findUnique({
             where: {
                 warehouseId_itemId: {
-                    warehouseId: parseInt(req.params.warehouseId),
-                    itemId: parseInt(req.params.itemId)
+                    warehouseId,
+                    itemId
                 }
             },
             include: {
@@ -64,26 +101,30 @@ router.get('/:warehouseId/:itemId', async (req, res) => {
 // POST /api/stock-levels - สร้าง/อัพเดทระดับสต็อก (Admin only)
 router.post('/', requireAuth, requireRole(['superadmin', 'admin']), async (req, res) => {
     try {
-        const { warehouseId, itemId, quantity, minStock, maxStock } = req.body;
+        const parsed = UpsertStockLevelSchema.safeParse(req.body);
+        if (!parsed.success) {
+            return res.status(400).json({ error: 'Invalid stock level payload', details: parsed.error.flatten() });
+        }
+        const { warehouseId, itemId, quantity, minStock, maxStock } = parsed.data;
 
         const stockLevel = await prisma.stockLevel.upsert({
             where: {
                 warehouseId_itemId: {
-                    warehouseId: parseInt(warehouseId),
-                    itemId: parseInt(itemId)
+                    warehouseId,
+                    itemId
                 }
             },
             update: {
-                quantity: parseInt(quantity),
-                ...(minStock !== undefined && { minStock: parseInt(minStock) }),
-                ...(maxStock !== undefined && { maxStock: parseInt(maxStock) })
+                quantity,
+                ...(minStock !== undefined && { minStock }),
+                ...(maxStock !== undefined && { maxStock })
             },
             create: {
-                warehouseId: parseInt(warehouseId),
-                itemId: parseInt(itemId),
-                quantity: parseInt(quantity),
-                minStock: minStock ? parseInt(minStock) : null,
-                maxStock: maxStock ? parseInt(maxStock) : null
+                warehouseId,
+                itemId,
+                quantity,
+                minStock: minStock ?? null,
+                maxStock: maxStock ?? null
             },
             include: {
                 warehouse: true,
@@ -99,42 +140,63 @@ router.post('/', requireAuth, requireRole(['superadmin', 'admin']), async (req, 
 });
 
 // PATCH /api/stock-levels/:warehouseId/:itemId/adjust - Adjust stock quantity (Approver/Admin)
-router.patch('/:warehouseId/:itemId/adjust', requireAuth, requireRole(['superadmin', 'admin', 'approver']), async (req, res) => {
+router.patch('/:warehouseId/:itemId/adjust', requireAuth, requireRole(['superadmin', 'admin', 'approver']), async (req: AuthRequest, res) => {
     try {
-        const { warehouseId, itemId } = req.params;
-        const { adjustment, note, userId } = req.body; // adjustment can be +/- number
+        const user = req.user!;
+        const warehouseId = parsePositiveInt(req.params.warehouseId);
+        const itemId = parsePositiveInt(req.params.itemId);
+        if (!warehouseId || !itemId) {
+            return res.status(400).json({ error: 'Invalid warehouse or item ID' });
+        }
+        const { adjustment, note } = req.body;
+        const delta = parseInt(adjustment);
+        if (!Number.isFinite(delta)) {
+            return res.status(400).json({ error: 'Invalid adjustment value' });
+        }
+
+        if (!isAdminTier(user)) {
+            try {
+                await assertWarehouseAccess(prisma, user, warehouseId);
+            } catch (err) {
+                if (err instanceof NotFoundError) {
+                    return res.status(404).json({ error: 'Stock level not found' });
+                }
+                throw err;
+            }
+        }
 
         const stockLevel = await prisma.$transaction(async (tx) => {
-            // 1. Get current stock
             const current = await tx.stockLevel.findUnique({
                 where: {
                     warehouseId_itemId: {
-                        warehouseId: parseInt(warehouseId),
-                        itemId: parseInt(itemId)
+                        warehouseId,
+                        itemId
                     }
                 }
             });
 
             if (!current) {
-                throw new Error('Stock level not found');
+                throw new NotFoundError('Stock level not found');
             }
 
-            // 2. Update stock
+            if (current.quantity + delta < 0) {
+                throw new RangeError('Insufficient stock');
+            }
+
             const updated = await tx.stockLevel.update({
                 where: { id: current.id },
-                data: { quantity: { increment: parseInt(adjustment) } },
+                data: { quantity: { increment: delta } },
                 include: { warehouse: true, item: true }
             });
 
-            // 3. Create transaction record
             await tx.stockTransaction.create({
                 data: {
-                    warehouseId: parseInt(warehouseId),
-                    itemId: parseInt(itemId),
-                    quantity: parseInt(adjustment),
+                    warehouseId,
+                    itemId,
+                    quantity: delta,
                     type: 'adjustment',
                     note,
-                    userId: parseInt(userId)
+                    userId: Number(user.id)
                 }
             });
 
@@ -143,24 +205,53 @@ router.patch('/:warehouseId/:itemId/adjust', requireAuth, requireRole(['superadm
 
         res.json(stockLevel);
     } catch (error) {
+        if (error instanceof NotFoundError) {
+            return res.status(404).json({ error: error.message });
+        }
+        if (error instanceof RangeError) {
+            return res.status(400).json({ error: error.message });
+        }
         console.error('Error adjusting stock:', error);
         res.status(500).json({ error: 'Failed to adjust stock' });
     }
 });
 
 // PATCH /api/stock-levels/:warehouseId/:itemId/limits - Update min/max limits (Admin/Approver)
-router.patch('/:warehouseId/:itemId/limits', requireAuth, requireRole(['superadmin', 'admin', 'approver']), async (req, res) => {
+router.patch('/:warehouseId/:itemId/limits', requireAuth, requireRole(['superadmin', 'admin', 'approver']), async (req: AuthRequest, res) => {
     try {
-        const { warehouseId, itemId } = req.params;
+        const user = req.user!;
+        const warehouseId = parsePositiveInt(req.params.warehouseId);
+        const itemId = parsePositiveInt(req.params.itemId);
+        if (!warehouseId || !itemId) {
+            return res.status(400).json({ error: 'Invalid warehouse or item ID' });
+        }
         const { minStock, maxStock } = req.body;
 
-        const stockLevel = await prisma.stockLevel.update({
+        if (!isAdminTier(user)) {
+            try {
+                await assertWarehouseAccess(prisma, user, warehouseId);
+            } catch (err) {
+                if (err instanceof NotFoundError) {
+                    return res.status(404).json({ error: 'Stock level not found' });
+                }
+                throw err;
+            }
+        }
+
+        const existing = await prisma.stockLevel.findUnique({
             where: {
                 warehouseId_itemId: {
-                    warehouseId: parseInt(warehouseId),
-                    itemId: parseInt(itemId)
+                    warehouseId,
+                    itemId
                 }
-            },
+            }
+        });
+        if (!existing) {
+            return res.status(404).json({ error: 'Stock level not found' });
+        }
+
+        const stockLevel = await prisma.stockLevel.update({
+            where: { id: existing.id },
             data: {
                 ...(minStock !== undefined && { minStock: parseInt(minStock) }),
                 ...(maxStock !== undefined && { maxStock: parseInt(maxStock) })

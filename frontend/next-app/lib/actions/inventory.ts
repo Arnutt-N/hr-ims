@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { checkLowStockInternal } from './notifications';
 import { requireRole, ADMIN_ROLES } from '@/lib/auth-guards';
+import { getCachedAuth } from '@/lib/auth-cache';
 
 const InventorySchema = z.object({
     id: z.coerce.number(),
@@ -49,6 +50,9 @@ export async function fetchInventoryItems(
     type?: string,
     warehouseId?: number,
 ) {
+    const session = await getCachedAuth();
+    if (!session?.user) throw new Error('Unauthorized');
+
     const offset = (currentPage - 1) * ITEMS_PER_PAGE;
     const typeFilter = type && type !== 'all' ? { type: type } : {};
     const searchFilter = await buildSearchFilter(query);
@@ -92,6 +96,9 @@ export async function fetchInventoryItems(
 }
 
 export async function fetchInventoryPages(query: string, type?: string) {
+    const session = await getCachedAuth();
+    if (!session?.user) throw new Error('Unauthorized');
+
     const typeFilter = type && type !== 'all' ? { type: type } : {};
     const searchFilter = await buildSearchFilter(query);
 
@@ -116,8 +123,20 @@ export async function deleteInventoryItem(id: number) {
     if (!session) return { error: 'Unauthorized' };
 
     try {
-        await prisma.inventoryItem.delete({
-            where: { id },
+        await prisma.$transaction(async (tx) => {
+            const deleted = await tx.inventoryItem.delete({
+                where: { id },
+            });
+
+            await tx.auditLog.create({
+                data: {
+                    userId: parseInt(session.user.id),
+                    action: 'DELETE',
+                    entity: 'InventoryItem',
+                    entityId: String(id),
+                    details: JSON.stringify({ name: deleted.name, category: deleted.category }),
+                }
+            });
         });
         revalidatePath('/inventory');
         return { message: 'Deleted Inventory Item.' };
@@ -133,10 +152,22 @@ export async function createInventoryItem(data: z.infer<typeof CreateInventory>)
     try {
         const validated = CreateInventory.parse(data);
 
-        await prisma.inventoryItem.create({
-            data: {
-                ...validated
-            }
+        await prisma.$transaction(async (tx) => {
+            const created = await tx.inventoryItem.create({
+                data: {
+                    ...validated
+                }
+            });
+
+            await tx.auditLog.create({
+                data: {
+                    userId: parseInt(session.user.id),
+                    action: 'CREATE',
+                    entity: 'InventoryItem',
+                    entityId: String(created.id),
+                    details: JSON.stringify({ name: created.name, category: created.category, type: created.type }),
+                }
+            });
         });
 
         revalidatePath('/inventory');
@@ -154,11 +185,23 @@ export async function updateInventoryItem(id: number, data: z.infer<typeof Updat
     try {
         const validated = UpdateInventory.parse(data);
 
-        await prisma.inventoryItem.update({
-            where: { id },
-            data: {
-                ...validated
-            }
+        await prisma.$transaction(async (tx) => {
+            const updated = await tx.inventoryItem.update({
+                where: { id },
+                data: {
+                    ...validated
+                }
+            });
+
+            await tx.auditLog.create({
+                data: {
+                    userId: parseInt(session.user.id),
+                    action: 'UPDATE',
+                    entity: 'InventoryItem',
+                    entityId: String(updated.id),
+                    details: JSON.stringify({ name: updated.name, updates: validated }),
+                }
+            });
         });
 
         // Trigger low stock check
@@ -223,6 +266,16 @@ export async function importInventoryItems(items: any[]) {
 
                 successCount++;
             }
+
+            await tx.auditLog.create({
+                data: {
+                    userId: parseInt(session.user.id),
+                    action: 'CREATE',
+                    entity: 'InventoryItem',
+                    entityId: 'bulk-import',
+                    details: JSON.stringify({ count: successCount }),
+                }
+            });
         });
 
         revalidatePath('/inventory');

@@ -6,6 +6,7 @@ import { checkLowStockInternal } from './notifications';
 import { sendOverdueEmail, sendStatusUpdateEmail } from '@/lib/mail';
 import { requireRole, APPROVER_ROLES, sessionHasAnyRole } from '@/lib/auth-guards';
 import { getCachedAuth } from '@/lib/auth-cache';
+import { getManagedWarehouseIds, isAdminSession } from '@/lib/warehouse-scope';
 
 export async function getRequests(status?: string) {
     const session = await getCachedAuth();
@@ -55,6 +56,21 @@ export async function updateRequestStatus(id: number, status: 'approved' | 'reje
         });
 
         if (!request) return { error: 'Request not found' };
+
+        if (!isAdminSession(session)) {
+            const userId = parseInt(session.user.id);
+            const reqWarehouseId = request.warehouseId;
+            if (reqWarehouseId === null) {
+                if (request.userId === userId) {
+                    return { error: 'Request not found' };
+                }
+            } else {
+                const managed = await getManagedWarehouseIds(userId);
+                if (!managed.includes(reqWarehouseId)) {
+                    return { error: 'Request not found' };
+                }
+            }
+        }
 
         // 2. Logic for approval
         if (status === 'approved') {

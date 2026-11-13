@@ -1,13 +1,22 @@
 import { createUploadthing, type FileRouter } from "uploadthing/next";
+import { UploadThingError } from "uploadthing/server";
+import { auth } from "@/auth";
 
 const f = createUploadthing();
+
+export async function requireUploadAuth() {
+    const session = await auth();
+    if (!session?.user) {
+        throw new UploadThingError("Unauthorized");
+    }
+    return { userId: session.user.id };
+}
 
 // FileRouter for your app, can contain multiple "routes"
 export const ourFileRouter = {
     // Define as many FileRoutes as you like, each with a unique routeSlug
     imageUploader: f({ image: { maxFileSize: "4MB" } })
-        // Set permissions and file types for this FileRoute
-        // In an enterprise app, you would add authentication checks here
+        .middleware(requireUploadAuth)
         .onUploadComplete(async ({ file }) => {
             // This code RUNS ON YOUR SERVER after upload
             console.log("Upload complete for url:", file.url);
@@ -25,6 +34,7 @@ export const ourFileRouter = {
         "image/png": { maxFileSize: "4MB", maxFileCount: 5 },
         "image/webp": { maxFileSize: "4MB", maxFileCount: 5 },
     })
+        .middleware(requireUploadAuth)
         .onUploadComplete(async ({ file }) => {
             console.log("Maintenance photo uploaded:", file.url);
             return { url: file.url };

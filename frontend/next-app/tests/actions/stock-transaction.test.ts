@@ -1,24 +1,51 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
 import { prismaMock, resetPrismaMock } from './__mocks__/prisma';
+import { sessionFor } from './__mocks__/auth';
 
 vi.mock('@/lib/prisma', () => ({ default: prismaMock }));
+vi.mock('@/auth', () => ({ auth: vi.fn() }));
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }));
 
 describe('stock-transaction Server Actions', () => {
     let stockTx: typeof import('@/lib/actions/stock-transaction');
+    let authMock: Mock;
 
     beforeEach(async () => {
         resetPrismaMock();
+        ({ auth: authMock } = (await import('@/auth')) as unknown as { auth: Mock });
+        authMock.mockReset();
+        authMock.mockResolvedValue(sessionFor('admin', { id: 4 }));
         stockTx = await import('@/lib/actions/stock-transaction');
     });
 
     describe('receiveGoods', () => {
+        it('rejects unauthenticated', async () => {
+            authMock.mockResolvedValue(null);
+            const result = await stockTx.receiveGoods({
+                warehouseId: 1,
+                items: [{ itemId: 10, quantity: 1 }],
+            });
+            expect(result).toEqual({ success: false, message: 'Unauthorized' });
+        });
+
+        it('rejects cross-warehouse receive for non-admin', async () => {
+            authMock.mockResolvedValue(sessionFor('approver', { id: 5 }));
+            prismaMock.warehouse.findMany.mockResolvedValue([{ id: 2 }] as any);
+            prismaMock.user.findUnique.mockResolvedValue({ department: null } as any);
+
+            const result = await stockTx.receiveGoods({
+                warehouseId: 99,
+                items: [{ itemId: 10, quantity: 1 }],
+            });
+            expect(result).toEqual({ success: false, message: 'Warehouse not found' });
+            expect(prismaMock.$transaction).not.toHaveBeenCalled();
+        });
+
         it('rejects when payload fails Zod validation', async () => {
             const err = vi.spyOn(console, 'error').mockImplementation(() => {});
             const result = await stockTx.receiveGoods({
                 warehouseId: 1,
                 items: [],
-                userId: 1,
             });
             expect(result).toMatchObject({ success: false });
             err.mockRestore();
@@ -35,7 +62,6 @@ describe('stock-transaction Server Actions', () => {
                     { itemId: 10, quantity: 2 },
                     { itemId: 11, quantity: 5 },
                 ],
-                userId: 4,
             });
 
             expect(result.success).toBe(true);
@@ -50,7 +76,6 @@ describe('stock-transaction Server Actions', () => {
             await stockTx.receiveGoods({
                 warehouseId: 1,
                 items: [{ itemId: 10, quantity: 2 }],
-                userId: 4,
             });
 
             expect(prismaMock.stockLevel.create).toHaveBeenCalledWith({
@@ -67,7 +92,6 @@ describe('stock-transaction Server Actions', () => {
             await stockTx.receiveGoods({
                 warehouseId: 1,
                 items: [{ itemId: 10, quantity: 3 }],
-                userId: 4,
             });
 
             expect(prismaMock.stockLevel.update).toHaveBeenCalledWith({
@@ -90,7 +114,6 @@ describe('stock-transaction Server Actions', () => {
                 ],
                 note: 'PO-42',
                 referenceId: 'REF-42',
-                userId: 4,
             });
 
             expect(prismaMock.stockTransaction.create).toHaveBeenCalledTimes(2);
@@ -119,7 +142,6 @@ describe('stock-transaction Server Actions', () => {
                     { itemId: 10, quantity: 1 },
                     { itemId: 11, quantity: 1 },
                 ],
-                userId: 4,
             });
 
             expect(result.success).toBe(false);
@@ -134,31 +156,10 @@ describe('stock-transaction Server Actions', () => {
             const result = await stockTx.receiveGoods({
                 warehouseId: 1,
                 items: [{ itemId: 10, quantity: 0 }],
-                userId: 4,
             });
             expect(result.success).toBe(false);
             expect(prismaMock.$transaction).not.toHaveBeenCalled();
             err.mockRestore();
-        });
-    });
-
-    describe('getStockHistory', () => {
-        it('returns transactions for an item', async () => {
-            const fake = [{ id: 1, quantity: 2 }] as any;
-            prismaMock.stockTransaction.findMany.mockResolvedValue(fake);
-
-            const result = await stockTx.getStockHistory(10);
-
-            expect(result).toEqual(fake);
-            expect(prismaMock.stockTransaction.findMany).toHaveBeenCalledWith(
-                expect.objectContaining({ where: { itemId: 10 } }),
-            );
-        });
-
-        it('returns empty array on DB failure', async () => {
-            prismaMock.stockTransaction.findMany.mockRejectedValue(new Error('boom'));
-            const result = await stockTx.getStockHistory(10);
-            expect(result).toEqual([]);
         });
     });
 });

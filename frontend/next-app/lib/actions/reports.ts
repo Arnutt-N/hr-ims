@@ -2,10 +2,12 @@
 
 import prisma from '@/lib/prisma';
 import { auth } from '@/auth';
+import { ADMIN_ROLES, sessionHasAnyRole } from '@/lib/role-access';
 
 export async function getReportStats() {
     const session = await auth();
     if (!session?.user?.email) return { error: 'Unauthorized' };
+    if (!sessionHasAnyRole(session, ...ADMIN_ROLES, 'auditor')) return { error: 'Forbidden' };
 
     try {
         // 1. Status Breakdown

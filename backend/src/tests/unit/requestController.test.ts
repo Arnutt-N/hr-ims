@@ -52,6 +52,7 @@ describe('updateRequestStatus', () => {
                     warehouseId: 10,
                     userId: 99,
                     type: 'withdraw',
+                    status: 'pending',
                     user: { name: 'Test', email: 'test@example.com' },
                     requestItems: [
                         { itemId: 101, quantity: 5, item: { name: 'Pen' } },
@@ -105,6 +106,7 @@ describe('updateRequestStatus', () => {
                     warehouseId: 20,
                     userId: 88,
                     type: 'borrow',
+                    status: 'pending',
                     user: { name: 'User', email: 'user@example.com' },
                     requestItems: [
                         { itemId: 202, quantity: 3, item: { name: 'Notebook' } },
@@ -153,6 +155,7 @@ describe('updateRequestStatus', () => {
                     warehouseId: 20,
                     userId: 88,
                     type: 'borrow',
+                    status: 'pending',
                     user: { name: 'User', email: 'user@example.com' },
                     requestItems: [
                         { itemId: 202, quantity: 3, item: { name: 'Notebook' } },
@@ -196,6 +199,7 @@ describe('updateRequestStatus', () => {
                     warehouseId: 30,
                     userId: 77,
                     type: 'withdraw',
+                    status: 'pending',
                     user: { name: 'User', email: 'user@example.com' },
                     requestItems: [
                         { itemId: 303, quantity: 50, item: { name: 'Stapler' } },
@@ -236,6 +240,7 @@ describe('updateRequestStatus', () => {
                     warehouseId: 30,
                     userId: 77,
                     type: 'withdraw',
+                    status: 'pending',
                     user: { name: 'User', email: 'user@example.com' },
                     requestItems: [
                         { itemId: 303, quantity: 5, item: { name: 'Stapler' } },

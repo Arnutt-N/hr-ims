@@ -102,6 +102,7 @@ const APPROVER_TIER: MatrixRule[] = [
     { path: '/api/stock-levels/:warehouseId/:itemId/adjust', method: 'PATCH', allowedRoles: ['superadmin', 'admin', 'approver'], body: { quantity: 1 }, pathParams: { warehouseId: '1', itemId: '1' } },
     { path: '/api/stock-levels/:warehouseId/:itemId/limits', method: 'PATCH', allowedRoles: ['superadmin', 'admin', 'approver'], body: { min: 0, max: 100 }, pathParams: { warehouseId: '1', itemId: '1' } },
     { path: '/api/stock-transfers/:id', method: 'PATCH', allowedRoles: ['superadmin', 'admin', 'approver'], body: { status: 'approved' } },
+    { path: '/api/requests/:id/status', method: 'PATCH', allowedRoles: ['superadmin', 'admin', 'approver'], body: { status: 'approved' } },
 ];
 
 /** ---------------------------------------------------------------------
@@ -110,7 +111,15 @@ const APPROVER_TIER: MatrixRule[] = [
 const ANY_AUTH: MatrixRule[] = [
     { path: '/api/health/detailed', method: 'GET', allowedRoles: '*' },
     { path: '/api/email/status', method: 'GET', allowedRoles: '*' },
+    { path: '/api/stock-transfers', method: 'GET', allowedRoles: '*' },
+    { path: '/api/stock-transfers/:id', method: 'GET', allowedRoles: '*' },
     { path: '/api/stock-transfers', method: 'POST', allowedRoles: '*', body: { fromWarehouseId: 1, toWarehouseId: 2, itemId: 1, quantity: 1 } },
+    { path: '/api/stock-levels', method: 'GET', allowedRoles: '*' },
+    { path: '/api/stock-levels/:warehouseId/:itemId', method: 'GET', allowedRoles: '*', pathParams: { warehouseId: '1', itemId: '1' } },
+    { path: '/api/stock-transactions/history/:itemId', method: 'GET', allowedRoles: '*', pathParams: { itemId: '1' } },
+    { path: '/api/inventory', method: 'GET', allowedRoles: '*' },
+    { path: '/api/warehouses', method: 'GET', allowedRoles: '*' },
+    { path: '/api/warehouses/:id', method: 'GET', allowedRoles: '*' },
     { path: '/api/departments/my-mapping', method: 'GET', allowedRoles: '*' },
 ];
 

@@ -11,7 +11,7 @@ describe('reports Server Action', () => {
 
     beforeEach(async () => {
         resetPrismaMock();
-        ({ auth: authMock } = (await import('@/auth')) as { auth: Mock });
+        ({ auth: authMock } = (await import('@/auth')) as unknown as { auth: Mock });
         authMock.mockReset();
         reports = await import('@/lib/actions/reports');
     });
@@ -20,6 +20,24 @@ describe('reports Server Action', () => {
         authMock.mockResolvedValue(null);
         const result = await reports.getReportStats();
         expect(result).toEqual({ error: 'Unauthorized' });
+    });
+
+    it('rejects non-admin user', async () => {
+        authMock.mockResolvedValue(sessionFor('user'));
+        const result = await reports.getReportStats();
+        expect(result).toEqual({ error: 'Forbidden' });
+    });
+
+    it('allows auditor role', async () => {
+        authMock.mockResolvedValue(sessionFor('auditor'));
+        prismaMock.inventoryItem.groupBy = vi.fn().mockResolvedValue([]);
+        prismaMock.history.groupBy = vi.fn().mockResolvedValue([]);
+        prismaMock.user.groupBy = vi.fn().mockResolvedValue([]);
+        prismaMock.request.groupBy = vi.fn().mockResolvedValue([]);
+        prismaMock.history.findMany.mockResolvedValue([]);
+
+        const result = await reports.getReportStats();
+        expect(result).toHaveProperty('success', true);
     });
 
     it('aggregates stats across all 4 dimensions', async () => {

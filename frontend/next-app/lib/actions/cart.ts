@@ -2,7 +2,13 @@
 
 import prisma from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
+import { z } from 'zod';
 import { auth } from '@/auth';
+
+const AddToCartSchema = z.object({
+    itemId: z.coerce.number().int().positive(),
+    quantity: z.coerce.number().int().positive(),
+});
 
 // Get Cart Items
 export async function getCart() {
@@ -29,14 +35,21 @@ export async function addToCart(itemId: number, quantity: number = 1) {
     const session = await auth();
     if (!session?.user?.email) return { error: 'Unauthorized' };
 
+    const parsed = AddToCartSchema.safeParse({ itemId, quantity });
+    if (!parsed.success) {
+        return { error: 'Invalid item or quantity' };
+    }
+    const validatedItemId = parsed.data.itemId;
+    const validatedQty = parsed.data.quantity;
+
     try {
         const user = await prisma.user.findUnique({ where: { email: session.user.email } });
         if (!user) return { error: 'User not found' };
 
         // Check stock?
-        const item = await prisma.inventoryItem.findUnique({ where: { id: itemId } });
+        const item = await prisma.inventoryItem.findUnique({ where: { id: validatedItemId } });
         if (!item) return { error: 'Item not found' };
-        if (item.stock < quantity && item.type === 'consumable') { // Durable logic might be different
+        if (item.stock < validatedQty && item.type === 'consumable') { // Durable logic might be different
             // return { error: 'Not enough stock' }; 
             // Allow adding to cart but warn later?
         }
@@ -46,7 +59,7 @@ export async function addToCart(itemId: number, quantity: number = 1) {
             where: {
                 userId_itemId: {
                     userId: user.id,
-                    itemId: itemId
+                    itemId: validatedItemId
                 }
             }
         });
@@ -54,14 +67,14 @@ export async function addToCart(itemId: number, quantity: number = 1) {
         if (existing) {
             await prisma.cartItem.update({
                 where: { id: existing.id },
-                data: { quantity: existing.quantity + quantity }
+                data: { quantity: existing.quantity + validatedQty }
             });
         } else {
             await prisma.cartItem.create({
                 data: {
                     userId: user.id,
-                    itemId: itemId,
-                    quantity: quantity
+                    itemId: validatedItemId,
+                    quantity: validatedQty
                 }
             });
         }
@@ -77,13 +90,32 @@ export async function addToCart(itemId: number, quantity: number = 1) {
 // Remove from Cart
 export async function removeFromCart(cartItemId: number) {
     const session = await auth();
-    if (!session) return { error: 'Unauthorized' };
+    if (!session?.user?.id) return { error: 'Unauthorized' };
 
     try {
-        await prisma.cartItem.delete({ where: { id: cartItemId } });
+        const userId = parseInt(session.user.id);
+        const existing = await prisma.cartItem.findFirst({
+            where: { id: cartItemId, userId }
+        });
+        if (!existing) {
+            return { error: 'Item not found' };
+        }
+
+        await prisma.$transaction(async (tx) => {
+            await tx.cartItem.delete({ where: { id: existing.id } });
+            await tx.auditLog.create({
+                data: {
+                    userId,
+                    action: 'DELETE',
+                    entity: 'CartItem',
+                    entityId: String(existing.id),
+                }
+            });
+        });
         revalidatePath('/cart');
         return { success: true };
-    } catch {
+    } catch (error) {
+        console.error('[ActionError:removeFromCart]', error);
         return { error: 'Failed to delete item' };
     }
 }

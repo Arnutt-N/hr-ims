@@ -16,8 +16,8 @@ describe('audit Server Actions', () => {
 
     beforeEach(async () => {
         resetPrismaMock();
-        ({ getCachedAuth } = (await import('@/lib/auth-cache')) as { getCachedAuth: Mock });
-        ({ headers: headersMock } = (await import('next/headers')) as { headers: Mock });
+        ({ getCachedAuth } = (await import('@/lib/auth-cache')) as unknown as { getCachedAuth: Mock });
+        ({ headers: headersMock } = (await import('next/headers')) as unknown as { headers: Mock });
         getCachedAuth.mockReset();
         headersMock.mockReset();
         // Default: no headers (test scope) → audit context fields are null.
@@ -138,7 +138,7 @@ describe('audit Server Actions', () => {
                 {
                     action: 'CATEGORY_UPDATE',
                     entity: 'Category',
-                    entityId: (_args, result) => result.id.toString(),
+                    entityId: (_args, result: { id: number }) => result.id.toString(),
                     before: () => ({ id: 5, name: 'Before' }),
                     after: (_args, result) => result,
                     details: ([id]) => ({ targetId: id }),

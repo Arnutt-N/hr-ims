@@ -20,6 +20,18 @@ const requestSchema = z.object({
     assetId: z.number().optional(),
 });
 
+const RequestItemPayloadSchema = z.object({
+    id: z.coerce.number().int().positive(),
+    quantity: z.coerce.number().int().positive(),
+});
+
+const RequestItemsArraySchema = z.array(RequestItemPayloadSchema).min(1);
+
+const UpdateRequestStatusSchema = z.object({
+    status: z.enum(['approved', 'rejected', 'cancelled']),
+    statusMessage: z.string().optional(),
+});
+
 // Helper: Format request type for display
 const formatRequestType = (type: string): string => {
     const typeMap: Record<string, string> = {
@@ -37,7 +49,8 @@ const formatItemsList = (items: any[]): string => {
 
 export const getRequests = async (req: AuthRequest, res: Response) => {
     try {
-        const { role, userId } = req.user;
+        const { role } = req.user;
+        const userId = req.user.userId ?? req.user.id;
 
         let where = {};
         if (role === 'user') {
@@ -78,9 +91,10 @@ const getUserWarehouse = async (department: string | null) => {
 
 export const createRequest = async (req: AuthRequest, res: Response) => {
     try {
-        const { userId, department } = req.user; // Ensure 'department' is available in token or fetched user
+        const { department } = req.user;
+        const userId = req.user.userId ?? req.user.id;
         const data = requestSchema.parse(req.body);
-        const requestItems = JSON.parse(data.items); // Assuming items is JSON string of { itemId, quantity }
+        const requestItems = RequestItemsArraySchema.parse(JSON.parse(data.items)); // Assuming items is JSON string of { id, quantity }
 
         // 1. Identify Warehouse
         // Determine which warehouse this user withdraws from
@@ -113,15 +127,14 @@ export const createRequest = async (req: AuthRequest, res: Response) => {
             const processedItems: { id: number; name: string; quantity: number }[] = [];
 
             for (const item of requestItems) {
-                const { id: itemId, quantity } = item;
-                const parsedItemId = parseInt(itemId);
+                const { id: parsedItemId, quantity } = item;
 
                 const inventoryItem = await tx.inventoryItem.findUnique({
                     where: { id: parsedItemId },
                 });
 
                 if (!inventoryItem) {
-                    throw new Error(`Item ${itemId} not found`);
+                    throw new Error(`Item ${parsedItemId} not found`);
                 }
 
                 // Check available stock (quantity - reserved)
@@ -134,15 +147,15 @@ export const createRequest = async (req: AuthRequest, res: Response) => {
                     },
                 });
 
-                const available = (stockLevel?.quantity ?? 0) - (stockLevel?.reserved ?? 0);
+                if (!stockLevel) {
+                    throw new Error(`Stock level not found for item ${inventoryItem.name} in warehouse ${warehouse.name}`);
+                }
+
+                const available = stockLevel.quantity - stockLevel.reserved;
                 if (available < quantity) {
                     throw new Error(
                         `Insufficient available stock for item ${inventoryItem.name}. Available: ${available}, Requested: ${quantity}`
                     );
-                }
-
-                if (!stockLevel) {
-                    throw new Error(`Stock level not found for item ${inventoryItem.name} in warehouse ${warehouse.name}`);
                 }
 
                 // Reserve stock
@@ -224,9 +237,14 @@ export const createRequest = async (req: AuthRequest, res: Response) => {
 export const updateRequestStatus = async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
-        const { status, statusMessage } = req.body;
+        const parsedBody = UpdateRequestStatusSchema.safeParse(req.body);
+        if (!parsedBody.success) {
+            return res.status(400).json({ message: 'Invalid status', details: parsedBody.error.flatten() });
+        }
+        const { status, statusMessage } = parsedBody.data;
 
         const requestIdNum = parseInt(id);
+        const lowStockChecks: Array<{ itemId: number; warehouseId: number }> = [];
 
         const result = await prisma.$transaction(async (tx: any) => {
             // Fetch request with items and user info
@@ -240,6 +258,10 @@ export const updateRequestStatus = async (req: Request, res: Response) => {
 
             if (!existingRequest) {
                 throw new Error('Request not found');
+            }
+
+            if (existingRequest.status !== 'pending') {
+                throw new Error(`Request is already ${existingRequest.status}`);
             }
 
             if (status === 'approved') {
@@ -298,13 +320,14 @@ export const updateRequestStatus = async (req: Request, res: Response) => {
                         },
                     });
 
-                    // Check low stock after approval
-                    checkAndAlertLowStock(ri.itemId, existingRequest.warehouseId, tx).catch((err) =>
-                        console.error('Low stock check failed:', err)
-                    );
+                    // Queue low stock check after transaction commits
+                    lowStockChecks.push({
+                        itemId: ri.itemId,
+                        warehouseId: existingRequest.warehouseId,
+                    });
                 }
             } else if (status === 'rejected' || status === 'cancelled') {
-                if (!existingRequest.warehouseId) {
+                if (existingRequest.requestItems.length > 0 && !existingRequest.warehouseId) {
                     throw new Error('Request warehouse not found');
                 }
                 for (const ri of existingRequest.requestItems) {
@@ -353,6 +376,13 @@ export const updateRequestStatus = async (req: Request, res: Response) => {
         });
 
         const { updatedRequest, existingRequest } = result;
+
+        // Check low stock outside transaction using root prisma client
+        for (const check of lowStockChecks) {
+            checkAndAlertLowStock(check.itemId, check.warehouseId, prisma).catch((err) =>
+                console.error('Low stock check failed:', err)
+            );
+        }
 
         // ===== SEND NOTIFICATION ON STATUS CHANGE =====
         if (existingRequest.user?.email) {

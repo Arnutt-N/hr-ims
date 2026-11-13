@@ -22,7 +22,7 @@ describe('auth Server Actions', () => {
     let AuthError: typeof Error & { new (type: string, message?: string): Error & { type: string } };
 
     beforeEach(async () => {
-        ({ signIn, signOut } = (await import('@/auth')) as {
+        ({ signIn, signOut } = (await import('@/auth')) as unknown as {
             signIn: Mock;
             signOut: Mock;
         });
