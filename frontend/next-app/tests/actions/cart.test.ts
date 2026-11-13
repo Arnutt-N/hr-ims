@@ -120,12 +120,26 @@ describe('cart Server Actions', () => {
     describe('removeFromCart', () => {
         it('deletes the cart item for authenticated user', async () => {
             authMock.mockResolvedValue(sessionFor('user'));
+            prismaMock.cartItem.findFirst.mockResolvedValue({ id: 99, userId: 8 } as any);
             prismaMock.cartItem.delete.mockResolvedValue({} as any);
 
             const result = await cart.removeFromCart(99);
 
             expect(result).toEqual({ success: true });
+            expect(prismaMock.cartItem.findFirst).toHaveBeenCalledWith({
+                where: { id: 99, userId: 8 },
+            });
             expect(prismaMock.cartItem.delete).toHaveBeenCalledWith({ where: { id: 99 } });
+        });
+
+        it('returns Item not found when cart item belongs to another user', async () => {
+            authMock.mockResolvedValue(sessionFor('user'));
+            prismaMock.cartItem.findFirst.mockResolvedValue(null);
+
+            const result = await cart.removeFromCart(99);
+
+            expect(result).toEqual({ error: 'Item not found' });
+            expect(prismaMock.cartItem.delete).not.toHaveBeenCalled();
         });
 
         it('rejects unauthenticated', async () => {
@@ -136,6 +150,7 @@ describe('cart Server Actions', () => {
 
         it('returns error when delete fails', async () => {
             authMock.mockResolvedValue(sessionFor('user'));
+            prismaMock.cartItem.findFirst.mockResolvedValue({ id: 99, userId: 8 } as any);
             prismaMock.cartItem.delete.mockRejectedValue(new Error('boom'));
             const result = await cart.removeFromCart(99);
             expect(result).toEqual({ error: 'Failed to delete item' });

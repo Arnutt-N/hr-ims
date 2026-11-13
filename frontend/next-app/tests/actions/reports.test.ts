@@ -22,6 +22,12 @@ describe('reports Server Action', () => {
         expect(result).toEqual({ error: 'Unauthorized' });
     });
 
+    it('rejects non-admin user', async () => {
+        authMock.mockResolvedValue(sessionFor('user'));
+        const result = await reports.getReportStats();
+        expect(result).toEqual({ error: 'Forbidden' });
+    });
+
     it('aggregates stats across all 4 dimensions', async () => {
         authMock.mockResolvedValue(sessionFor('admin'));
         prismaMock.inventoryItem.groupBy = vi.fn().mockResolvedValue([

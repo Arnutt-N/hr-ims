@@ -33,6 +33,16 @@ describe('history Server Action', () => {
         expect(call.take).toBe(100);
     });
 
+    it('scopes history by userId for regular user', async () => {
+        authMock.mockResolvedValue(sessionFor('user', { id: 8 }));
+        prismaMock.history.findMany.mockResolvedValue([] as any);
+
+        await history.getHistory();
+
+        const call = prismaMock.history.findMany.mock.calls[0][0];
+        expect(call.where.userId).toBe(8);
+    });
+
     it('builds OR clause for free-text query', async () => {
         authMock.mockResolvedValue(sessionFor('admin'));
         prismaMock.history.findMany.mockResolvedValue([] as any);

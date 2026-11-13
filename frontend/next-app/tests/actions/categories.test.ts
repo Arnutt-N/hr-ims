@@ -22,7 +22,14 @@ describe('categories Server Actions', () => {
     });
 
     describe('getCategories', () => {
+        it('rejects unauthenticated', async () => {
+            getCachedAuth.mockResolvedValue(null);
+            const result = await categories.getCategories();
+            expect(result).toEqual({ error: 'Unauthorized' });
+        });
+
         it('returns sorted list', async () => {
+            getCachedAuth.mockResolvedValue(sessionFor('user'));
             prismaMock.category.findMany.mockResolvedValue([
                 { id: 1, name: 'A' },
                 { id: 2, name: 'B' },
@@ -37,6 +44,7 @@ describe('categories Server Actions', () => {
         });
 
         it('returns error on DB failure', async () => {
+            getCachedAuth.mockResolvedValue(sessionFor('user'));
             const err = vi.spyOn(console, 'error').mockImplementation(() => {});
             prismaMock.category.findMany.mockRejectedValue(new Error('boom'));
             const result = await categories.getCategories();

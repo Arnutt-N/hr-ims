@@ -20,6 +20,7 @@ describe('inventory Server Actions', () => {
         ({ getCachedAuth } = (await import('@/lib/auth-cache')) as { getCachedAuth: Mock });
         ({ searchInventoryItems } = (await import('@/lib/meilisearch')) as { searchInventoryItems: Mock });
         getCachedAuth.mockReset();
+        getCachedAuth.mockResolvedValue(sessionFor('user'));
         searchInventoryItems.mockReset();
         inventory = await import('@/lib/actions/inventory');
     });
@@ -33,6 +34,11 @@ describe('inventory Server Actions', () => {
     };
 
     describe('fetchInventoryItems', () => {
+        it('rejects unauthenticated', async () => {
+            getCachedAuth.mockResolvedValue(null);
+            await expect(inventory.fetchInventoryItems('', 1)).rejects.toThrow('Unauthorized');
+        });
+
         it('returns items with summed stock when no warehouseId given', async () => {
             searchInventoryItems.mockResolvedValue([]);
             prismaMock.inventoryItem.findMany.mockResolvedValue([

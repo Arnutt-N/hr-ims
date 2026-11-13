@@ -1,24 +1,46 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
 import { prismaMock, resetPrismaMock } from './__mocks__/prisma';
+import { sessionFor } from './__mocks__/auth';
 
 vi.mock('@/lib/prisma', () => ({ default: prismaMock }));
+vi.mock('@/auth', () => ({ auth: vi.fn() }));
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }));
 
 describe('stock-management Server Actions', () => {
     let stockMgmt: typeof import('@/lib/actions/stock-management');
+    let authMock: Mock;
 
     beforeEach(async () => {
         resetPrismaMock();
+        ({ auth: authMock } = (await import('@/auth')) as { auth: Mock });
+        authMock.mockReset();
+        authMock.mockResolvedValue(sessionFor('admin', { id: 4 }));
         stockMgmt = await import('@/lib/actions/stock-management');
     });
 
     describe('adjustStockQuantity', () => {
+        it('rejects unauthenticated', async () => {
+            authMock.mockResolvedValue(null);
+            const result = await stockMgmt.adjustStockQuantity(1, 10, 5, 'restock');
+            expect(result).toEqual({ success: false, message: 'Unauthorized' });
+        });
+
+        it('rejects cross-warehouse adjustment for non-admin', async () => {
+            authMock.mockResolvedValue(sessionFor('approver', { id: 5 }));
+            prismaMock.warehouse.findMany.mockResolvedValue([{ id: 2 }] as any);
+            prismaMock.user.findUnique.mockResolvedValue({ department: null } as any);
+
+            const result = await stockMgmt.adjustStockQuantity(99, 10, 5, 'restock');
+            expect(result).toEqual({ success: false, message: 'Stock level not found' });
+            expect(prismaMock.$transaction).not.toHaveBeenCalled();
+        });
+
         it('reads current stock, updates by adjustment, and records a transaction', async () => {
             prismaMock.stockLevel.findUnique.mockResolvedValue({ id: 99, quantity: 10 } as any);
             prismaMock.stockLevel.update.mockResolvedValue({} as any);
             prismaMock.stockTransaction.create.mockResolvedValue({} as any);
 
-            const result = await stockMgmt.adjustStockQuantity(1, 10, 5, 'restock', 4);
+            const result = await stockMgmt.adjustStockQuantity(1, 10, 5, 'restock');
 
             expect(result.success).toBe(true);
             expect(prismaMock.$transaction).toHaveBeenCalledTimes(1);
@@ -42,7 +64,7 @@ describe('stock-management Server Actions', () => {
             prismaMock.stockLevel.findUnique.mockResolvedValue(null);
             const err = vi.spyOn(console, 'error').mockImplementation(() => {});
 
-            const result = await stockMgmt.adjustStockQuantity(1, 10, 5, 'note', 4);
+            const result = await stockMgmt.adjustStockQuantity(1, 10, 5, 'note');
 
             expect(result.success).toBe(false);
             expect(prismaMock.stockLevel.update).not.toHaveBeenCalled();
@@ -55,7 +77,7 @@ describe('stock-management Server Actions', () => {
             prismaMock.stockLevel.update.mockResolvedValue({} as any);
             prismaMock.stockTransaction.create.mockResolvedValue({} as any);
 
-            await stockMgmt.adjustStockQuantity(1, 10, -3, 'damaged', 4);
+            await stockMgmt.adjustStockQuantity(1, 10, -3, 'damaged');
 
             expect(prismaMock.stockLevel.update).toHaveBeenCalledWith({
                 where: { id: 99 },
@@ -65,6 +87,21 @@ describe('stock-management Server Actions', () => {
     });
 
     describe('updateStockLimits', () => {
+        it('rejects unauthenticated', async () => {
+            authMock.mockResolvedValue(null);
+            const result = await stockMgmt.updateStockLimits(1, 10, 5);
+            expect(result).toEqual({ success: false, message: 'Unauthorized' });
+        });
+
+        it('rejects cross-warehouse update for non-admin', async () => {
+            authMock.mockResolvedValue(sessionFor('approver', { id: 5 }));
+            prismaMock.warehouse.findMany.mockResolvedValue([{ id: 2 }] as any);
+            prismaMock.user.findUnique.mockResolvedValue({ department: null } as any);
+
+            const result = await stockMgmt.updateStockLimits(99, 10, 5);
+            expect(result).toEqual({ success: false, message: 'Stock level not found' });
+            expect(prismaMock.stockLevel.update).not.toHaveBeenCalled();
+        });
         it('updates only minStock when maxStock undefined', async () => {
             prismaMock.stockLevel.update.mockResolvedValue({} as any);
 

@@ -98,6 +98,32 @@ describe('requests Server Actions', () => {
             expect(result).toEqual({ error: 'Request not found' });
         });
 
+        it('returns "Request not found" when approver does not manage request warehouse', async () => {
+            getCachedAuth.mockResolvedValue(sessionFor('approver', { id: 5 }));
+            prismaMock.request.findUnique.mockResolvedValue(baseRequest as any);
+            prismaMock.warehouse.findMany.mockResolvedValue([{ id: 1 }] as any);
+            prismaMock.user.findUnique.mockResolvedValue({ department: null } as any);
+
+            const result = await requests.updateRequestStatus(11, 'approved');
+            expect(result).toEqual({ error: 'Request not found' });
+            expect(prismaMock.$transaction).not.toHaveBeenCalled();
+        });
+
+        it('allows warehouse-null request when non-admin approver is owner', async () => {
+            getCachedAuth.mockResolvedValue(sessionFor('approver', { id: 5 }));
+            prismaMock.request.findUnique.mockResolvedValue({
+                ...baseRequest,
+                userId: 5,
+                warehouseId: null,
+                type: 'return',
+            } as any);
+            prismaMock.request.update.mockResolvedValue({} as any);
+            prismaMock.user.findUnique.mockResolvedValue({ email: null, name: 'Owner' } as any);
+
+            const result = await requests.updateRequestStatus(11, 'approved');
+            expect(result).toEqual({ success: true });
+        });
+
         it('decrements stock + reservation atomically and writes history', async () => {
             getCachedAuth.mockResolvedValue(sessionFor('admin', { id: 4 }));
             prismaMock.request.findUnique.mockResolvedValue(baseRequest as any);

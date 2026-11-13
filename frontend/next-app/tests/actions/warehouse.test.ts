@@ -133,19 +133,34 @@ describe('warehouse Server Actions', () => {
     });
 
     describe('getDivisions / getProvinces', () => {
+        it('getDivisions rejects unauthenticated', async () => {
+            authMock.mockResolvedValue(null);
+            const result = await warehouse.getDivisions();
+            expect(result).toEqual({ error: 'Unauthorized' });
+        });
+
+        it('getProvinces rejects unauthenticated', async () => {
+            authMock.mockResolvedValue(null);
+            const result = await warehouse.getProvinces();
+            expect(result).toEqual({ error: 'Unauthorized' });
+        });
+
         it('getDivisions returns ordered list', async () => {
+            authMock.mockResolvedValue(sessionFor('user'));
             prismaMock.division.findMany.mockResolvedValue([{ id: 1 }] as any);
             const result = (await warehouse.getDivisions()) as any;
             expect(result.success).toBe(true);
         });
 
         it('getProvinces returns ordered list', async () => {
+            authMock.mockResolvedValue(sessionFor('user'));
             prismaMock.province.findMany.mockResolvedValue([{ id: 1 }] as any);
             const result = (await warehouse.getProvinces()) as any;
             expect(result.success).toBe(true);
         });
 
         it('getDivisions returns error on DB failure', async () => {
+            authMock.mockResolvedValue(sessionFor('user'));
             const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
             prismaMock.division.findMany.mockRejectedValue(new Error('boom'));
             const result = await warehouse.getDivisions();
