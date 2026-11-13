@@ -116,7 +116,7 @@ export async function assertWarehouseAccess(prisma, user, warehouseId): Promise<
 **Auth style:** routes ที่ถูกเรียกจาก UI ผ่าน Next.js `proxy.ts` (ส่ง `x-user-*` + `x-internal-key`) ต้องใช้ `requireAuth` (proxy style) — **ไม่ใช้** `authenticateToken` (JWT) กับ routes ที่ rbac-matrix ทดสอบอยู่ เพราะ `ANY_AUTH` rules ส่งแค่ x-user headers แล้ว `authenticateToken` จะ 401 ทั้งหมด (regression เทียม) `authenticateToken` เก็บไว้เฉพาะ route ที่ตั้งใจให้ external JWT consumer เรียก (ไม่มีในขอบเขตนี้)
 
 - `stock-transfers.ts`: `router.use(requireAuth)` ทั้งไฟล์; POST: `requestedBy: req.user.id` (เพิกเฉย body field); PATCH: `approvedBy: req.user.id` (drop body field); GET `/` + `/:id`: admin tier เห็นหมด, อื่นก็กรอง `fromWarehouseId`/`toWarehouseId` ∈ managed warehouses หรือ `requestedBy = user.id`
-- `stock-levels.ts`: GET `/` + GET `/:warehouseId/:itemId` เพิ่ม `requireAuth` + warehouse scope (admin tier เห็นหมด); POST/PATCH ทั้ง 2 เพิ่ม `assertWarehouseAccess` (V16)
+- `stock-levels.ts`: GET `/` + GET `/:warehouseId/:itemId` เพิ่ม `requireAuth` + warehouse scope (admin tier เห็นหมด); PATCH ทั้ง 2 (`/adjust`, `/limits`) เพิ่ม `assertWarehouseAccess` (V16; POST คง `requireRole(['superadmin','admin'])` อยู่แล้ว = admin tier) + adjust route ใช้ `userId` จาก session ไม่ใช่ body
 - `stock-transactions.ts`: GET `/history/:itemId` เพิ่ม warehouse scope
 - `requests.ts`: PATCH `/:id/status` → `authorize(['superadmin','admin','approver'])` (V15: ตัด `'hr'` ที่ตายแล้ว) + ตรวจ `request.warehouseId ∈ managed warehouses` (admin tier ผ่าน)
 - `inventory.ts` + `warehouses.ts` (V21): `GET /` ทั้ง 2 เพิ่ม `requireAuth` (+ warehouse scope บน `GET /api/warehouses/:id` เฉพาะ staff ของคลัง หรือเก็บ public ตาม policy decision §3 V21 — ถ้า product ต้องการ catalog เปิด)
