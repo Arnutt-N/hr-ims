@@ -185,16 +185,17 @@ describe('Object-level authorization (IDOR remediation)', () => {
                 id: 1,
                 warehouseId: null,
                 userId: 99,
+                status: 'pending',
                 type: 'return',
                 user: { name: 'Requester', email: null },
                 requestItems: [],
             });
-        mockPrisma.request.update.mockResolvedValue({ id: 1, status: 'pending', type: 'return' });
+        mockPrisma.request.update.mockResolvedValue({ id: 1, status: 'rejected', type: 'return' });
 
         const res = await request(app)
             .patch('/api/requests/1/status')
             .set(proxyHeaders(5, 'approver'))
-            .send({ status: 'pending' });
+            .send({ status: 'rejected' });
 
         expect(res.status).toBe(200);
     });

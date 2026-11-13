@@ -151,7 +151,7 @@ describe('createRequest', () => {
 
         const req: any = {
             user: { userId: 1, department: 'Central' },
-            body: { items: JSON.stringify([{ id: '101', quantity: 0 }]), type: 'withdraw' },
+            body: { items: JSON.stringify([{ id: '101', quantity: 1 }]), type: 'withdraw' },
         };
         const res = createRes();
 

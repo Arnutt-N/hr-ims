@@ -25,7 +25,7 @@ describe('users Server Actions', () => {
 
     beforeEach(async () => {
         resetPrismaMock();
-        ({ getCachedAuth } = (await import('@/lib/auth-cache')) as { getCachedAuth: Mock });
+        ({ getCachedAuth } = (await import('@/lib/auth-cache')) as unknown as { getCachedAuth: Mock });
         getCachedAuth.mockReset();
         const bcryptModule = (await import('bcrypt')) as any;
         bcryptHash = bcryptModule.default?.hash ?? bcryptModule.hash;
@@ -306,14 +306,14 @@ describe('users Server Actions', () => {
     describe('getUsersForAssignment', () => {
         it('rejects unauthenticated', async () => {
             // This action calls auth() directly, not getCachedAuth.
-            const { auth } = (await import('@/auth')) as { auth: Mock };
+            const { auth } = (await import('@/auth')) as unknown as { auth: Mock };
             auth.mockReset().mockResolvedValue(null);
             const result = await users.getUsersForAssignment();
             expect(result).toEqual({ error: 'Unauthorized' });
         });
 
         it('returns active users only', async () => {
-            const { auth } = (await import('@/auth')) as { auth: Mock };
+            const { auth } = (await import('@/auth')) as unknown as { auth: Mock };
             auth.mockReset().mockResolvedValue(sessionFor('user'));
             prismaMock.user.findMany.mockResolvedValue([{ id: 1, name: 'A' }] as any);
 

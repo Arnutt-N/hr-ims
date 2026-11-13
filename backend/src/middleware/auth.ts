@@ -5,6 +5,7 @@ import jwt from 'jsonwebtoken';
 export interface AuthRequest extends Request {
     user?: {
         id: number;
+        userId?: number;
         role: string;
         roles?: string[];
         email?: string;
@@ -22,8 +23,6 @@ const parseRoles = (raw: unknown): string[] => {
         .filter(Boolean);
 };
 
-const INTERNAL_API_KEY = process.env.INTERNAL_API_KEY;
-
 // JWT-based authentication (for direct API calls)
 export const authenticateToken = (req: AuthRequest, res: Response, next: NextFunction) => {
     const authHeader = req.headers['authorization'];
@@ -39,8 +38,11 @@ export const authenticateToken = (req: AuthRequest, res: Response, next: NextFun
         }
         // [2026-02-10] Modified by CodeX: normalize roles from token payload
         const roles = parseRoles(user?.roles ?? user?.role);
+        const normalizedId = Number(user?.id ?? user?.userId);
         req.user = {
             ...user,
+            id: normalizedId,
+            userId: normalizedId,
             roles,
             role: roles[0] || user?.role
         };
@@ -56,9 +58,10 @@ export const requireAuth = (req: AuthRequest, res: Response, next: NextFunction)
     const userId = req.headers['x-user-id'] as string;
     const userRole = req.headers['x-user-role'] as string;
     const internalKey = req.headers['x-internal-key'] as string;
+    const expectedKey = process.env.INTERNAL_API_KEY;
 
     // Verify internal shared secret to prevent direct header spoofing
-    if (internalKey !== INTERNAL_API_KEY) {
+    if (!expectedKey || internalKey !== expectedKey) {
         return res.status(401).json({
             error: 'Unauthorized',
             message: 'Invalid internal API key.'
@@ -74,10 +77,12 @@ export const requireAuth = (req: AuthRequest, res: Response, next: NextFunction)
 
     // [2026-02-10] Modified by CodeX: support comma-separated multi-role header
     const roles = parseRoles(userRole);
+    const normalizedId = parseInt(userId, 10);
 
     // Attach user info to request
     req.user = {
-        id: parseInt(userId),
+        id: normalizedId,
+        userId: normalizedId,
         role: roles[0] || userRole,
         roles
     };

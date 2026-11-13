@@ -11,7 +11,7 @@ describe('history Server Action', () => {
 
     beforeEach(async () => {
         resetPrismaMock();
-        ({ auth: authMock } = (await import('@/auth')) as { auth: Mock });
+        ({ auth: authMock } = (await import('@/auth')) as unknown as { auth: Mock });
         authMock.mockReset();
         history = await import('@/lib/actions/history');
     });
@@ -90,6 +90,17 @@ describe('history Server Action', () => {
         expect(lte.getHours()).toBe(23);
         expect(lte.getMinutes()).toBe(59);
         expect(lte.getMilliseconds()).toBe(999);
+    });
+
+    it('rejects invalid startDate/endDate strings (F-015)', async () => {
+        authMock.mockResolvedValue(sessionFor('admin'));
+
+        const badStart = await history.getHistory({ startDate: 'not-a-date' });
+        expect(badStart).toEqual({ error: 'Invalid start date' });
+
+        const badEnd = await history.getHistory({ endDate: 'not-a-date' });
+        expect(badEnd).toEqual({ error: 'Invalid end date' });
+        expect(prismaMock.history.findMany).not.toHaveBeenCalled();
     });
 
     it('returns generic error on DB failure', async () => {

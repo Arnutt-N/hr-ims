@@ -22,8 +22,8 @@ describe('i18n EN/TH key parity', () => {
         const enKeys = new Set(Object.keys(MESSAGES.en));
         const thKeys = new Set(Object.keys(MESSAGES.th));
 
-        const missingInTh = [...enKeys].filter((k) => !thKeys.has(k)).sort();
-        const missingInEn = [...thKeys].filter((k) => !enKeys.has(k)).sort();
+        const missingInTh = Array.from(enKeys).filter((k) => !thKeys.has(k)).sort();
+        const missingInEn = Array.from(thKeys).filter((k) => !enKeys.has(k)).sort();
 
         expect(
             missingInTh,

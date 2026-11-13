@@ -28,11 +28,12 @@ const baseConfig = {
         'uploadthing',
     ],
     async rewrites() {
+        const backendUrl = process.env.BACKEND_URL || 'http://localhost:3001';
         return {
             fallback: [
                 {
                     source: '/api/:path*',
-                    destination: 'http://localhost:3001/api/:path*', // Proxy to express backend
+                    destination: `${backendUrl}/api/:path*`, // Proxy to express backend
                 },
             ],
         };

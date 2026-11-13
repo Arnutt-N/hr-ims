@@ -5,6 +5,7 @@ import { useSession } from 'next-auth/react';
 import { Button } from '@/components/ui/button';
 import { Edit } from 'lucide-react';
 import EditItemDialog from './EditItemDialog';
+import { ADMIN_ROLES, sessionHasAnyRole } from '@/lib/role-access';
 
 interface ItemHeaderActionsProps {
     item: {
@@ -21,8 +22,7 @@ interface ItemHeaderActionsProps {
 
 export default function ItemHeaderActions({ item }: ItemHeaderActionsProps) {
     const { data: session } = useSession();
-    const userRole = (session?.user as any)?.role || 'user';
-    const canEdit = ['superadmin', 'admin'].includes(userRole);
+    const canEdit = sessionHasAnyRole(session, ...ADMIN_ROLES);
 
     const [editDialogOpen, setEditDialogOpen] = useState(false);
 

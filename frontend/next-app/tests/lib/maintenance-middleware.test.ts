@@ -87,7 +87,11 @@ describe('soft-delete middleware', () => {
 
     it('injects deletedAt:null on findUnique with no where args', async () => {
         const next = vi.fn().mockResolvedValue(null);
-        const params = { model: 'MaintenanceRequestItem', action: 'findUnique', args: {} };
+        const params: { model: string; action: string; args: { where?: Record<string, unknown> } } = {
+            model: 'MaintenanceRequestItem',
+            action: 'findUnique',
+            args: {},
+        };
         await middleware(params, next);
         expect(params.args.where).toEqual({ deletedAt: null });
     });
@@ -116,7 +120,11 @@ describe('soft-delete middleware', () => {
 
     it('handles count action', async () => {
         const next = vi.fn().mockResolvedValue(5);
-        const params = { model: 'MaintenanceRequest', action: 'count', args: {} };
+        const params: { model: string; action: string; args: { where?: Record<string, unknown> } } = {
+            model: 'MaintenanceRequest',
+            action: 'count',
+            args: {},
+        };
         await middleware(params, next);
         expect(params.args.where).toEqual({ deletedAt: null });
     });

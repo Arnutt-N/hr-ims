@@ -5,12 +5,13 @@ import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { auth } from '@/auth';
 import { canAccessWarehouse } from '@/lib/warehouse-scope';
+import { APPROVER_ROLES, sessionHasAnyRole } from '@/lib/role-access';
 
 const InboundSchema = z.object({
-    warehouseId: z.coerce.number(),
+    warehouseId: z.coerce.number().int().positive(),
     items: z.array(z.object({
-        itemId: z.coerce.number(),
-        quantity: z.coerce.number().min(1),
+        itemId: z.coerce.number().int().positive(),
+        quantity: z.coerce.number().int().positive(),
     })).min(1),
     note: z.string().optional(),
     referenceId: z.string().optional(),
@@ -20,6 +21,9 @@ export async function receiveGoods(formData: any) {
     const session = await auth();
     if (!session?.user?.id) {
         return { success: false, message: 'Unauthorized' };
+    }
+    if (!sessionHasAnyRole(session, ...APPROVER_ROLES)) {
+        return { success: false, message: 'Forbidden: Insufficient permissions' };
     }
     const userId = parseInt(session.user.id);
 

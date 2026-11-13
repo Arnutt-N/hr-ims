@@ -17,8 +17,8 @@ describe('inventory Server Actions', () => {
 
     beforeEach(async () => {
         resetPrismaMock();
-        ({ getCachedAuth } = (await import('@/lib/auth-cache')) as { getCachedAuth: Mock });
-        ({ searchInventoryItems } = (await import('@/lib/meilisearch')) as { searchInventoryItems: Mock });
+        ({ getCachedAuth } = (await import('@/lib/auth-cache')) as unknown as { getCachedAuth: Mock });
+        ({ searchInventoryItems } = (await import('@/lib/meilisearch')) as unknown as { searchInventoryItems: Mock });
         getCachedAuth.mockReset();
         getCachedAuth.mockResolvedValue(sessionFor('user'));
         searchInventoryItems.mockReset();

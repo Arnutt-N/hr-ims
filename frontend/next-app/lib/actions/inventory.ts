@@ -123,8 +123,20 @@ export async function deleteInventoryItem(id: number) {
     if (!session) return { error: 'Unauthorized' };
 
     try {
-        await prisma.inventoryItem.delete({
-            where: { id },
+        await prisma.$transaction(async (tx) => {
+            const deleted = await tx.inventoryItem.delete({
+                where: { id },
+            });
+
+            await tx.auditLog.create({
+                data: {
+                    userId: parseInt(session.user.id),
+                    action: 'DELETE',
+                    entity: 'InventoryItem',
+                    entityId: String(id),
+                    details: JSON.stringify({ name: deleted.name, category: deleted.category }),
+                }
+            });
         });
         revalidatePath('/inventory');
         return { message: 'Deleted Inventory Item.' };
@@ -140,10 +152,22 @@ export async function createInventoryItem(data: z.infer<typeof CreateInventory>)
     try {
         const validated = CreateInventory.parse(data);
 
-        await prisma.inventoryItem.create({
-            data: {
-                ...validated
-            }
+        await prisma.$transaction(async (tx) => {
+            const created = await tx.inventoryItem.create({
+                data: {
+                    ...validated
+                }
+            });
+
+            await tx.auditLog.create({
+                data: {
+                    userId: parseInt(session.user.id),
+                    action: 'CREATE',
+                    entity: 'InventoryItem',
+                    entityId: String(created.id),
+                    details: JSON.stringify({ name: created.name, category: created.category, type: created.type }),
+                }
+            });
         });
 
         revalidatePath('/inventory');
@@ -161,11 +185,23 @@ export async function updateInventoryItem(id: number, data: z.infer<typeof Updat
     try {
         const validated = UpdateInventory.parse(data);
 
-        await prisma.inventoryItem.update({
-            where: { id },
-            data: {
-                ...validated
-            }
+        await prisma.$transaction(async (tx) => {
+            const updated = await tx.inventoryItem.update({
+                where: { id },
+                data: {
+                    ...validated
+                }
+            });
+
+            await tx.auditLog.create({
+                data: {
+                    userId: parseInt(session.user.id),
+                    action: 'UPDATE',
+                    entity: 'InventoryItem',
+                    entityId: String(updated.id),
+                    details: JSON.stringify({ name: updated.name, updates: validated }),
+                }
+            });
         });
 
         // Trigger low stock check
@@ -230,6 +266,16 @@ export async function importInventoryItems(items: any[]) {
 
                 successCount++;
             }
+
+            await tx.auditLog.create({
+                data: {
+                    userId: parseInt(session.user.id),
+                    action: 'CREATE',
+                    entity: 'InventoryItem',
+                    entityId: 'bulk-import',
+                    details: JSON.stringify({ count: successCount }),
+                }
+            });
         });
 
         revalidatePath('/inventory');

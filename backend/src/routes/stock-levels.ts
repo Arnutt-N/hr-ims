@@ -1,7 +1,16 @@
 import { Router } from 'express';
+import { z } from 'zod';
 import prisma from '../utils/prisma';
 import { AuthRequest, requireAuth, requireRole } from '../middleware/auth';
 import { assertWarehouseAccess, getManagedWarehouseIds, isAdminTier, NotFoundError, parsePositiveInt } from '../lib/authz';
+
+const UpsertStockLevelSchema = z.object({
+    warehouseId: z.coerce.number().int().positive(),
+    itemId: z.coerce.number().int().positive(),
+    quantity: z.coerce.number().int().min(0),
+    minStock: z.coerce.number().int().min(0).optional(),
+    maxStock: z.coerce.number().int().min(0).optional(),
+});
 
 const router = Router();
 
@@ -57,8 +66,11 @@ router.get('/:warehouseId/:itemId', requireAuth, async (req: AuthRequest, res) =
         if (!isAdminTier(user)) {
             try {
                 await assertWarehouseAccess(prisma, user, warehouseId);
-            } catch {
-                return res.status(404).json({ error: 'Stock level not found' });
+            } catch (err) {
+                if (err instanceof NotFoundError) {
+                    return res.status(404).json({ error: 'Stock level not found' });
+                }
+                throw err;
             }
         }
 
@@ -89,26 +101,30 @@ router.get('/:warehouseId/:itemId', requireAuth, async (req: AuthRequest, res) =
 // POST /api/stock-levels - สร้าง/อัพเดทระดับสต็อก (Admin only)
 router.post('/', requireAuth, requireRole(['superadmin', 'admin']), async (req, res) => {
     try {
-        const { warehouseId, itemId, quantity, minStock, maxStock } = req.body;
+        const parsed = UpsertStockLevelSchema.safeParse(req.body);
+        if (!parsed.success) {
+            return res.status(400).json({ error: 'Invalid stock level payload', details: parsed.error.flatten() });
+        }
+        const { warehouseId, itemId, quantity, minStock, maxStock } = parsed.data;
 
         const stockLevel = await prisma.stockLevel.upsert({
             where: {
                 warehouseId_itemId: {
-                    warehouseId: parseInt(warehouseId),
-                    itemId: parseInt(itemId)
+                    warehouseId,
+                    itemId
                 }
             },
             update: {
-                quantity: parseInt(quantity),
-                ...(minStock !== undefined && { minStock: parseInt(minStock) }),
-                ...(maxStock !== undefined && { maxStock: parseInt(maxStock) })
+                quantity,
+                ...(minStock !== undefined && { minStock }),
+                ...(maxStock !== undefined && { maxStock })
             },
             create: {
-                warehouseId: parseInt(warehouseId),
-                itemId: parseInt(itemId),
-                quantity: parseInt(quantity),
-                minStock: minStock ? parseInt(minStock) : null,
-                maxStock: maxStock ? parseInt(maxStock) : null
+                warehouseId,
+                itemId,
+                quantity,
+                minStock: minStock ?? null,
+                maxStock: maxStock ?? null
             },
             include: {
                 warehouse: true,
@@ -141,8 +157,11 @@ router.patch('/:warehouseId/:itemId/adjust', requireAuth, requireRole(['superadm
         if (!isAdminTier(user)) {
             try {
                 await assertWarehouseAccess(prisma, user, warehouseId);
-            } catch {
-                return res.status(404).json({ error: 'Stock level not found' });
+            } catch (err) {
+                if (err instanceof NotFoundError) {
+                    return res.status(404).json({ error: 'Stock level not found' });
+                }
+                throw err;
             }
         }
 
@@ -211,8 +230,11 @@ router.patch('/:warehouseId/:itemId/limits', requireAuth, requireRole(['superadm
         if (!isAdminTier(user)) {
             try {
                 await assertWarehouseAccess(prisma, user, warehouseId);
-            } catch {
-                return res.status(404).json({ error: 'Stock level not found' });
+            } catch (err) {
+                if (err instanceof NotFoundError) {
+                    return res.status(404).json({ error: 'Stock level not found' });
+                }
+                throw err;
             }
         }
 

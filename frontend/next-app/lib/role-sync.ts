@@ -23,15 +23,6 @@ export async function ensureUserHasPrimaryRole(prisma: PrismaLike, userId: numbe
         },
     });
 
-    await prisma.userRole.deleteMany({
-        where: {
-            userId,
-            NOT: {
-                roleId: role.id,
-            },
-        },
-    });
-
     await prisma.userRole.upsert({
         where: {
             userId_roleId: {

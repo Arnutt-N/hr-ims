@@ -39,9 +39,15 @@ export async function getHistory(filters: HistoryFilters = {}) {
         if (filters.startDate || filters.endDate) {
             where.date = {};
             if (filters.startDate) {
+                if (Number.isNaN(Date.parse(filters.startDate))) {
+                    return { error: 'Invalid start date' };
+                }
                 where.date.gte = new Date(filters.startDate);
             }
             if (filters.endDate) {
+                if (Number.isNaN(Date.parse(filters.endDate))) {
+                    return { error: 'Invalid end date' };
+                }
                 const endDate = new Date(filters.endDate);
                 endDate.setHours(23, 59, 59, 999); // Include entire end date
                 where.date.lte = endDate;

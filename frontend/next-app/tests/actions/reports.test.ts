@@ -11,7 +11,7 @@ describe('reports Server Action', () => {
 
     beforeEach(async () => {
         resetPrismaMock();
-        ({ auth: authMock } = (await import('@/auth')) as { auth: Mock });
+        ({ auth: authMock } = (await import('@/auth')) as unknown as { auth: Mock });
         authMock.mockReset();
         reports = await import('@/lib/actions/reports');
     });

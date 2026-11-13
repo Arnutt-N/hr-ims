@@ -1,7 +1,20 @@
 import { Router } from 'express';
+import { z } from 'zod';
 import prisma from '../utils/prisma';
 import { AuthRequest, requireAuth, requireRole } from '../middleware/auth';
 import { assertWarehouseAccess, getManagedWarehouseIds, isAdminTier, NotFoundError, parsePositiveInt } from '../lib/authz';
+
+const CreateStockTransferSchema = z.object({
+    fromWarehouseId: z.coerce.number().int().positive(),
+    toWarehouseId: z.coerce.number().int().positive(),
+    itemId: z.coerce.number().int().positive(),
+    quantity: z.coerce.number().int().positive(),
+    note: z.string().optional(),
+});
+
+const UpdateStockTransferStatusSchema = z.object({
+    status: z.enum(['approved', 'rejected']),
+});
 
 const router = Router();
 
@@ -101,33 +114,42 @@ router.get('/:id', requireAuth, async (req: AuthRequest, res) => {
 // POST /api/stock-transfers - สร้างคำขอโอนพัสดุ (Authenticated users)
 router.post('/', requireAuth, async (req: AuthRequest, res) => {
     try {
-        const { fromWarehouseId, toWarehouseId, itemId, quantity, note } = req.body;
+        const parsed = CreateStockTransferSchema.safeParse(req.body);
+        if (!parsed.success) {
+            return res.status(400).json({ error: 'Invalid stock transfer payload', details: parsed.error.flatten() });
+        }
+
+        const { fromWarehouseId, toWarehouseId, itemId, quantity, note } = parsed.data;
+        if (fromWarehouseId === toWarehouseId) {
+            return res.status(400).json({ error: 'Source and destination warehouses must differ' });
+        }
+
         const user = req.user!;
 
         // ตรวจสอบว่าคลังต้นทางมีของเพียงพอหรือไม่
         const stockLevel = await prisma.stockLevel.findUnique({
             where: {
                 warehouseId_itemId: {
-                    warehouseId: parseInt(fromWarehouseId),
-                    itemId: parseInt(itemId)
+                    warehouseId: fromWarehouseId,
+                    itemId
                 }
             }
         });
 
-        if (!stockLevel || stockLevel.quantity < parseInt(quantity)) {
+        if (!stockLevel || stockLevel.quantity < quantity) {
             return res.status(400).json({
                 error: 'Insufficient stock in source warehouse',
                 available: stockLevel?.quantity || 0,
-                requested: parseInt(quantity)
+                requested: quantity
             });
         }
 
         const transfer = await prisma.stockTransfer.create({
             data: {
-                fromWarehouseId: parseInt(fromWarehouseId),
-                toWarehouseId: parseInt(toWarehouseId),
-                itemId: parseInt(itemId),
-                quantity: parseInt(quantity),
+                fromWarehouseId,
+                toWarehouseId,
+                itemId,
+                quantity,
                 requestedBy: user.id,
                 note,
                 status: 'pending'
@@ -149,7 +171,11 @@ router.post('/', requireAuth, async (req: AuthRequest, res) => {
 // PATCH /api/stock-transfers/:id - อนุมัติ/ปฏิเสธการโอน (Approver/Admin only)
 router.patch('/:id', requireAuth, requireRole(['superadmin', 'admin', 'approver']), async (req: AuthRequest, res) => {
     try {
-        const { status } = req.body;
+        const parsedStatus = UpdateStockTransferStatusSchema.safeParse(req.body);
+        if (!parsedStatus.success) {
+            return res.status(400).json({ error: 'Invalid status', details: parsedStatus.error.flatten() });
+        }
+        const { status } = parsedStatus.data;
         const user = req.user!;
         const transferId = parsePositiveInt(req.params.id);
         if (!transferId) {
@@ -180,6 +206,19 @@ router.patch('/:id', requireAuth, requireRole(['superadmin', 'admin', 'approver'
         // ถ้าอนุมัติ ให้ทำการโอนสต็อก
         if (status === 'approved') {
             await prisma.$transaction(async (tx) => {
+                const sourceStock = await tx.stockLevel.findUnique({
+                    where: {
+                        warehouseId_itemId: {
+                            warehouseId: transfer.fromWarehouseId,
+                            itemId: transfer.itemId
+                        }
+                    }
+                });
+
+                if (!sourceStock || sourceStock.quantity < transfer.quantity) {
+                    throw new RangeError('Insufficient stock in source warehouse');
+                }
+
                 // ลดสต็อกคลังต้นทาง
                 await tx.stockLevel.update({
                     where: {
@@ -212,6 +251,28 @@ router.patch('/:id', requireAuth, requireRole(['superadmin', 'admin', 'approver'
                         warehouseId: transfer.toWarehouseId,
                         itemId: transfer.itemId,
                         quantity: transfer.quantity
+                    }
+                });
+
+                await tx.stockTransaction.create({
+                    data: {
+                        warehouseId: transfer.fromWarehouseId,
+                        itemId: transfer.itemId,
+                        quantity: -transfer.quantity,
+                        type: 'transfer_out',
+                        note: transfer.note || `Transfer #${transferId} out`,
+                        userId: Number(user.id)
+                    }
+                });
+
+                await tx.stockTransaction.create({
+                    data: {
+                        warehouseId: transfer.toWarehouseId,
+                        itemId: transfer.itemId,
+                        quantity: transfer.quantity,
+                        type: 'transfer_in',
+                        note: transfer.note || `Transfer #${transferId} in`,
+                        userId: Number(user.id)
                     }
                 });
 
@@ -248,6 +309,9 @@ router.patch('/:id', requireAuth, requireRole(['superadmin', 'admin', 'approver'
 
         res.json(updatedTransfer);
     } catch (error) {
+        if (error instanceof RangeError) {
+            return res.status(400).json({ error: error.message });
+        }
         console.error('Error updating transfer:', error);
         res.status(500).json({ error: 'Failed to update transfer' });
     }

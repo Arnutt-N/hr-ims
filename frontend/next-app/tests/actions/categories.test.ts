@@ -14,8 +14,8 @@ describe('categories Server Actions', () => {
 
     beforeEach(async () => {
         resetPrismaMock();
-        ({ getCachedAuth } = (await import('@/lib/auth-cache')) as { getCachedAuth: Mock });
-        ({ logActivity } = (await import('@/lib/actions/audit')) as { logActivity: Mock });
+        ({ getCachedAuth } = (await import('@/lib/auth-cache')) as unknown as { getCachedAuth: Mock });
+        ({ logActivity } = (await import('@/lib/actions/audit')) as unknown as { logActivity: Mock });
         getCachedAuth.mockReset();
         logActivity.mockReset();
         categories = await import('@/lib/actions/categories');
@@ -65,7 +65,13 @@ describe('categories Server Actions', () => {
             expect(prismaMock.category.create).toHaveBeenCalledWith({
                 data: { name: 'Pens' },
             });
-            expect(logActivity).toHaveBeenCalledWith('CATEGORY_CREATE', 'Category', 'Pens', { id: 5 });
+            expect(prismaMock.auditLog.create).toHaveBeenCalledWith({
+                data: expect.objectContaining({
+                    action: 'CREATE',
+                    entity: 'Category',
+                    entityId: '5',
+                }),
+            });
         });
 
         it('rejects unauthenticated', async () => {
@@ -109,7 +115,13 @@ describe('categories Server Actions', () => {
                 where: { id: 1 },
                 data: { name: 'Edited' },
             });
-            expect(logActivity).toHaveBeenCalled();
+            expect(prismaMock.auditLog.create).toHaveBeenCalledWith({
+                data: expect.objectContaining({
+                    action: 'UPDATE',
+                    entity: 'Category',
+                    entityId: '1',
+                }),
+            });
         });
 
         it('rejects unauthenticated', async () => {
@@ -136,7 +148,13 @@ describe('categories Server Actions', () => {
             const result = await categories.deleteCategory(1);
 
             expect(result).toEqual({ success: true });
-            expect(logActivity).toHaveBeenCalledWith('CATEGORY_DELETE', 'Category', 'Pens', { id: 1 });
+            expect(prismaMock.auditLog.create).toHaveBeenCalledWith({
+                data: expect.objectContaining({
+                    action: 'DELETE',
+                    entity: 'Category',
+                    entityId: '1',
+                }),
+            });
         });
 
         it('rejects unauthenticated', async () => {

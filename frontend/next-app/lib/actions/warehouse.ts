@@ -64,18 +64,32 @@ export async function createWarehouse(data: any) {
         // Construct managers connection
         const managersConnect = validated.managerIds?.map(id => ({ id })) || [];
 
-        const warehouse = await prisma.warehouse.create({
-            data: {
-                name: validated.name,
-                code: validated.code,
-                type: validated.type,
-                divisionId: validated.divisionId,
-                provinceId: validated.provinceId,
-                isActive: validated.isActive,
-                managers: {
-                    connect: managersConnect
+        const warehouse = await prisma.$transaction(async (tx) => {
+            const created = await tx.warehouse.create({
+                data: {
+                    name: validated.name,
+                    code: validated.code,
+                    type: validated.type,
+                    divisionId: validated.divisionId,
+                    provinceId: validated.provinceId,
+                    isActive: validated.isActive,
+                    managers: {
+                        connect: managersConnect
+                    }
                 }
-            }
+            });
+
+            await tx.auditLog.create({
+                data: {
+                    userId: parseInt(session.user.id),
+                    action: 'CREATE',
+                    entity: 'Warehouse',
+                    entityId: String(created.id),
+                    details: JSON.stringify({ name: created.name, code: created.code, type: created.type }),
+                }
+            });
+
+            return created;
         });
 
         revalidatePath('/settings/warehouses');
@@ -97,19 +111,33 @@ export async function updateWarehouse(id: number, data: any) {
         // Construct managers connection (set replaces all existing relations)
         const managersSet = validated.managerIds?.map(id => ({ id })) || [];
 
-        const warehouse = await prisma.warehouse.update({
-            where: { id },
-            data: {
-                name: validated.name,
-                code: validated.code,
-                type: validated.type,
-                divisionId: validated.divisionId,
-                provinceId: validated.provinceId,
-                isActive: validated.isActive,
-                managers: {
-                    set: managersSet
+        const warehouse = await prisma.$transaction(async (tx) => {
+            const updated = await tx.warehouse.update({
+                where: { id },
+                data: {
+                    name: validated.name,
+                    code: validated.code,
+                    type: validated.type,
+                    divisionId: validated.divisionId,
+                    provinceId: validated.provinceId,
+                    isActive: validated.isActive,
+                    managers: {
+                        set: managersSet
+                    }
                 }
-            }
+            });
+
+            await tx.auditLog.create({
+                data: {
+                    userId: parseInt(session.user.id),
+                    action: 'UPDATE',
+                    entity: 'Warehouse',
+                    entityId: String(updated.id),
+                    details: JSON.stringify({ name: updated.name, code: updated.code, type: updated.type }),
+                }
+            });
+
+            return updated;
         });
 
         revalidatePath('/settings/warehouses');

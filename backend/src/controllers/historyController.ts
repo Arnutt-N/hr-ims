@@ -1,19 +1,23 @@
 
-import { Request, Response } from 'express';
+import { Response } from 'express';
 import prisma from '../utils/prisma';
+import { AuthRequest } from '../middleware/auth';
 
-interface AuthRequest extends Request {
-    user?: any;
-}
+const HISTORY_ALL_ROLES = ['superadmin', 'admin', 'auditor'];
 
 export const getHistory = async (req: AuthRequest, res: Response) => {
     try {
-        const { role, userId } = req.user;
-
-        let where = {};
-        if (role === 'user') {
-            where = { userId };
+        const userId = req.user?.id ?? req.user?.userId;
+        if (!userId) {
+            return res.status(401).json({ message: 'Authentication required' });
         }
+
+        const roles = req.user?.roles && req.user.roles.length > 0
+            ? req.user.roles
+            : [req.user?.role].filter((r): r is string => Boolean(r));
+
+        const canViewAll = roles.some((r) => HISTORY_ALL_ROLES.includes(r));
+        const where = canViewAll ? {} : { userId };
 
         const history = await prisma.history.findMany({
             where,
