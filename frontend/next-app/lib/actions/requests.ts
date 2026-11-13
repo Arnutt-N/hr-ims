@@ -57,12 +57,11 @@ export async function updateRequestStatus(id: number, status: 'approved' | 'reje
 
         if (!request) return { error: 'Request not found' };
 
-        // [2026-11-13] Modified by Antigravity: warehouse scope + warehouse-null owner check (V13)
         if (!isAdminSession(session)) {
             const userId = parseInt(session.user.id);
-            const reqWarehouseId = (request as any).warehouseId as number | null;
+            const reqWarehouseId = request.warehouseId;
             if (reqWarehouseId === null) {
-                if (request.userId !== userId) {
+                if (request.userId === userId) {
                     return { error: 'Request not found' };
                 }
             } else {

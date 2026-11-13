@@ -109,11 +109,25 @@ describe('requests Server Actions', () => {
             expect(prismaMock.$transaction).not.toHaveBeenCalled();
         });
 
-        it('allows warehouse-null request when non-admin approver is owner', async () => {
+        it('denies warehouse-null request self-approval for non-admin approver', async () => {
             getCachedAuth.mockResolvedValue(sessionFor('approver', { id: 5 }));
             prismaMock.request.findUnique.mockResolvedValue({
                 ...baseRequest,
                 userId: 5,
+                warehouseId: null,
+                type: 'return',
+            } as any);
+
+            const result = await requests.updateRequestStatus(11, 'approved');
+            expect(result).toEqual({ error: 'Request not found' });
+            expect(prismaMock.$transaction).not.toHaveBeenCalled();
+        });
+
+        it('allows warehouse-null request when non-admin approver is not the requester', async () => {
+            getCachedAuth.mockResolvedValue(sessionFor('approver', { id: 5 }));
+            prismaMock.request.findUnique.mockResolvedValue({
+                ...baseRequest,
+                userId: 99,
                 warehouseId: null,
                 type: 'return',
             } as any);

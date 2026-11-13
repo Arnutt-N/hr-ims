@@ -77,7 +77,6 @@ async function isAssetHolder(userId: number, item: { id: number; currentHolderId
 }
 
 // Check-in (Verify) Asset
-// [2026-11-13] Modified by Antigravity: verify holder before check-in (V22)
 export async function checkInAsset(itemId: number) {
     const session = await auth();
     if (!session?.user?.email) return { error: 'Unauthorized' };
@@ -107,7 +106,6 @@ export async function checkInAsset(itemId: number) {
 }
 
 // Request Return
-// [2026-11-13] Modified by Antigravity: verify holder before return request (V23)
 export async function requestReturn(itemId: number) {
     const session = await auth();
     if (!session?.user?.email) return { error: 'Unauthorized' };
@@ -157,13 +155,16 @@ export async function reportIssue(itemId: number, issue: string) {
     if (!session) return { error: 'Unauthorized' };
 
     try {
+        const userId = parseInt(session.user.id || '0');
         const item = await prisma.inventoryItem.findUnique({ where: { id: itemId } });
-        if (!item) return { error: 'Item not found' };
+        if (!item || !(await isAssetHolder(userId, item))) {
+            return { error: 'Item not found' };
+        }
 
         // History entry preserved for the existing /history view (legacy log).
         await prisma.history.create({
             data: {
-                userId: parseInt(session.user.id || '0'),
+                userId,
                 action: 'report',
                 item: item.name + ` (${issue})`,
                 status: 'issue_reported',
@@ -190,11 +191,6 @@ export async function reportIssue(itemId: number, issue: string) {
         }
 
         if (!delegated) {
-            // [2026-11-13] Modified by Antigravity: verify holder in legacy fallback (V24)
-            const userId = parseInt(session.user.id || '0');
-            if (!(await isAssetHolder(userId, item))) {
-                return { error: 'Asset not found' };
-            }
             // Legacy fallback: direct status flip preserves the contract that
             // /my-assets has relied on since before the new workflow.
             await prisma.inventoryItem.update({

@@ -35,7 +35,7 @@ describe('history Server Action', () => {
 
     it('scopes history by userId for regular user', async () => {
         authMock.mockResolvedValue(sessionFor('user', { id: 8 }));
-        prismaMock.history.findMany.mockResolvedValue([] as any);
+        prismaMock.history.findMany.mockResolvedValue([]);
 
         await history.getHistory();
 
@@ -45,7 +45,7 @@ describe('history Server Action', () => {
 
     it('builds OR clause for free-text query', async () => {
         authMock.mockResolvedValue(sessionFor('admin'));
-        prismaMock.history.findMany.mockResolvedValue([] as any);
+        prismaMock.history.findMany.mockResolvedValue([]);
 
         await history.getHistory({ query: 'pen' });
 
@@ -59,7 +59,7 @@ describe('history Server Action', () => {
 
     it('filters by action when not "all"', async () => {
         authMock.mockResolvedValue(sessionFor('admin'));
-        prismaMock.history.findMany.mockResolvedValue([] as any);
+        prismaMock.history.findMany.mockResolvedValue([]);
 
         await history.getHistory({ action: 'borrow' });
 
@@ -69,7 +69,7 @@ describe('history Server Action', () => {
 
     it('does NOT filter when action is "all"', async () => {
         authMock.mockResolvedValue(sessionFor('admin'));
-        prismaMock.history.findMany.mockResolvedValue([] as any);
+        prismaMock.history.findMany.mockResolvedValue([]);
 
         await history.getHistory({ action: 'all' });
 
@@ -79,7 +79,7 @@ describe('history Server Action', () => {
 
     it('builds inclusive end-of-day date range', async () => {
         authMock.mockResolvedValue(sessionFor('admin'));
-        prismaMock.history.findMany.mockResolvedValue([] as any);
+        prismaMock.history.findMany.mockResolvedValue([]);
 
         await history.getHistory({ startDate: '2026-01-01', endDate: '2026-01-31' });
 

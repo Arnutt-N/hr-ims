@@ -11,7 +11,6 @@ const categorySchema = z.object({
     description: z.string().optional(),
 });
 
-// [2026-11-13] Modified by Antigravity: require session on getCategories (V18)
 export async function getCategories() {
     const session = await requireRole();
     if (!session) return { error: 'Unauthorized' };

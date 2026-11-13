@@ -75,7 +75,6 @@ export async function addToCart(itemId: number, quantity: number = 1) {
 }
 
 // Remove from Cart
-// [2026-11-13] Modified by Antigravity: verify cartItem ownership before delete (V7)
 export async function removeFromCart(cartItemId: number) {
     const session = await auth();
     if (!session?.user?.id) return { error: 'Unauthorized' };

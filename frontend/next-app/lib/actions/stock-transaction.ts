@@ -4,9 +4,8 @@ import prisma from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { auth } from '@/auth';
-import { getManagedWarehouseIds, isAdminSession } from '@/lib/warehouse-scope';
+import { canAccessWarehouse } from '@/lib/warehouse-scope';
 
-// [2026-11-13] Modified by Antigravity: remove userId from schema, enforce auth + warehouse scope (V11); remove duplicate getStockHistory (V12)
 const InboundSchema = z.object({
     warehouseId: z.coerce.number(),
     items: z.array(z.object({
@@ -27,11 +26,8 @@ export async function receiveGoods(formData: any) {
     try {
         const validated = InboundSchema.parse(formData);
 
-        if (!isAdminSession(session)) {
-            const managed = await getManagedWarehouseIds(userId);
-            if (!managed.includes(validated.warehouseId)) {
-                return { success: false, message: 'Warehouse not found' };
-            }
+        if (!(await canAccessWarehouse(session, validated.warehouseId))) {
+            return { success: false, message: 'Warehouse not found' };
         }
 
         await prisma.$transaction(async (tx) => {

@@ -3,11 +3,10 @@ import { Router } from 'express';
 import prisma from '../utils/prisma';
 import { getRequests, createRequest, updateRequestStatus } from '../controllers/requestController';
 import { requireAuth, requireRole } from '../middleware/auth';
-import { assertWarehouseAccess, isAdminTier, NotFoundError } from '../lib/authz';
+import { assertWarehouseAccess, isAdminTier, NotFoundError, parsePositiveInt } from '../lib/authz';
 
 const router = Router();
 
-// [2026-11-13] Modified by Antigravity: requireAuth (proxy-style) + APPROVER_TIER + warehouse scope (V5/V15)
 router.use(requireAuth);
 
 const scopeRequestWarehouse = async (req: any, res: any, next: any) => {
@@ -15,7 +14,10 @@ const scopeRequestWarehouse = async (req: any, res: any, next: any) => {
         const user = req.user;
         if (!user || isAdminTier(user)) return next();
 
-        const requestId = parseInt(req.params.id);
+        const requestId = parsePositiveInt(req.params.id);
+        if (!requestId) {
+            return res.status(400).json({ error: 'Invalid request ID' });
+        }
         const existing = await prisma.request.findUnique({
             where: { id: requestId },
             select: { id: true, warehouseId: true, userId: true }
@@ -26,10 +28,10 @@ const scopeRequestWarehouse = async (req: any, res: any, next: any) => {
         }
 
         if (existing.warehouseId === null) {
-            if (existing.userId === Number(user.id)) {
-                return next();
+            if (existing.userId === Number(user.id ?? user.userId)) {
+                return res.status(404).json({ error: 'Request not found' });
             }
-            return res.status(404).json({ error: 'Request not found' });
+            return next();
         }
 
         await assertWarehouseAccess(prisma, user, existing.warehouseId);

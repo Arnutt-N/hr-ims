@@ -6,11 +6,20 @@ export function isAdminSession(session: Session | null | undefined): boolean {
     return sessionHasAnyRole(session, ...ADMIN_ROLES);
 }
 
-/**
- * Warehouse IDs the user manages, derived from:
- * 1. `Warehouse.managers` relation (direct manager)
- * 2. `DepartmentMapping` where `department = user.department`
- */
+export function isReadAllSession(session: Session | null | undefined): boolean {
+    return sessionHasAnyRole(session, ...ADMIN_ROLES, 'auditor');
+}
+
+export async function canAccessWarehouse(
+    session: Session | null | undefined,
+    warehouseId: number
+): Promise<boolean> {
+    if (!session?.user?.id) return false;
+    if (isAdminSession(session)) return true;
+    const managed = await getManagedWarehouseIds(parseInt(session.user.id));
+    return managed.includes(warehouseId);
+}
+
 export async function getManagedWarehouseIds(userId: number): Promise<number[]> {
     if (!Number.isFinite(userId) || userId <= 0) return [];
 

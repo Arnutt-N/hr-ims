@@ -6,7 +6,6 @@ const router = Router();
 const prisma = new PrismaClient();
 
 // GET /api/warehouses - ดึงรายการคลังทั้งหมด
-// [2026-11-13] Modified by Antigravity: requireAuth (V21)
 router.get('/', requireAuth, async (req, res) => {
     try {
         const warehouses = await prisma.warehouse.findMany({
@@ -26,7 +25,6 @@ router.get('/', requireAuth, async (req, res) => {
 });
 
 // GET /api/warehouses/:id - ดึงคลังตาม ID
-// [2026-11-13] Modified by Antigravity: requireAuth (V21)
 router.get('/:id', requireAuth, async (req, res) => {
     try {
         const warehouse = await prisma.warehouse.findUnique({

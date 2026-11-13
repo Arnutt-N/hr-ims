@@ -1,22 +1,20 @@
-/**
- * Object-level authorization helpers (IDOR remediation).
- *
- * Policy (see project-log-md/cursor/2026-11-11_object-authz-inventory.md §2):
- * - 404 not 403 on object-level deny — never leak record existence.
- * - admin tier (superadmin/admin) bypasses object scope on operational resources.
- * - warehouse scope: a user "manages" a warehouse when they are listed in
- *   `Warehouse.managers` or their `department` maps to it via DepartmentMapping.
- * - identity must come from the verified session/JWT only, never from the body.
- *
- * All functions take the caller-supplied `req.user` as an explicit argument so
- * the identity source stays auditable at every call site.
- */
-
 export interface AuthzUser {
     id: number | string;
+    userId?: number | string;
     role?: string;
     roles?: string[];
     department?: string | null;
+}
+
+export function parsePositiveInt(value: unknown): number | null {
+    if (typeof value === 'number') {
+        return Number.isInteger(value) && value > 0 ? value : null;
+    }
+    if (typeof value !== 'string' || !/^\d+$/.test(value.trim())) {
+        return null;
+    }
+    const parsed = Number(value.trim());
+    return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : null;
 }
 
 export class NotFoundError extends Error {
@@ -34,18 +32,12 @@ export function isAdminTier(user: AuthzUser): boolean {
     return roles.some((r) => ADMIN_TIER.includes(String(r).toLowerCase()));
 }
 
-/**
- * Warehouse IDs the user manages, derived from:
- * 1. `Warehouse.managers` relation (direct manager)
- * 2. `DepartmentMapping` where `department = user.department`
- * Prisma User has no warehouseId/departmentId column — do not "fix" that here;
- * the two sources above are the schema's actual answer.
- */
 export async function getManagedWarehouseIds(
     prisma: any,
     user: AuthzUser
 ): Promise<number[]> {
-    const userId = Number(user.id);
+    const userId = Number(user.id ?? user.userId);
+    if (!Number.isFinite(userId) || userId <= 0) return [];
     const ids = new Set<number>();
 
     const managed = await prisma.warehouse.findMany({
@@ -54,9 +46,18 @@ export async function getManagedWarehouseIds(
     });
     for (const w of managed) ids.add(w.id);
 
-    if (user.department) {
+    let department = user.department;
+    if (department === undefined && prisma.user?.findUnique) {
+        const dbUser = await prisma.user.findUnique({
+            where: { id: userId },
+            select: { department: true },
+        });
+        department = dbUser?.department ?? null;
+    }
+
+    if (department) {
         const mapping = await prisma.departmentMapping.findFirst({
-            where: { department: user.department },
+            where: { department },
             select: { warehouseId: true },
         });
         if (mapping) ids.add(mapping.warehouseId);
@@ -65,11 +66,6 @@ export async function getManagedWarehouseIds(
     return Array.from(ids);
 }
 
-/**
- * Assert the user may operate on `warehouseId`.
- * Admin tier passes; otherwise the warehouse must be in the user's managed set.
- * Throws NotFoundError (404 policy) instead of Forbidden on denial.
- */
 export async function assertWarehouseAccess(
     prisma: any,
     user: AuthzUser,

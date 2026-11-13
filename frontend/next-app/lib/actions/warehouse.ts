@@ -137,7 +137,6 @@ export async function deleteWarehouse(id: number) {
     }
 }
 
-// [2026-11-13] Modified by Antigravity: require session on getDivisions/getProvinces (V14)
 export async function getDivisions() {
     const session = await auth();
     if (!session) return { error: 'Unauthorized' };

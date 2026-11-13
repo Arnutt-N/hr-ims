@@ -44,7 +44,6 @@ async function buildSearchFilter(query: string) {
     }
 }
 
-// [2026-11-13] Modified by Antigravity: require session on fetchInventoryItems/Pages (V17)
 export async function fetchInventoryItems(
     query: string,
     currentPage: number,

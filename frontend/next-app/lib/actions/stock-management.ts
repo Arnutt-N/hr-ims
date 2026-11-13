@@ -3,9 +3,9 @@
 import prisma from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
 import { auth } from '@/auth';
-import { getManagedWarehouseIds, isAdminSession } from '@/lib/warehouse-scope';
+import { APPROVER_ROLES, sessionHasAnyRole } from '@/lib/role-access';
+import { canAccessWarehouse, getManagedWarehouseIds, isReadAllSession } from '@/lib/warehouse-scope';
 
-// [2026-11-13] Modified by Antigravity: remove userId param, use session + warehouse scope (V8)
 export async function adjustStockQuantity(
     warehouseId: number,
     itemId: number,
@@ -13,17 +13,14 @@ export async function adjustStockQuantity(
     note: string
 ) {
     const session = await auth();
-    if (!session?.user?.id) {
+    if (!session?.user?.id || !sessionHasAnyRole(session, ...APPROVER_ROLES)) {
         return { success: false, message: 'Unauthorized' };
     }
     const userId = parseInt(session.user.id);
 
     try {
-        if (!isAdminSession(session)) {
-            const managed = await getManagedWarehouseIds(userId);
-            if (!managed.includes(warehouseId)) {
-                return { success: false, message: 'Stock level not found' };
-            }
+        if (!(await canAccessWarehouse(session, warehouseId))) {
+            return { success: false, message: 'Stock level not found' };
         }
 
         await prisma.$transaction(async (tx) => {
@@ -39,6 +36,10 @@ export async function adjustStockQuantity(
 
             if (!current) {
                 throw new Error('Stock level not found');
+            }
+
+            if (current.quantity + adjustment < 0) {
+                throw new Error('Insufficient stock');
             }
 
             // 2. Update stock
@@ -68,7 +69,6 @@ export async function adjustStockQuantity(
     }
 }
 
-// [2026-11-13] Modified by Antigravity: auth + warehouse scope (V9)
 export async function updateStockLimits(
     warehouseId: number,
     itemId: number,
@@ -76,17 +76,13 @@ export async function updateStockLimits(
     maxStock?: number
 ) {
     const session = await auth();
-    if (!session?.user?.id) {
+    if (!session?.user?.id || !sessionHasAnyRole(session, ...APPROVER_ROLES)) {
         return { success: false, message: 'Unauthorized' };
     }
-    const userId = parseInt(session.user.id);
 
     try {
-        if (!isAdminSession(session)) {
-            const managed = await getManagedWarehouseIds(userId);
-            if (!managed.includes(warehouseId)) {
-                return { success: false, message: 'Stock level not found' };
-            }
+        if (!(await canAccessWarehouse(session, warehouseId))) {
+            return { success: false, message: 'Stock level not found' };
         }
 
         await prisma.stockLevel.update({
@@ -110,13 +106,12 @@ export async function updateStockLimits(
     }
 }
 
-// [2026-11-13] Modified by Antigravity: session check + warehouse scope (V10)
 export async function getItemDetail(itemId: number) {
     const session = await auth();
     if (!session?.user?.id) return null;
 
     try {
-        const isAdmin = isAdminSession(session);
+        const isAdmin = isReadAllSession(session);
         const managed = isAdmin ? [] : await getManagedWarehouseIds(parseInt(session.user.id));
 
         const item = await prisma.inventoryItem.findUnique({
@@ -134,7 +129,6 @@ export async function getItemDetail(itemId: number) {
     }
 }
 
-// [2026-11-13] Modified by Antigravity: session check + warehouse scope (V10)
 export async function getStockHistory(itemId: number, page: number = 1, perPage: number = 20) {
     const session = await auth();
     if (!session?.user?.id) {
@@ -147,7 +141,7 @@ export async function getStockHistory(itemId: number, page: number = 1, perPage:
     try {
         const skip = (page - 1) * perPage;
         const where: any = { itemId };
-        if (!isAdminSession(session)) {
+        if (!isReadAllSession(session)) {
             const managed = await getManagedWarehouseIds(parseInt(session.user.id));
             where.warehouseId = { in: managed };
         }

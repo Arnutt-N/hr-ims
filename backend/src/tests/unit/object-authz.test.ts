@@ -167,15 +167,26 @@ describe('Object-level authorization (IDOR remediation)', () => {
         expect(res.status).toBe(404);
     });
 
-    it('allows warehouse-null request when non-admin approver is the owner', async () => {
+    it('denies self-approval on warehouse-null request for non-admin approver', async () => {
+        mockPrisma.request.findUnique.mockResolvedValueOnce({ id: 1, warehouseId: null, userId: 5 });
+
+        const res = await request(app)
+            .patch('/api/requests/1/status')
+            .set(proxyHeaders(5, 'approver'))
+            .send({ status: 'pending' });
+
+        expect(res.status).toBe(404);
+    });
+
+    it('allows warehouse-null request when non-admin approver is not the requester', async () => {
         mockPrisma.request.findUnique
-            .mockResolvedValueOnce({ id: 1, warehouseId: null, userId: 5 })
+            .mockResolvedValueOnce({ id: 1, warehouseId: null, userId: 99 })
             .mockResolvedValueOnce({
                 id: 1,
                 warehouseId: null,
-                userId: 5,
+                userId: 99,
                 type: 'return',
-                user: { name: 'Owner', email: null },
+                user: { name: 'Requester', email: null },
                 requestItems: [],
             });
         mockPrisma.request.update.mockResolvedValue({ id: 1, status: 'pending', type: 'return' });

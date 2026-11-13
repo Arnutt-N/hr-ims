@@ -2,13 +2,12 @@
 
 import prisma from '@/lib/prisma';
 import { auth } from '@/auth';
-import { isAdminSession } from '@/lib/warehouse-scope';
+import { ADMIN_ROLES, sessionHasAnyRole } from '@/lib/role-access';
 
-// [2026-11-13] Modified by Antigravity: restrict org-wide report aggregates to admin tier (V20)
 export async function getReportStats() {
     const session = await auth();
     if (!session?.user?.email) return { error: 'Unauthorized' };
-    if (!isAdminSession(session)) return { error: 'Forbidden' };
+    if (!sessionHasAnyRole(session, ...ADMIN_ROLES, 'auditor')) return { error: 'Forbidden' };
 
     try {
         // 1. Status Breakdown

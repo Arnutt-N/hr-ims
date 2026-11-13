@@ -70,11 +70,11 @@ describe('dashboard Server Actions', () => {
             getCachedAuth.mockResolvedValue(sessionFor('user', { id: 8 }));
             prismaMock.warehouse.findMany.mockResolvedValue([{ id: 3 }] as any);
             prismaMock.user.findUnique.mockResolvedValue({ department: null } as any);
-            prismaMock.inventoryItem.count.mockResolvedValue(10 as any);
-            prismaMock.stockLevel.count.mockResolvedValue(1 as any);
-            prismaMock.request.count.mockResolvedValue(2 as any);
-            prismaMock.stockLevel.findMany.mockResolvedValue([] as any);
-            prismaMock.stockTransaction.findMany.mockResolvedValue([] as any);
+            prismaMock.inventoryItem.count.mockResolvedValue(10);
+            prismaMock.stockLevel.count.mockResolvedValue(1);
+            prismaMock.request.count.mockResolvedValue(2);
+            prismaMock.stockLevel.findMany.mockResolvedValue([]);
+            prismaMock.stockTransaction.findMany.mockResolvedValue([]);
 
             await dashboard.getDashboardStats();
 

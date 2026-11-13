@@ -2,15 +2,14 @@
 
 import prisma from '@/lib/prisma';
 import { getCachedAuth } from '@/lib/auth-cache';
-import { getManagedWarehouseIds, isAdminSession } from '@/lib/warehouse-scope';
+import { getManagedWarehouseIds, isReadAllSession } from '@/lib/warehouse-scope';
 
-// [2026-11-13] Modified by Antigravity: scope aggregates to managed warehouses for non-admin (V20)
 export async function getDashboardStats() {
     const session = await getCachedAuth();
     if (!session?.user) return null;
 
     try {
-        const isAdmin = isAdminSession(session);
+        const isAdmin = isReadAllSession(session);
         const userId = parseInt(session.user.id);
         const managed = isAdmin ? [] : await getManagedWarehouseIds(userId);
         const stockScope = isAdmin ? {} : { warehouseId: { in: managed } };
@@ -83,7 +82,7 @@ export async function getLowStockItems() {
     if (!session?.user) return [];
 
     try {
-        const isAdmin = isAdminSession(session);
+        const isAdmin = isReadAllSession(session);
         const managed = isAdmin ? [] : await getManagedWarehouseIds(parseInt(session.user.id));
 
         // Find items where quantity <= minStock

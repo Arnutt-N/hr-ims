@@ -28,6 +28,18 @@ describe('reports Server Action', () => {
         expect(result).toEqual({ error: 'Forbidden' });
     });
 
+    it('allows auditor role', async () => {
+        authMock.mockResolvedValue(sessionFor('auditor'));
+        prismaMock.inventoryItem.groupBy = vi.fn().mockResolvedValue([]);
+        prismaMock.history.groupBy = vi.fn().mockResolvedValue([]);
+        prismaMock.user.groupBy = vi.fn().mockResolvedValue([]);
+        prismaMock.request.groupBy = vi.fn().mockResolvedValue([]);
+        prismaMock.history.findMany.mockResolvedValue([]);
+
+        const result = await reports.getReportStats();
+        expect(result).toHaveProperty('success', true);
+    });
+
     it('aggregates stats across all 4 dimensions', async () => {
         authMock.mockResolvedValue(sessionFor('admin'));
         prismaMock.inventoryItem.groupBy = vi.fn().mockResolvedValue([

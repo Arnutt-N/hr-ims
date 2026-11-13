@@ -1,17 +1,15 @@
 import { Router } from 'express';
-import { PrismaClient } from '@prisma/client';
-import { requireAuth, requireRole } from '../middleware/auth';
-import { getManagedWarehouseIds, isAdminTier } from '../lib/authz';
+import prisma from '../utils/prisma';
+import { AuthRequest, requireAuth, requireRole } from '../middleware/auth';
+import { assertWarehouseAccess, getManagedWarehouseIds, isAdminTier, NotFoundError, parsePositiveInt } from '../lib/authz';
 
 const router = Router();
-const prisma = new PrismaClient();
 
 // GET /api/stock-transfers - ดึงรายการโอนพัสดุ (with filters)
-// [2026-11-12] Modified by Claude: requireAuth + scope list ตาม warehouses ที่ user จัดการ (admin tier เห็นหมด)
-router.get('/', requireAuth, async (req, res) => {
+router.get('/', requireAuth, async (req: AuthRequest, res) => {
     try {
         const { status, warehouseId } = req.query;
-        const user = (req as any).user;
+        const user = req.user!;
 
         const conditions: any[] = [];
         if (warehouseId) {
@@ -58,26 +56,30 @@ router.get('/', requireAuth, async (req, res) => {
 });
 
 // GET /api/stock-transfers/:id - ดึงรายละเอียดการโอนตาม ID
-// [2026-11-12] Modified by Claude: requireAuth + object-level scope (404 เมื่อไม่พบ/ไม่มีสิทธิ์)
-router.get('/:id', requireAuth, async (req, res) => {
+router.get('/:id', requireAuth, async (req: AuthRequest, res) => {
     try {
-        const user = (req as any).user;
-        const transferId = parseInt(req.params.id);
+        const user = req.user!;
+        const transferId = parsePositiveInt(req.params.id);
+        if (!transferId) {
+            return res.status(400).json({ error: 'Invalid transfer ID' });
+        }
 
-        const managed = await getManagedWarehouseIds(prisma, user);
+        let where: any = { id: transferId };
+        if (!isAdminTier(user)) {
+            const managed = await getManagedWarehouseIds(prisma, user);
+            where = {
+                id: transferId,
+                OR: [
+                    { requestedBy: user.id },
+                    ...(managed.length > 0 ? [
+                        { fromWarehouseId: { in: managed } },
+                        { toWarehouseId: { in: managed } }
+                    ] : [])
+                ]
+            };
+        }
         const transfer = await prisma.stockTransfer.findFirst({
-            where: isAdminTier(user)
-                ? { id: transferId }
-                : {
-                    id: transferId,
-                    OR: [
-                        { requestedBy: user.id },
-                        ...(managed.length > 0 ? [
-                            { fromWarehouseId: { in: managed } },
-                            { toWarehouseId: { in: managed } }
-                        ] : [])
-                    ]
-                },
+            where,
             include: {
                 fromWarehouse: true,
                 toWarehouse: true,
@@ -97,11 +99,10 @@ router.get('/:id', requireAuth, async (req, res) => {
 });
 
 // POST /api/stock-transfers - สร้างคำขอโอนพัสดุ (Authenticated users)
-router.post('/', requireAuth, async (req, res) => {
+router.post('/', requireAuth, async (req: AuthRequest, res) => {
     try {
-        // [2026-11-12] Modified by Claude: requestedBy มาจาก session เท่านั้น (body field ถูกละ)
         const { fromWarehouseId, toWarehouseId, itemId, quantity, note } = req.body;
-        const user = (req as any).user;
+        const user = req.user!;
 
         // ตรวจสอบว่าคลังต้นทางมีของเพียงพอหรือไม่
         const stockLevel = await prisma.stockLevel.findUnique({
@@ -146,19 +147,30 @@ router.post('/', requireAuth, async (req, res) => {
 });
 
 // PATCH /api/stock-transfers/:id - อนุมัติ/ปฏิเสธการโอน (Approver/Admin only)
-router.patch('/:id', requireAuth, requireRole(['superadmin', 'admin', 'approver']), async (req, res) => {
+router.patch('/:id', requireAuth, requireRole(['superadmin', 'admin', 'approver']), async (req: AuthRequest, res) => {
     try {
         const { status } = req.body;
-        const user = (req as any).user;
-        const transferId = parseInt(req.params.id);
+        const user = req.user!;
+        const transferId = parsePositiveInt(req.params.id);
+        if (!transferId) {
+            return res.status(400).json({ error: 'Invalid transfer ID' });
+        }
 
-        // ดึงข้อมูลการโอน
         const transfer = await prisma.stockTransfer.findUnique({
             where: { id: transferId }
         });
 
         if (!transfer) {
             return res.status(404).json({ error: 'Transfer not found' });
+        }
+
+        try {
+            await assertWarehouseAccess(prisma, user, transfer.fromWarehouseId);
+        } catch (err) {
+            if (err instanceof NotFoundError) {
+                return res.status(404).json({ error: 'Transfer not found' });
+            }
+            throw err;
         }
 
         if (transfer.status !== 'pending') {
