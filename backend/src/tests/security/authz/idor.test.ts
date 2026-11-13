@@ -1,451 +1,439 @@
 /**
  * IDOR (Insecure Direct Object Reference) Tests
- * Tests for unauthorized access to resources via ID manipulation
- * 
- * OWASP: A01:2021 - Broken Access Control
+ *
+ * OWASP: A01:2021 — Broken Access Control
  * CWE-639: Authorization Bypass Through User-Controlled Key
+ *
+ * What this suite is for
+ * ----------------------
+ * Prove that a caller cannot reach an object they do not own or manage by
+ * changing an id. Every case is a pair: a *negative* control (the attacker is
+ * refused) and, where the route allows it, a *positive* control (a legitimate
+ * caller is served). Without the positive control a 404 from a route that does
+ * not exist would look like protection — which is exactly how the previous
+ * version of this file passed while three of its own cases were failing.
+ *
+ * Rules this file follows
+ * -----------------------
+ * 1. Every case asserts with `expect`. Nothing is "recorded" and ignored.
+ * 2. Routes and methods are the ones actually mounted in `src/index.ts`.
+ * 3. 404 is only accepted as a refusal on routes where the object exists and
+ *    the caller is genuinely out of scope. A 404 for a route that is not
+ *    mounted would be a false pass, so each route is proven to exist first by
+ *    the positive control in the same `describe`.
+ * 4. 500 is never accepted as evidence of safety.
+ * 5. Fixtures are synthetic and namespaced; see `idor.fixture.ts`.
+ *
+ * Runs in-process against the exported Express app (no live server, no Redis).
  */
 
 import request from 'supertest';
+import { app } from '../../../index';
 import securityConfig from '../config';
-import { SecurityHttpClient, SecurityTestResult } from '../utils/http-client';
+import {
+    checkDatabaseIsolation,
+    createIdorFixture,
+    teardownIdorFixture,
+    type IdorFixture,
+} from './idor.fixture';
 
-const { targets, endpoints, severity, testUsers, internalApiKey } = securityConfig;
-const client = new SecurityHttpClient(targets.backend);
+const { internalApiKey } = securityConfig;
 
-describe('🔒 Authorization Security - IDOR Vulnerabilities', () => {
-    // ============================================
-    // User Data Access Tests
-    // ============================================
-    describe('User Data IDOR', () => {
-        it('ควรไม่ให้ user เข้าถึงข้อมูล user อื่น', async () => {
-            // User ID 3 trying to access User ID 1's data
-            const attacker = testUsers.user;
-            const victimId = 1;
+/** Headers that satisfy `requireAuth` for a given fixture user. */
+function asUser(user: { id: number }, role: string): Record<string, string> {
+    return {
+        'x-user-id': String(user.id),
+        'x-user-role': role,
+        'x-internal-key': internalApiKey,
+    };
+}
 
-            const response = await request(targets.backend)
-                .get(`/api/users/${victimId}`)
-                .set('x-user-id', attacker.id.toString())
-                .set('x-user-role', attacker.role)
-                .set('x-internal-key', internalApiKey);
+/** A JWT for routes guarded by `authenticateToken` (e.g. `/api/users`). */
+function jwtFor(user: { id: number }, role: string): string {
+    // Imported lazily so the module reads JWT_SECRET at call time.
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const jwt = require('jsonwebtoken');
+    return jwt.sign(
+        { id: user.id, userId: user.id, role, roles: [role] },
+        process.env.JWT_SECRET as string,
+        { expiresIn: '5m' },
+    );
+}
 
-            // Regular user should NOT be able to access other user's full data
-            const hasAccessControl = response.status === 403 ||
-                response.status === 401 ||
-                (response.status === 200 && !response.body?.password && !response.body?.email);
+describe('🔒 IDOR — object-level authorization', () => {
+    let fx: IdorFixture;
+    let isolation: Awaited<ReturnType<typeof checkDatabaseIsolation>>;
 
-            const result: SecurityTestResult = {
-                testName: 'User Data IDOR Prevention',
-                category: 'IDOR',
-                severity: hasAccessControl ? severity.INFO : severity.HIGH,
-                passed: hasAccessControl,
-                message: hasAccessControl
-                    ? 'User cannot access other users\' sensitive data'
-                    : `User can access other user's data - IDOR VULNERABLE`,
-                details: {
-                    request: { method: 'GET', url: `/api/users/${victimId}` },
-                    response: { status: response.status, body: response.body },
-                },
-                timestamp: new Date().toISOString(),
-            };
-            client.recordResult(result);
+    beforeAll(async () => {
+        isolation = await checkDatabaseIsolation();
+        fx = await createIdorFixture();
+    });
+
+    afterAll(async () => {
+        await teardownIdorFixture();
+    });
+
+    // ------------------------------------------------------------------
+    // Baseline: authentication is actually enforced
+    // ------------------------------------------------------------------
+    describe('baseline — the suite can tell a refusal from a success', () => {
+        it('rejects an anonymous stock-level read with 401', async () => {
+            const res = await request(app).get(
+                `/api/stock-levels/${fx.warehouses.assigned.id}/${fx.items.shared.id}`,
+            );
+            expect(res.status).toBe(401);
         });
 
-        it('ควรไม่ให้ user แก้ไขข้อมูล user อื่น', async () => {
-            const attacker = testUsers.user;
-            const victimId = 1;
-
-            const response = await request(targets.backend)
-                .put(`/api/users/${victimId}`)
-                .set('x-user-id', attacker.id.toString())
-                .set('x-user-role', attacker.role)
-                .set('x-internal-key', internalApiKey)
-                .send({
-                    name: 'Hacked Name',
-                    email: 'hacked@evil.com',
-                });
-
-            const protected_ = response.status === 403 || response.status === 401;
-
-            const result: SecurityTestResult = {
-                testName: 'User Update IDOR Prevention',
-                category: 'IDOR',
-                severity: protected_ ? severity.INFO : severity.CRITICAL,
-                passed: protected_,
-                message: protected_
-                    ? 'User cannot modify other users\' data'
-                    : 'User CAN modify other users\' data - CRITICAL IDOR',
-                timestamp: new Date().toISOString(),
-            };
-            client.recordResult(result);
+        it('rejects a request carrying a wrong internal key with 401', async () => {
+            const res = await request(app)
+                .get(`/api/stock-levels/${fx.warehouses.assigned.id}/${fx.items.shared.id}`)
+                .set('x-user-id', String(fx.users.owner.id))
+                .set('x-user-role', 'user')
+                .set('x-internal-key', 'definitely-not-the-key');
+            expect(res.status).toBe(401);
         });
 
-        it('ควรไม่ให้ user ลบ user อื่น', async () => {
-            const attacker = testUsers.user;
-            const victimId = 1;
+        it('serves the assigned warehouse to its manager (positive control)', async () => {
+            const res = await request(app)
+                .get(`/api/stock-levels/${fx.warehouses.assigned.id}/${fx.items.shared.id}`)
+                .set(asUser(fx.users.assignedApprover, 'approver'));
 
-            const response = await request(targets.backend)
-                .delete(`/api/users/${victimId}`)
-                .set('x-user-id', attacker.id.toString())
-                .set('x-user-role', attacker.role)
-                .set('x-internal-key', internalApiKey);
-
-            const protected_ = response.status === 403 || response.status === 401;
-
-            const result: SecurityTestResult = {
-                testName: 'User Delete IDOR Prevention',
-                category: 'IDOR',
-                severity: protected_ ? severity.INFO : severity.CRITICAL,
-                passed: protected_,
-                message: protected_
-                    ? 'User cannot delete other users'
-                    : 'User CAN delete other users - CRITICAL IDOR',
-                timestamp: new Date().toISOString(),
-            };
-            client.recordResult(result);
+            expect(res.status).toBe(200);
+            expect(res.body).toMatchObject({
+                warehouseId: fx.warehouses.assigned.id,
+                itemId: fx.items.shared.id,
+                quantity: fx.stockLevels.assigned.quantity,
+            });
         });
     });
 
-    // ============================================
-    // Inventory Data Access Tests
-    // ============================================
-    describe('Inventory Data IDOR', () => {
-        it('ควรไม่ให้ user แก้ไข inventory item โดยไม่มีสิทธิ์', async () => {
-            const attacker = testUsers.user;
-            const itemId = 1;
+    // ------------------------------------------------------------------
+    // Horizontal: stock levels across warehouses
+    // ------------------------------------------------------------------
+    describe('stock levels — cross-warehouse read', () => {
+        it('refuses an unassigned warehouse to a non-manager (404, not 200)', async () => {
+            const res = await request(app)
+                .get(`/api/stock-levels/${fx.warehouses.unassigned.id}/${fx.items.shared.id}`)
+                .set(asUser(fx.users.assignedApprover, 'approver'));
 
-            const response = await request(targets.backend)
-                .put(`/api/inventory/${itemId}`)
-                .set('x-user-id', attacker.id.toString())
-                .set('x-user-role', attacker.role)
-                .set('x-internal-key', internalApiKey)
-                .send({
-                    name: 'Hacked Item',
-                    quantity: 99999,
-                });
-
-            // Regular users typically shouldn't modify inventory directly
-            const protected_ = response.status === 403 || response.status === 401;
-
-            const result: SecurityTestResult = {
-                testName: 'Inventory Update IDOR Prevention',
-                category: 'IDOR',
-                severity: protected_ ? severity.INFO : severity.HIGH,
-                passed: protected_,
-                message: protected_
-                    ? 'Regular user cannot modify inventory items'
-                    : 'Regular user CAN modify inventory - Check access control',
-                timestamp: new Date().toISOString(),
-            };
-            client.recordResult(result);
+            expect(res.status).toBe(404);
+            // The refusal must not leak the quantity.
+            expect(JSON.stringify(res.body)).not.toContain(
+                String(fx.stockLevels.unassigned.quantity),
+            );
         });
 
-        it('ควรตรวจสอบ ownership ก่อน delete inventory item', async () => {
-            const attacker = testUsers.user;
-            const itemId = 1;
+        it('refuses the unassigned warehouse to a plain user (404)', async () => {
+            const res = await request(app)
+                .get(`/api/stock-levels/${fx.warehouses.unassigned.id}/${fx.items.shared.id}`)
+                .set(asUser(fx.users.owner, 'user'));
 
-            const response = await request(targets.backend)
-                .delete(`/api/inventory/${itemId}`)
-                .set('x-user-id', attacker.id.toString())
-                .set('x-user-role', attacker.role)
-                .set('x-internal-key', internalApiKey);
+            expect(res.status).toBe(404);
+        });
 
-            const protected_ = response.status === 403 || response.status === 401;
+        it('lets an admin read any warehouse (positive control)', async () => {
+            const res = await request(app)
+                .get(`/api/stock-levels/${fx.warehouses.unassigned.id}/${fx.items.shared.id}`)
+                .set(asUser(fx.users.admin, 'admin'));
 
-            const result: SecurityTestResult = {
-                testName: 'Inventory Delete IDOR Prevention',
-                category: 'IDOR',
-                severity: protected_ ? severity.INFO : severity.HIGH,
-                passed: protected_,
-                message: protected_
-                    ? 'User cannot delete inventory items without permission'
-                    : 'User CAN delete any inventory item - IDOR VULNERABLE',
-                timestamp: new Date().toISOString(),
-            };
-            client.recordResult(result);
+            expect(res.status).toBe(200);
+            expect(res.body.quantity).toBe(fx.stockLevels.unassigned.quantity);
+        });
+
+        it('scopes the stock-level list to managed warehouses', async () => {
+            const res = await request(app)
+                .get('/api/stock-levels')
+                .set(asUser(fx.users.assignedApprover, 'approver'));
+
+            expect(res.status).toBe(200);
+            expect(Array.isArray(res.body)).toBe(true);
+            const warehouseIds = res.body.map((row: any) => row.warehouseId);
+            expect(warehouseIds).toContain(fx.warehouses.assigned.id);
+            expect(warehouseIds).not.toContain(fx.warehouses.unassigned.id);
         });
     });
 
-    // ============================================
-    // Request Data Access Tests
-    // ============================================
-    describe('Request Data IDOR', () => {
-        it('ควรไม่ให้ user ดู requests ของ user อื่น', async () => {
-            const attacker = testUsers.user;
-            const victimUserId = 1;
+    // ------------------------------------------------------------------
+    // Horizontal: stock mutation
+    // ------------------------------------------------------------------
+    describe('stock levels — cross-warehouse write', () => {
+        it('refuses an adjustment in an unassigned warehouse and leaves stock untouched', async () => {
+            const before = await request(app)
+                .get(`/api/stock-levels/${fx.warehouses.unassigned.id}/${fx.items.shared.id}`)
+                .set(asUser(fx.users.admin, 'admin'));
+            expect(before.status).toBe(200);
 
-            // Try to access requests of another user
-            const response = await request(targets.backend)
-                .get(`/api/requests?userId=${victimUserId}`)
-                .set('x-user-id', attacker.id.toString())
-                .set('x-user-role', attacker.role)
-                .set('x-internal-key', internalApiKey);
+            const res = await request(app)
+                .patch(
+                    `/api/stock-levels/${fx.warehouses.unassigned.id}/${fx.items.shared.id}/adjust`,
+                )
+                .set(asUser(fx.users.assignedApprover, 'approver'))
+                .send({ adjustment: 1000, note: 'idor probe' });
 
-            // Should return empty or only attacker's requests, not victim's
-            let hasOtherUserData = false;
-            if (response.status === 200 && Array.isArray(response.body)) {
-                hasOtherUserData = response.body.some((req: any) =>
-                    req.userId === victimUserId || req.createdBy === victimUserId
-                );
-            }
+            expect(res.status).toBe(404);
 
-            const protected_ = response.status === 403 || !hasOtherUserData;
-
-            const result: SecurityTestResult = {
-                testName: 'Request List IDOR Prevention',
-                category: 'IDOR',
-                severity: protected_ ? severity.INFO : severity.HIGH,
-                passed: protected_,
-                message: protected_
-                    ? 'User cannot view other users\' requests'
-                    : 'User CAN view other users\' requests - IDOR VULNERABLE',
-                timestamp: new Date().toISOString(),
-            };
-            client.recordResult(result);
+            const after = await request(app)
+                .get(`/api/stock-levels/${fx.warehouses.unassigned.id}/${fx.items.shared.id}`)
+                .set(asUser(fx.users.admin, 'admin'));
+            expect(after.status).toBe(200);
+            expect(after.body.quantity).toBe(before.body.quantity);
         });
 
-        it('ควรไม่ให้ user approve request โดยไม่มีสิทธิ์', async () => {
-            const attacker = testUsers.user;
-            const requestId = 1;
+        it('allows the same adjustment for the warehouse manager (positive control)', async () => {
+            const res = await request(app)
+                .patch(
+                    `/api/stock-levels/${fx.warehouses.assigned.id}/${fx.items.shared.id}/adjust`,
+                )
+                .set(asUser(fx.users.assignedApprover, 'approver'))
+                .send({ adjustment: 5, note: 'idor positive control' });
 
-            const response = await request(targets.backend)
-                .post(`/api/requests/${requestId}/approve`)
-                .set('x-user-id', attacker.id.toString())
-                .set('x-user-role', attacker.role)
-                .set('x-internal-key', internalApiKey)
-                .send({ approved: true });
+            expect(res.status).toBe(200);
+            expect(res.body.quantity).toBe(fx.stockLevels.assigned.quantity + 5);
 
-            const protected_ = response.status === 403 || response.status === 401;
+            // Restore so later cases see the documented baseline.
+            await request(app)
+                .patch(
+                    `/api/stock-levels/${fx.warehouses.assigned.id}/${fx.items.shared.id}/adjust`,
+                )
+                .set(asUser(fx.users.assignedApprover, 'approver'))
+                .send({ adjustment: -5, note: 'idor restore' });
+        });
 
-            const result: SecurityTestResult = {
-                testName: 'Request Approve IDOR Prevention',
-                category: 'IDOR',
-                severity: protected_ ? severity.INFO : severity.CRITICAL,
-                passed: protected_,
-                message: protected_
-                    ? 'Regular user cannot approve requests'
-                    : 'Regular user CAN approve requests - CRITICAL VULNERABILITY',
-                timestamp: new Date().toISOString(),
-            };
-            client.recordResult(result);
+        it('refuses a plain user any adjustment (403, not 500)', async () => {
+            const res = await request(app)
+                .patch(
+                    `/api/stock-levels/${fx.warehouses.assigned.id}/${fx.items.shared.id}/adjust`,
+                )
+                .set(asUser(fx.users.owner, 'user'))
+                .send({ adjustment: 1 });
+
+            expect(res.status).toBe(403);
         });
     });
 
-    // ============================================
-    // Warehouse/Department Data Tests
-    // ============================================
-    describe('Warehouse/Department IDOR', () => {
-        it('ควรไม่ให้ user เข้าถึง warehouse ที่ไม่มีสิทธิ์', async () => {
-            const attacker = testUsers.user;
-            const warehouseId = 999; // Non-assigned warehouse
+    // ------------------------------------------------------------------
+    // Horizontal: request visibility
+    // ------------------------------------------------------------------
+    describe('requests — list visibility', () => {
+        it('limits a plain user to their own requests', async () => {
+            const res = await request(app)
+                .get('/api/requests')
+                .set(asUser(fx.users.owner, 'user'));
 
-            const response = await request(targets.backend)
-                .get(`/api/warehouses/${warehouseId}/stock-levels`)
-                .set('x-user-id', attacker.id.toString())
-                .set('x-user-role', attacker.role)
-                .set('x-internal-key', internalApiKey);
-
-            // Should be restricted based on user's warehouse assignment
-            const protected_ = response.status === 403 ||
-                response.status === 401 ||
-                response.status === 404;
-
-            const result: SecurityTestResult = {
-                testName: 'Warehouse Access IDOR Prevention',
-                category: 'IDOR',
-                severity: protected_ ? severity.INFO : severity.MEDIUM,
-                passed: protected_,
-                message: protected_
-                    ? 'User cannot access unauthorized warehouses'
-                    : 'User CAN access any warehouse - Check access control',
-                timestamp: new Date().toISOString(),
-            };
-            client.recordResult(result);
+            expect(res.status).toBe(200);
+            expect(Array.isArray(res.body)).toBe(true);
+            const ids = res.body.map((r: any) => r.id);
+            expect(ids).toContain(fx.requests.ownerPending.id);
+            expect(ids).not.toContain(fx.requests.victimPending.id);
+            expect(ids).not.toContain(fx.requests.victimUnassigned.id);
         });
 
-        it('ควลไม่ให้ user แก้ไข stock levels ใน warehouse ที่ไม่มีสิทธิ์', async () => {
-            const attacker = testUsers.user;
-            const stockLevelId = 1;
+        /**
+         * Pins the *current* behaviour for non-`user` roles rather than
+         * asserting it is correct. `requestController.getRequests` only filters
+         * by owner when the primary role is exactly `user`, so a technician
+         * sees every request. That is an open policy question (V20/V21 in the
+         * handoff), not something this suite should silently bless or fix.
+         *
+         * If the policy is tightened, this test will fail — which is the point:
+         * the change becomes visible instead of shipping unnoticed.
+         */
+        it('documents that a technician currently sees other users\' requests', async () => {
+            const res = await request(app)
+                .get('/api/requests')
+                .set(asUser(fx.users.technician, 'technician'));
 
-            const response = await request(targets.backend)
-                .post(`/api/stock-levels/${stockLevelId}/adjust`)
-                .set('x-user-id', attacker.id.toString())
-                .set('x-user-role', attacker.role)
-                .set('x-internal-key', internalApiKey)
-                .send({
-                    adjustment: 1000,
-                    reason: 'Hacking attempt',
-                });
-
-            const protected_ = response.status === 403 || response.status === 401;
-
-            const result: SecurityTestResult = {
-                testName: 'Stock Level Adjustment IDOR Prevention',
-                category: 'IDOR',
-                severity: protected_ ? severity.INFO : severity.HIGH,
-                passed: protected_,
-                message: protected_
-                    ? 'User cannot adjust stock in unauthorized locations'
-                    : 'User CAN adjust any stock level - IDOR VULNERABLE',
-                timestamp: new Date().toISOString(),
-            };
-            client.recordResult(result);
+            expect(res.status).toBe(200);
+            const ids = res.body.map((r: any) => r.id);
+            expect(ids).toContain(fx.requests.victimPending.id);
         });
     });
 
-    // ============================================
-    // ID Enumeration Tests
-    // ============================================
-    describe('ID Enumeration', () => {
-        it('ควรป้องกัน enumeration attack ด้วย sequential IDs', async () => {
-            const attacker = testUsers.user;
-            const accessibleResources: number[] = [];
+    // ------------------------------------------------------------------
+    // Horizontal: request status transition
+    // ------------------------------------------------------------------
+    describe('requests — status transition', () => {
+        it('refuses an approver acting on a request in an unassigned warehouse', async () => {
+            const res = await request(app)
+                .patch(`/api/requests/${fx.requests.victimUnassigned.id}/status`)
+                .set(asUser(fx.users.assignedApprover, 'approver'))
+                .send({ status: 'rejected' });
 
-            // Try to enumerate user IDs
-            for (let id = 1; id <= 20; id++) {
-                const response = await request(targets.backend)
-                    .get(`/api/users/${id}`)
-                    .set('x-user-id', attacker.id.toString())
-                    .set('x-user-role', attacker.role)
-                    .set('x-internal-key', internalApiKey);
+            expect(res.status).toBe(404);
 
-                if (response.status === 200) {
-                    accessibleResources.push(id);
-                }
-            }
-
-            // Attacker should only access their own data
-            const onlyOwnData = accessibleResources.length <= 1 &&
-                (accessibleResources.length === 0 || accessibleResources[0] === attacker.id);
-
-            const result: SecurityTestResult = {
-                testName: 'ID Enumeration Prevention',
-                category: 'IDOR',
-                severity: onlyOwnData ? severity.INFO : severity.HIGH,
-                passed: onlyOwnData,
-                message: onlyOwnData
-                    ? 'User can only access their own resource'
-                    : `User accessed ${accessibleResources.length} resources via enumeration`,
-                details: {
-                    evidence: `Accessible IDs: ${accessibleResources.join(', ')}`,
-                },
-                timestamp: new Date().toISOString(),
-            };
-            client.recordResult(result);
+            // The status must be unchanged.
+            const check = await request(app)
+                .get('/api/requests')
+                .set(asUser(fx.users.admin, 'admin'));
+            const row = check.body.find((r: any) => r.id === fx.requests.victimUnassigned.id);
+            expect(row?.status).toBe('pending');
         });
 
-        it('ควรใช้ UUID แทน sequential IDs (แนะนำ)', async () => {
-            const response = await request(targets.backend)
-                .get('/api/inventory')
-                .set('x-user-id', testUsers.admin.id.toString())
-                .set('x-user-role', testUsers.admin.role)
-                .set('x-internal-key', internalApiKey);
+        it('refuses a plain user the transition outright (403)', async () => {
+            const res = await request(app)
+                .patch(`/api/requests/${fx.requests.ownerPending.id}/status`)
+                .set(asUser(fx.users.owner, 'user'))
+                .send({ status: 'approved' });
 
-            let usesUUID = false;
-            if (response.status === 200 && Array.isArray(response.body)) {
-                const firstItem = response.body[0];
-                if (firstItem?.id) {
-                    // Check if ID looks like UUID
-                    const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-                    usesUUID = uuidPattern.test(firstItem.id.toString());
-                }
-            }
+            expect(res.status).toBe(403);
+        });
 
-            const result: SecurityTestResult = {
-                testName: 'UUID Usage Check',
-                category: 'IDOR',
-                severity: severity.INFO,
-                passed: true, // Informational
-                message: usesUUID
-                    ? 'Application uses UUIDs (harder to enumerate)'
-                    : 'Application uses sequential IDs (consider UUIDs for sensitive resources)',
-                timestamp: new Date().toISOString(),
-            };
-            client.recordResult(result);
+        it('allows the warehouse manager to reject in scope (positive control)', async () => {
+            const res = await request(app)
+                .patch(`/api/requests/${fx.requests.victimPending.id}/status`)
+                .set(asUser(fx.users.assignedApprover, 'approver'))
+                .send({ status: 'rejected' });
+
+            expect(res.status).toBe(200);
+            expect(res.body.status).toBe('rejected');
         });
     });
 
-    // ============================================
-    // Horizontal Privilege Escalation
-    // ============================================
-    describe('Horizontal Privilege Escalation', () => {
-        it('ควรไม่ให้ user เข้าถึงข้อมูลของ user อื่นในระดับเดียวกัน', async () => {
-            // Simulate two users at same level
-            const user1 = { id: 10, role: 'user' };
-            const user2Id = 11;
+    // ------------------------------------------------------------------
+    // Vertical: user directory
+    // ------------------------------------------------------------------
+    describe('users — vertical escalation', () => {
+        /**
+         * `/api/users` is guarded by `authenticateToken` + `authorize(['admin','hr'])`,
+         * so it takes a JWT, not the internal header. The previous version of
+         * this file sent `x-user-*` headers here and treated the resulting 401
+         * as proof of protection — it was only proving the route rejects a
+         * header scheme it never accepted.
+         */
+        it('refuses a plain user the user directory (403 via JWT)', async () => {
+            const res = await request(app)
+                .get('/api/users')
+                .set('Authorization', `Bearer ${jwtFor(fx.users.owner, 'user')}`);
 
-            // User 1 tries to access User 2's private data
-            const response = await request(targets.backend)
-                .get(`/api/users/${user2Id}/profile`)
-                .set('x-user-id', user1.id.toString())
-                .set('x-user-role', user1.role)
-                .set('x-internal-key', internalApiKey);
-
-            const protected_ = response.status === 403 ||
-                response.status === 401 ||
-                response.status === 404;
-
-            const result: SecurityTestResult = {
-                testName: 'Horizontal Privilege Escalation Prevention',
-                category: 'IDOR',
-                severity: protected_ ? severity.INFO : severity.HIGH,
-                passed: protected_,
-                message: protected_
-                    ? 'Users cannot access peer users\' data'
-                    : 'Horizontal privilege escalation possible',
-                timestamp: new Date().toISOString(),
-            };
-            client.recordResult(result);
+            expect(res.status).toBe(403);
         });
 
-        it('ควรตรวจสอบทุก object references ใน request body', async () => {
-            const attacker = testUsers.user;
+        it('refuses an anonymous caller (401)', async () => {
+            const res = await request(app).get('/api/users');
+            expect(res.status).toBe(401);
+        });
 
-            // Try to create a request referencing another user
-            const response = await request(targets.backend)
-                .post('/api/requests')
-                .set('x-user-id', attacker.id.toString())
-                .set('x-user-role', attacker.role)
-                .set('x-internal-key', internalApiKey)
-                .send({
-                    userId: 1, // Trying to submit request as another user
-                    items: [{ id: 1, quantity: 5 }],
-                });
+        it('serves the directory to an admin (positive control)', async () => {
+            const res = await request(app)
+                .get('/api/users')
+                .set('Authorization', `Bearer ${jwtFor(fx.users.admin, 'admin')}`);
 
-            // Check if the created request uses attacker's ID or victim's ID
-            let usedVictimId = false;
-            if (response.status === 201 || response.status === 200) {
-                usedVictimId = response.body?.userId === 1 && 1 !== attacker.id;
-            }
+            expect(res.status).toBe(200);
+            expect(Array.isArray(res.body)).toBe(true);
+            expect(res.body.length).toBeGreaterThan(0);
+        });
 
-            const protected_ = !usedVictimId;
+        it('does not expose password hashes in the user directory', async () => {
+            const res = await request(app)
+                .get('/api/users')
+                .set('Authorization', `Bearer ${jwtFor(fx.users.admin, 'admin')}`);
 
-            const result: SecurityTestResult = {
-                testName: 'Request Body Object Reference Validation',
-                category: 'IDOR',
-                severity: protected_ ? severity.INFO : severity.HIGH,
-                passed: protected_,
-                message: protected_
-                    ? 'Server validates object references in request body'
-                    : 'Server accepts arbitrary userId in request - IDOR VULNERABLE',
-                timestamp: new Date().toISOString(),
-            };
-            client.recordResult(result);
+            expect(res.status).toBe(200);
+            expect(JSON.stringify(res.body)).not.toMatch(/\$2[aby]\$\d{2}\$/);
         });
     });
 
-    // ============================================
-    // After All - Print Summary
-    // ============================================
+    // ------------------------------------------------------------------
+    // Vertical: inventory mutation
+    // ------------------------------------------------------------------
+    describe('inventory — vertical escalation', () => {
+        it('refuses a plain user an inventory update (403)', async () => {
+            const res = await request(app)
+                .patch(`/api/inventory/${fx.items.shared.id}`)
+                .set(asUser(fx.users.owner, 'user'))
+                .send({ name: 'idor overwritten' });
+
+            expect(res.status).toBe(403);
+        });
+
+        it('refuses an approver an inventory update (403 — admin tier only)', async () => {
+            const res = await request(app)
+                .patch(`/api/inventory/${fx.items.shared.id}`)
+                .set(asUser(fx.users.assignedApprover, 'approver'))
+                .send({ name: 'idor overwritten' });
+
+            expect(res.status).toBe(403);
+        });
+
+        it('refuses a plain user an inventory delete (403)', async () => {
+            const res = await request(app)
+                .delete(`/api/inventory/${fx.items.shared.id}`)
+                .set(asUser(fx.users.owner, 'user'));
+
+            expect(res.status).toBe(403);
+        });
+
+        it('allows an admin the inventory update (positive control)', async () => {
+            const res = await request(app)
+                .patch(`/api/inventory/${fx.items.shared.id}`)
+                .set(asUser(fx.users.admin, 'admin'))
+                .send({ name: `${fx.items.shared.name} (admin edit)` });
+
+            expect(res.status).toBe(200);
+            expect(res.body.name).toBe(`${fx.items.shared.name} (admin edit)`);
+        });
+    });
+
+    // ------------------------------------------------------------------
+    // Route existence — the failure mode that hid the old suite's gaps
+    // ------------------------------------------------------------------
+    describe('route contract — guards against testing routes that do not exist', () => {
+        /**
+         * Each entry is a route the old suite asserted against but which is not
+         * mounted. If one of these is ever added for real, the expectation
+         * below fails and the suite gets updated deliberately. Until then this
+         * test documents *why* the old assertions were meaningless.
+         *
+         * `auth` matters: `/api/users` mounts `authenticateToken` at the router
+         * level, so an unmounted path under it answers 401 before Express ever
+         * gets to route matching. Sending the wrong scheme would make the test
+         * pass for the wrong reason — the same mistake the old suite made.
+         */
+        const routesThatDoNotExist = [
+            { method: 'get' as const, path: '/api/users/1/profile', auth: 'jwt' as const },
+            { method: 'post' as const, path: '/api/requests/1/approve', auth: 'header' as const },
+            { method: 'post' as const, path: '/api/stock-levels/1/adjust', auth: 'header' as const },
+            { method: 'put' as const, path: '/api/inventory/1', auth: 'header' as const },
+            { method: 'put' as const, path: '/api/users/1', auth: 'jwt' as const },
+        ];
+
+        for (const route of routesThatDoNotExist) {
+            it(`${route.method.toUpperCase()} ${route.path} is not mounted`, async () => {
+                const agent = request(app);
+                const builder =
+                    route.method === 'get'
+                        ? agent.get(route.path)
+                        : route.method === 'post'
+                          ? agent.post(route.path)
+                          : agent.put(route.path);
+
+                const authed =
+                    route.auth === 'jwt'
+                        ? builder.set(
+                              'Authorization',
+                              `Bearer ${jwtFor(fx.users.admin, 'admin')}`,
+                          )
+                        : builder.set(asUser(fx.users.admin, 'admin'));
+
+                const res = await authed;
+
+                // Express answers an unmounted path with 404 — which is exactly
+                // why a 404 must never be read as "authorization worked".
+                expect(res.status).toBe(404);
+            });
+        }
+    });
+
+    // ------------------------------------------------------------------
+    // Report
+    // ------------------------------------------------------------------
     afterAll(() => {
-        const summary = client.getSummary();
-        console.log('\n========================================');
-        console.log('IDOR Security Test Summary');
-        console.log('========================================');
-        console.log(`Total Tests: ${summary.total}`);
-        console.log(`Passed: ${summary.passed}`);
-        console.log(`Failed: ${summary.failed}`);
-        console.log('By Severity:', summary.bySeverity);
-        console.log('========================================\n');
+        // eslint-disable-next-line no-console
+        console.log(
+            `\nIDOR suite ran against ${isolation.url} ` +
+                `(pre-existing warehouses: ${isolation.preExistingWarehouses}, ` +
+                `pre-existing requests: ${isolation.preExistingRequests}). ` +
+                `Fixture rows were removed afterwards.\n`,
+        );
     });
 });
