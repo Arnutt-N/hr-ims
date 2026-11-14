@@ -370,7 +370,7 @@ describe('🔒 IDOR — object-level authorization', () => {
          * much of any item sits in any warehouse by asking to move one more
          * than it holds.
          */
-        it('refuses a transfer from a warehouse the caller does not manage (404)', async () => {
+        it('refuses a transfer from a warehouse the caller does not manage (403)', async () => {
             const res = await request(app)
                 .post('/api/stock-transfers')
                 .set(asUser(fx.users.owner, 'user'))
@@ -383,9 +383,50 @@ describe('🔒 IDOR — object-level authorization', () => {
                     quantity: 999,
                 });
 
-            expect(res.status).toBe(404);
+            // 403, not 404: the warehouse exists, the caller just may not draw
+            // from it. A 404 would send them looking for a warehouse that is
+            // visible in their own dropdown.
+            expect(res.status).toBe(403);
             // The response must not leak the stock figure it never had the
             // right to read.
+            expect(res.body.available).toBeUndefined();
+        });
+
+        /**
+         * The regression this suite missed the first time.
+         *
+         * V22 shipped with only manager-based positive controls, so nothing
+         * proved a plain `user` could still create a transfer. A plain user
+         * reaches a warehouse through a department mapping, not through
+         * management, and that path was never exercised.
+         */
+        it('lets a plain user create a transfer from their department warehouse (positive control)', async () => {
+            const res = await request(app)
+                .post('/api/stock-transfers')
+                .set(asUser(fx.users.departmentUser, 'user'))
+                .send({
+                    fromWarehouseId: fx.warehouses.assigned.id,
+                    toWarehouseId: fx.warehouses.unassigned.id,
+                    itemId: fx.items.shared.id,
+                    quantity: 1,
+                });
+
+            expect(res.status).toBe(201);
+            expect(res.body.requestedBy).toBe(fx.users.departmentUser.id);
+        });
+
+        it('refuses a plain user with no department mapping (403)', async () => {
+            const res = await request(app)
+                .post('/api/stock-transfers')
+                .set(asUser(fx.users.victim, 'user'))
+                .send({
+                    fromWarehouseId: fx.warehouses.assigned.id,
+                    toWarehouseId: fx.warehouses.unassigned.id,
+                    itemId: fx.items.shared.id,
+                    quantity: 1,
+                });
+
+            expect(res.status).toBe(403);
             expect(res.body.available).toBeUndefined();
         });
 

@@ -139,11 +139,24 @@ router.post('/', requireAuth, async (req: AuthRequest, res) => {
         // already requires the source warehouse to be in scope before anything
         // moves. Requiring destination scope here would block the normal case
         // of "send this to the central warehouse".
+        //
+        // Scope comes from `getManagedWarehouseIds`, which counts both warehouse
+        // management and a department mapping. That is the same rule the
+        // frontend uses to populate the source dropdown, so a user is never
+        // offered a warehouse the API will refuse.
+        //
+        // 403, not 404: the warehouse exists, the caller just may not draw from
+        // it. A 404 here would send the user hunting for a warehouse that is
+        // plainly visible in the list, and would hide the real fix (ask an
+        // admin for a department mapping).
         try {
             await assertWarehouseAccess(prisma, user, fromWarehouseId);
         } catch (err) {
             if (err instanceof NotFoundError) {
-                return res.status(404).json({ error: 'Source warehouse not found' });
+                return res.status(403).json({
+                    error: 'Forbidden',
+                    message: 'You do not have access to the source warehouse.',
+                });
             }
             throw err;
         }
