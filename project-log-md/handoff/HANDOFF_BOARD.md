@@ -1,6 +1,6 @@
 ﻿# 🤝 Cross-Agent Handoff Board
 
-> **Last Updated:** 2026-11-14 13:50 | **Updated By:** perch
+> **Last Updated:** 2026-11-14 17:35 | **Updated By:** perch
 >
 > ไฟล์นี้เป็น Dashboard กลาง ทุก Agent ต้องอ่านก่อนเริ่มงาน และอัพเดทเมื่อจบงาน
 
@@ -14,7 +14,7 @@
 | **kilo** | ⚪ IDLE | 2026-01-30 | Codebase Analysis Report | [session_2026-01-30](../kilo/session_2026-01-30_185739.md) |
 | **claude_code** | 🟢 AVAILABLE | 2026-11-13 12:14 | IDOR/object-level authz — handed off mid-task; completed by antigravity | [2026-11-13_1214_claude_code_to_all](logs/2026-11-13_1214_claude_code_to_all.md) |
 | **codex** | 🟡 PENDING_HANDOFF | 2026-11-13 21:31 | PR #26 review and IDOR test repair remain in progress | [2026-11-13_2131_codex_to_all](logs/2026-11-13_2131_codex_to_all.md) |
-| **perch** | 🟢 AVAILABLE | 2026-11-14 13:50 | Wired IDOR + RBAC matrix suites into CI as a hard-fail gate | [2026-11-14_1350_perch_to_all](logs/2026-11-14_1350_perch_to_all.md) |
+| **perch** | 🟢 AVAILABLE | 2026-11-14 17:35 | Closed the 4 open authz policy items (V20/V21/V22) | [2026-11-14_1735_perch_to_all](logs/2026-11-14_1735_perch_to_all.md) |
 | **cline** | 🟢 AVAILABLE | 2026-08-23 20:15 | BullMQ worker bootstrap — escalation worker wired & verified E2E | [2026-08-23_2015_cline_to_all](logs/2026-08-23_2015_cline_to_all.md) |
 | **cursor** | 🟢 AVAILABLE | 2026-11-10 09:24 | Gate login Quick Demo panel behind `NEXT_PUBLIC_DEMO_MODE`; removed tracked `cloudflared.exe` | [demo](logs/2026-11-10_0911_cursor_to_all.md), [cloudflared](logs/2026-11-10_0859_cursor_to_all.md) |
 | **gemini_cli** | ⚪ IDLE | - | - | - |
@@ -78,6 +78,7 @@
 | 4 | perch | 2026-11-13 | 🐛 Bug | PR #26 (`fix/proxy-header-spoofing`) did not compile on merge: `backend/src/middleware/auth.ts:66` referenced `INTERNAL_API_KEY`, which `main` had removed in favour of a per-request `expectedKey`. Git merged both cleanly (different lines) and kept a dead binding → `TS2552`. **Fixed in `ac5ded8`, merged as `cc8392e`**: guard now checks `expectedKey`; `tsc` 0 errors, 75/75 unit, CI 8/8 green. | ✅ Applied |
 | 5 | perch | 2026-11-13 | 📝 Note | `idor.test.ts` had zero `expect()` calls and asserted against 5 unmounted routes, so its 13/13 Jest passes were meaningless. Rewritten: 28 cases, real assertions, positive controls, mutation-verified. **Merged as PR #33 → `47ad231`** (CI 8/8 green). | ✅ Applied |
 | 6 | perch | 2026-11-14 | ⚠️ Warning | The 246 rewritten authz cases (28 IDOR + 218 RBAC matrix) ran **nowhere**: `ci.yml` excluded all of `src/tests/security`, and `security-e2e.yml` was `continue-on-error: true` while excluding `rbac-matrix`. Its comment claimed the matrix "already runs in-memory in the main backend CI job" — it did not. **Fixed on `ci/security-authz-hard-fail`**: new hard-fail `security-authz` job in `ci.yml` (throwaway SQLite, no Redis, no seed) + `continue-on-error` removed from the nightly workflow. **Fixed in PR #34** (`ci/security-authz-hard-fail`), CI 9/9 green; job log shows 246/246. | ✅ Applied |
+| 7 | perch | 2026-11-14 | 🔒 Security | The 4 open authz policy items are decided and closed in **PR #35** (`fix/authz-policy-v20-v21`, CI 9/9 green). **V20:** `getRequests` scoped only `role === 'user'`, so technician/auditor saw every request — the frontend already gated on `APPROVER_ROLES`, so the backend was the looser surface. **V21:** `scopeRequestWarehouse` let any non-owner through when `warehouseId` was null; the controller then threw 400 anyway, and the owner was the only one refused. **V22:** `POST /api/stock-transfers` echoed the source stock quantity in `available` on its 400, a stock oracle for unmanaged warehouses. Tests 246 → 253; mutation-verified all three. | ✅ Applied |
 
 ### Type Legend
 - 🐛 Bug | 💡 Suggestion | ⚠️ Warning | 📝 Note
@@ -89,7 +90,8 @@
 > บันทึกกิจกรรมล่าสุด (ล่าสุด 10 รายการ)
 
 | # | Date | Agent | Action | Details |
-|---|------|-------|--------|---------|
+|---|------|-------|--------|
+| 0 | 2026-11-14 17:35 | perch | ✅ COMPLETE | Closed the 4 open authz policy items — **PR #35**, CI 9/9 green. V20 request visibility now matches the frontend's approver tier; V21 warehouse-less transitions refuse non-admins with 404; V22 stock-transfer creation requires source-warehouse scope. 253 authz + 75 unit cases pass; all three mutation-verified. See `logs/2026-11-14_1735_perch_to_all.md` |
 | 0 | 2026-11-14 13:50 | perch | ✅ COMPLETE | Wired the 246 authz cases into CI as a hard-fail gate — new `security-authz` job in `ci.yml` (throwaway SQLite, no Redis/seed) and `continue-on-error` removed from `security-e2e.yml`. **PR #34 opened (draft), CI 9/9 green**; the new job's log shows `Tests: 246 passed, 246 total`. 73 fail under a `requireRole` mutation. See `logs/2026-11-14_1350_perch_to_all.md` |
 | 0 | 2026-11-13 23:45 | perch | ✅ COMPLETE | PR #26 merged to `main` as `cc8392e` — build fixed (`INTERNAL_API_KEY` → `expectedKey`), CI 8/8 green, post-merge `tsc` 0 errors and auth tests 10/10 re-verified on `main`. |
 | 1 | 2026-11-13 23:05 | perch | ✅ COMPLETE | PR #33 merged to `main` as `47ad231` — IDOR suite rewritten (28 cases, mutation-verified), CI 8/8 green. See `logs/2026-11-13_2240_perch_to_all.md` |
