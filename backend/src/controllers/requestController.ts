@@ -52,10 +52,31 @@ export const getRequests = async (req: AuthRequest, res: Response) => {
         const { role } = req.user;
         const userId = req.user.userId ?? req.user.id;
 
-        let where = {};
-        if (role === 'user') {
-            where = { userId };
-        }
+        // Visibility policy (V20/V21, decided 2026-11-14)
+        // -------------------------------------------------
+        // Only the approver tier sees every request. Everyone else — including
+        // `technician` and `auditor` — sees only their own.
+        //
+        // Why this and not "technician sees everything":
+        // - The frontend already enforces exactly this. `lib/actions/requests.ts`
+        //   gates on APPROVER_ROLES (admin/superadmin/approver) and scopes
+        //   everyone else to `where.userId = session.user.id`. The backend was
+        //   the looser of the two, so the same user saw different data depending
+        //   on which surface answered.
+        // - A technician has no approval authority (requireRole on the status
+        //   route excludes the role), so seeing other people's requests grants
+        //   visibility with no matching responsibility.
+        // - The seed grants `technician` no `/requests` menu entry at all.
+        //
+        // Keeping the two surfaces identical is the point: a policy that only
+        // one of them enforces is not a policy, it is a gap.
+        const APPROVER_TIER = ['superadmin', 'admin', 'approver'];
+        const roles: string[] = Array.isArray(req.user.roles) && req.user.roles.length > 0
+            ? req.user.roles
+            : [role];
+        const seesAll = roles.some((r) => APPROVER_TIER.includes(String(r).toLowerCase()));
+
+        const where = seesAll ? {} : { userId };
 
         const requests = await prisma.request.findMany({
             where,
