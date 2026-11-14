@@ -6,6 +6,8 @@ import { revalidatePath } from 'next/cache';
 import { logActivity } from '@/lib/actions/audit';
 import { z } from 'zod';
 import { requireRole, ADMIN_ROLES } from '@/lib/auth-guards';
+import { sessionHasAnyRole } from '@/lib/role-access';
+import { getManagedWarehouseIds } from '@/lib/warehouse-scope';
 
 // Validation Schemas
 const warehouseSchema = z.object({
@@ -192,5 +194,40 @@ export async function getProvinces() {
     } catch (error) {
         console.error('Failed to fetch provinces:', error);
         return { error: 'Failed to fetch provinces' };
+    }
+}
+
+/**
+ * Warehouses the current user may move stock OUT of.
+ *
+ * The backend enforces this on `POST /api/stock-transfers` (V22, 2026-11-14):
+ * a transfer is only accepted when the caller manages the source warehouse or
+ * their department is mapped to it. Without this action the UI offers every
+ * warehouse in the system, so a user picks one and gets a 404 that reads like
+ * "this warehouse does not exist" when it plainly does.
+ *
+ * Admin tier gets everything. Everyone else gets the same set the backend will
+ * accept, computed by the same helper, so the dropdown and the API cannot drift.
+ */
+export async function getTransferSourceWarehouses() {
+    const session = await auth();
+    if (!session?.user?.id) return { error: 'Unauthorized' };
+
+    try {
+        const userId = parseInt(session.user.id);
+        const isAdmin = sessionHasAnyRole(session, ...ADMIN_ROLES);
+
+        const warehouses = await prisma.warehouse.findMany({
+            where: isAdmin
+                ? { isActive: true }
+                : { isActive: true, id: { in: await getManagedWarehouseIds(userId) } },
+            select: { id: true, name: true, code: true, type: true, isActive: true },
+            orderBy: { name: 'asc' },
+        });
+
+        return { success: true, warehouses };
+    } catch (error) {
+        console.error('Failed to fetch transfer source warehouses:', error);
+        return { error: 'Failed to fetch transfer source warehouses' };
     }
 }

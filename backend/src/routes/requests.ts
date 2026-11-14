@@ -28,10 +28,25 @@ const scopeRequestWarehouse = async (req: any, res: any, next: any) => {
         }
 
         if (existing.warehouseId === null) {
-            if (existing.userId === Number(user.id ?? user.userId)) {
-                return res.status(404).json({ error: 'Request not found' });
-            }
-            return next();
+            // A request with no warehouse has no scope to check against, so
+            // nobody but an admin tier may transition it (V21, decided
+            // 2026-11-14).
+            //
+            // Previously this fell through to `next()` for every non-owner, so
+            // any approver could approve or reject a warehouse-less request
+            // from any other user. Two things make that unsafe rather than
+            // merely untidy:
+            // - `updateRequestStatus` throws 'Request warehouse not found' when
+            //   approving without a warehouse, so the transition cannot succeed
+            //   anyway — it is a guaranteed 400 dressed up as an authorization
+            //   pass.
+            // - The owner check below returns 404 to the owner, which meant the
+            //   one person with a legitimate interest was the only one refused.
+            //
+            // 404 (not 403) keeps the response indistinguishable from a missing
+            // request, so the endpoint does not confirm that an out-of-scope id
+            // exists.
+            return res.status(404).json({ error: 'Request not found' });
         }
 
         await assertWarehouseAccess(prisma, user, existing.warehouseId);

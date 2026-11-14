@@ -113,7 +113,17 @@ const ANY_AUTH: MatrixRule[] = [
     { path: '/api/email/status', method: 'GET', allowedRoles: '*' },
     { path: '/api/stock-transfers', method: 'GET', allowedRoles: '*' },
     { path: '/api/stock-transfers/:id', method: 'GET', allowedRoles: '*' },
-    { path: '/api/stock-transfers', method: 'POST', allowedRoles: '*', body: { fromWarehouseId: 1, toWarehouseId: 2, itemId: 1, quantity: 1 } },
+    // POST /api/stock-transfers is deliberately absent from this matrix.
+    //
+    // It is role-open (any authenticated caller may attempt it), but since V22
+    // (2026-11-14) the outcome depends on object scope, not role: the caller
+    // must manage the source warehouse or have their department mapped to it.
+    // A role-only matrix cannot express that — it would assert "any role is
+    // allowed" and then fail on the 403 the scope check correctly returns.
+    //
+    // The role-open half is still covered: this route has no requireRole, and
+    // `idor.test.ts` proves both the allowed path (department-mapped plain
+    // user → 201) and the refused path (no mapping → 403).
     { path: '/api/stock-levels', method: 'GET', allowedRoles: '*' },
     { path: '/api/stock-levels/:warehouseId/:itemId', method: 'GET', allowedRoles: '*', pathParams: { warehouseId: '1', itemId: '1' } },
     { path: '/api/stock-transactions/history/:itemId', method: 'GET', allowedRoles: '*', pathParams: { itemId: '1' } },

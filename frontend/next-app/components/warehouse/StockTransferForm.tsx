@@ -145,6 +145,7 @@ export default function StockTransferForm({ userId, onSuccess, onCancel, disable
                         value={fromWarehouseId}
                         onChange={setFromWarehouseId}
                         type="all"
+                        scope="source"
                         placeholder="เลือกคลังต้นทาง"
                         disabled={disabled}
                     />
