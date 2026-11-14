@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { getWarehouses } from '@/lib/actions/warehouse';
+import { getWarehouses, getTransferSourceWarehouses } from '@/lib/actions/warehouse';
 
 interface Warehouse {
     id: number;
@@ -21,6 +21,12 @@ interface WarehouseSelectorProps {
     type?: 'central' | 'division' | 'all';
     disabled?: boolean;
     placeholder?: string;
+    /**
+     * `'source'` lists only warehouses the user may move stock OUT of, matching
+     * what `POST /api/stock-transfers` accepts (V22). `'all'` lists every
+     * warehouse, which is correct for a destination.
+     */
+    scope?: 'all' | 'source';
 }
 
 export default function WarehouseSelector({
@@ -28,14 +34,17 @@ export default function WarehouseSelector({
     onChange,
     type = 'all',
     disabled = false,
-    placeholder = 'เลือกคลังพัสดุ'
+    placeholder = 'เลือกคลังพัสดุ',
+    scope = 'all'
 }: WarehouseSelectorProps) {
     const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
     const [loading, setLoading] = useState(true);
 
     const fetchWarehouses = useCallback(async () => {
         try {
-            const result = await getWarehouses();
+            const result = scope === 'source'
+                ? await getTransferSourceWarehouses()
+                : await getWarehouses();
             const data = ('warehouses' in result && result.warehouses) ? result.warehouses : [];
 
             // Filter by type if specified
@@ -49,7 +58,7 @@ export default function WarehouseSelector({
         } finally {
             setLoading(false);
         }
-    }, [type]);
+    }, [type, scope]);
 
     useEffect(() => {
         fetchWarehouses();
@@ -60,6 +69,25 @@ export default function WarehouseSelector({
             <Select disabled>
                 <SelectTrigger aria-label="Warehouse filter (loading)">
                     <SelectValue placeholder="กำลังโหลด..." />
+                </SelectTrigger>
+            </Select>
+        );
+    }
+
+    // An empty scoped list is a permission outcome, not a loading glitch. Say so,
+    // otherwise the field looks broken and the user retries a request the
+    // backend will refuse anyway.
+    if (warehouses.length === 0) {
+        return (
+            <Select disabled>
+                <SelectTrigger aria-label="Warehouse filter (none available)">
+                    <SelectValue
+                        placeholder={
+                            scope === 'source'
+                                ? 'ไม่มีคลังต้นทางที่คุณมีสิทธิ์ — ติดต่อผู้ดูแลคลัง'
+                                : placeholder
+                        }
+                    />
                 </SelectTrigger>
             </Select>
         );

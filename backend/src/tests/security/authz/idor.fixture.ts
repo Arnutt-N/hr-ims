@@ -51,6 +51,13 @@ export type IdorFixture = {
         technician: { id: number; email: string };
         /** `auditor` role — read-only, scoped to their own requests (V20). */
         auditor: { id: number; email: string };
+        /**
+         * Plain `user` whose department is mapped to `warehouses.assigned`.
+         *
+         * This is how a non-manager legitimately reaches a warehouse, and it is
+         * the path V22's first cut broke without noticing.
+         */
+        departmentUser: { id: number; email: string };
     };
     items: {
         /** Item stocked in both warehouses. */
@@ -188,6 +195,7 @@ export async function createIdorFixture(): Promise<IdorFixture> {
     const admin = await mkUser('admin', 'admin');
     const technician = await mkUser('technician', 'technician');
     const auditor = await mkUser('auditor', 'auditor');
+    const departmentUser = await mkUser('department-user', 'user', `${IDOR_FIXTURE_PREFIX}dept`);
 
     const assignedWarehouse = await prisma.warehouse.create({
         data: {
@@ -273,6 +281,16 @@ export async function createIdorFixture(): Promise<IdorFixture> {
         };
     };
 
+    // Map the department user's department to the assigned warehouse. This is
+    // the only way a plain `user` reaches a warehouse, so the fixture has to
+    // model it explicitly rather than relying on management.
+    await prisma.departmentMapping.create({
+        data: {
+            department: `${IDOR_FIXTURE_PREFIX}dept`,
+            warehouseId: assignedWarehouse.id,
+        },
+    });
+
     const ownerPending = await mkRequest(owner.id, assignedWarehouse.id, 2);
     const victimPending = await mkRequest(victim.id, assignedWarehouse.id, 3);
     const victimUnassigned = await mkRequest(victim.id, unassignedWarehouse.id, 1);
@@ -303,6 +321,7 @@ export async function createIdorFixture(): Promise<IdorFixture> {
             admin,
             technician,
             auditor,
+            departmentUser,
         },
         items: { shared: item },
         stockLevels: {
