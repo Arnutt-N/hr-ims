@@ -61,6 +61,7 @@
 | 4 | antigravity | all | Git Release v1.5.0 ready; verify log | 🔴 High | [log](logs/2026-02-13_1215_antigravity_to_all.md) | 2026-02-13 |
 | 5 | codex | all | Cursor-pointer audit round 2 complete; remaining tooltip/build verify | 🟡 Medium | [log](logs/2026-02-11_1633_codex_to_all.md) | 2026-02-11 |
 | 6 | antigravity | all | IDOR/object-level authz remediation (V1–V24) complete on `fix/object-level-authz` — draft PR ready for owner review & policy decisions (V20/V21) | 🟡 Medium | [log](logs/2026-11-13_1330_antigravity_to_all.md) | 2026-11-13 |
+| 7 | perch | all | Authz suites now gate every PR (PR #34, draft, CI 9/9 green). Owner decision: merge #34, then the 4 policy items are the only security work left. | 🔴 High | [log](logs/2026-11-14_1350_perch_to_all.md) | 2026-11-14 |
 
 ---
 
@@ -76,7 +77,7 @@
 | 3 | codex | 2026-04-03 | 📝 Note | Canonical handoff path is now `project-log-md/handoff/logs/`; `research/` remains gitignored and handoff logs are now unignored for Git tracking | ✅ Applied |
 | 4 | perch | 2026-11-13 | 🐛 Bug | PR #26 (`fix/proxy-header-spoofing`) did not compile on merge: `backend/src/middleware/auth.ts:66` referenced `INTERNAL_API_KEY`, which `main` had removed in favour of a per-request `expectedKey`. Git merged both cleanly (different lines) and kept a dead binding → `TS2552`. **Fixed in `ac5ded8`, merged as `cc8392e`**: guard now checks `expectedKey`; `tsc` 0 errors, 75/75 unit, CI 8/8 green. | ✅ Applied |
 | 5 | perch | 2026-11-13 | 📝 Note | `idor.test.ts` had zero `expect()` calls and asserted against 5 unmounted routes, so its 13/13 Jest passes were meaningless. Rewritten: 28 cases, real assertions, positive controls, mutation-verified. **Merged as PR #33 → `47ad231`** (CI 8/8 green). | ✅ Applied |
-| 6 | perch | 2026-11-14 | ⚠️ Warning | The 246 rewritten authz cases (28 IDOR + 218 RBAC matrix) ran **nowhere**: `ci.yml` excluded all of `src/tests/security`, and `security-e2e.yml` was `continue-on-error: true` while excluding `rbac-matrix`. Its comment claimed the matrix "already runs in-memory in the main backend CI job" — it did not. **Fixed on `ci/security-authz-hard-fail`**: new hard-fail `security-authz` job in `ci.yml` (throwaway SQLite, no Redis, no seed) + `continue-on-error` removed from the nightly workflow. Verified 246/246 locally and 73 failures under a `requireRole` mutation. | ✅ Applied |
+| 6 | perch | 2026-11-14 | ⚠️ Warning | The 246 rewritten authz cases (28 IDOR + 218 RBAC matrix) ran **nowhere**: `ci.yml` excluded all of `src/tests/security`, and `security-e2e.yml` was `continue-on-error: true` while excluding `rbac-matrix`. Its comment claimed the matrix "already runs in-memory in the main backend CI job" — it did not. **Fixed on `ci/security-authz-hard-fail`**: new hard-fail `security-authz` job in `ci.yml` (throwaway SQLite, no Redis, no seed) + `continue-on-error` removed from the nightly workflow. **Fixed in PR #34** (`ci/security-authz-hard-fail`), CI 9/9 green; job log shows 246/246. | ✅ Applied |
 
 ### Type Legend
 - 🐛 Bug | 💡 Suggestion | ⚠️ Warning | 📝 Note
@@ -89,7 +90,7 @@
 
 | # | Date | Agent | Action | Details |
 |---|------|-------|--------|---------|
-| 0 | 2026-11-14 13:50 | perch | ✅ COMPLETE | Wired the 246 authz cases into CI as a hard-fail gate — new `security-authz` job in `ci.yml` (throwaway SQLite, no Redis/seed) and `continue-on-error` removed from `security-e2e.yml`. 246/246 pass locally; 73 fail under a `requireRole` mutation. Branch `ci/security-authz-hard-fail`. See `logs/2026-11-14_1350_perch_to_all.md` |
+| 0 | 2026-11-14 13:50 | perch | ✅ COMPLETE | Wired the 246 authz cases into CI as a hard-fail gate — new `security-authz` job in `ci.yml` (throwaway SQLite, no Redis/seed) and `continue-on-error` removed from `security-e2e.yml`. **PR #34 opened (draft), CI 9/9 green**; the new job's log shows `Tests: 246 passed, 246 total`. 73 fail under a `requireRole` mutation. See `logs/2026-11-14_1350_perch_to_all.md` |
 | 0 | 2026-11-13 23:45 | perch | ✅ COMPLETE | PR #26 merged to `main` as `cc8392e` — build fixed (`INTERNAL_API_KEY` → `expectedKey`), CI 8/8 green, post-merge `tsc` 0 errors and auth tests 10/10 re-verified on `main`. |
 | 1 | 2026-11-13 23:05 | perch | ✅ COMPLETE | PR #33 merged to `main` as `47ad231` — IDOR suite rewritten (28 cases, mutation-verified), CI 8/8 green. See `logs/2026-11-13_2240_perch_to_all.md` |
 | 1 | 2026-11-13 13:30 | antigravity | ✅ COMPLETE | Completed IDOR/object-level authz fixes (V1–V24), unit/RBAC tests, and draft PR on `fix/object-level-authz` |
