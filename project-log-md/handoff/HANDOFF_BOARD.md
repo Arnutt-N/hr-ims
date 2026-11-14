@@ -1,6 +1,6 @@
 ﻿# 🤝 Cross-Agent Handoff Board
 
-> **Last Updated:** 2026-11-13 13:30 | **Updated By:** antigravity
+> **Last Updated:** 2026-11-14 13:50 | **Updated By:** perch
 >
 > ไฟล์นี้เป็น Dashboard กลาง ทุก Agent ต้องอ่านก่อนเริ่มงาน และอัพเดทเมื่อจบงาน
 
@@ -13,7 +13,8 @@
 | **antigravity** | 🟢 AVAILABLE | 2026-11-13 13:30 | Completed IDOR/object-level authz remediation (V1–V24) on `fix/object-level-authz` | [2026-11-13_1330_antigravity_to_all](logs/2026-11-13_1330_antigravity_to_all.md) |
 | **kilo** | ⚪ IDLE | 2026-01-30 | Codebase Analysis Report | [session_2026-01-30](../kilo/session_2026-01-30_185739.md) |
 | **claude_code** | 🟢 AVAILABLE | 2026-11-13 12:14 | IDOR/object-level authz — handed off mid-task; completed by antigravity | [2026-11-13_1214_claude_code_to_all](logs/2026-11-13_1214_claude_code_to_all.md) |
-| **codex** | 🟢 AVAILABLE | 2026-04-11 23:18 | Normalize superadmin RBAC across menu/page/action guards | [2026-04-11_superadmin-rbac-normalization](../codex/2026-04-11_superadmin-rbac-normalization.md) |
+| **codex** | 🟡 PENDING_HANDOFF | 2026-11-13 21:31 | PR #26 review and IDOR test repair remain in progress | [2026-11-13_2131_codex_to_all](logs/2026-11-13_2131_codex_to_all.md) |
+| **perch** | 🟢 AVAILABLE | 2026-11-14 13:50 | Wired IDOR + RBAC matrix suites into CI as a hard-fail gate | [2026-11-14_1350_perch_to_all](logs/2026-11-14_1350_perch_to_all.md) |
 | **cline** | 🟢 AVAILABLE | 2026-08-23 20:15 | BullMQ worker bootstrap — escalation worker wired & verified E2E | [2026-08-23_2015_cline_to_all](logs/2026-08-23_2015_cline_to_all.md) |
 | **cursor** | 🟢 AVAILABLE | 2026-11-10 09:24 | Gate login Quick Demo panel behind `NEXT_PUBLIC_DEMO_MODE`; removed tracked `cloudflared.exe` | [demo](logs/2026-11-10_0911_cursor_to_all.md), [cloudflared](logs/2026-11-10_0859_cursor_to_all.md) |
 | **gemini_cli** | ⚪ IDLE | - | - | - |
@@ -73,6 +74,9 @@
 | 1 | antigravity | 2026-02-11 | 🐛 Bug | Backend crash เพราะขาด `swagger-jsdoc` | ⌛ Open |
 | 2 | antigravity | 2026-02-11 | 🐛 Bug | Frontend: `middleware.ts` + `proxy.ts` conflict (Next.js 16) | ⌛ Open |
 | 3 | codex | 2026-04-03 | 📝 Note | Canonical handoff path is now `project-log-md/handoff/logs/`; `research/` remains gitignored and handoff logs are now unignored for Git tracking | ✅ Applied |
+| 4 | perch | 2026-11-13 | 🐛 Bug | PR #26 (`fix/proxy-header-spoofing`) did not compile on merge: `backend/src/middleware/auth.ts:66` referenced `INTERNAL_API_KEY`, which `main` had removed in favour of a per-request `expectedKey`. Git merged both cleanly (different lines) and kept a dead binding → `TS2552`. **Fixed in `ac5ded8`, merged as `cc8392e`**: guard now checks `expectedKey`; `tsc` 0 errors, 75/75 unit, CI 8/8 green. | ✅ Applied |
+| 5 | perch | 2026-11-13 | 📝 Note | `idor.test.ts` had zero `expect()` calls and asserted against 5 unmounted routes, so its 13/13 Jest passes were meaningless. Rewritten: 28 cases, real assertions, positive controls, mutation-verified. **Merged as PR #33 → `47ad231`** (CI 8/8 green). | ✅ Applied |
+| 6 | perch | 2026-11-14 | ⚠️ Warning | The 246 rewritten authz cases (28 IDOR + 218 RBAC matrix) ran **nowhere**: `ci.yml` excluded all of `src/tests/security`, and `security-e2e.yml` was `continue-on-error: true` while excluding `rbac-matrix`. Its comment claimed the matrix "already runs in-memory in the main backend CI job" — it did not. **Fixed on `ci/security-authz-hard-fail`**: new hard-fail `security-authz` job in `ci.yml` (throwaway SQLite, no Redis, no seed) + `continue-on-error` removed from the nightly workflow. Verified 246/246 locally and 73 failures under a `requireRole` mutation. | ✅ Applied |
 
 ### Type Legend
 - 🐛 Bug | 💡 Suggestion | ⚠️ Warning | 📝 Note
@@ -85,7 +89,10 @@
 
 | # | Date | Agent | Action | Details |
 |---|------|-------|--------|---------|
-| 0 | 2026-11-13 13:30 | antigravity | ✅ COMPLETE | Completed IDOR/object-level authz fixes (V1–V24), unit/RBAC tests, and draft PR on `fix/object-level-authz` |
+| 0 | 2026-11-14 13:50 | perch | ✅ COMPLETE | Wired the 246 authz cases into CI as a hard-fail gate — new `security-authz` job in `ci.yml` (throwaway SQLite, no Redis/seed) and `continue-on-error` removed from `security-e2e.yml`. 246/246 pass locally; 73 fail under a `requireRole` mutation. Branch `ci/security-authz-hard-fail`. See `logs/2026-11-14_1350_perch_to_all.md` |
+| 0 | 2026-11-13 23:45 | perch | ✅ COMPLETE | PR #26 merged to `main` as `cc8392e` — build fixed (`INTERNAL_API_KEY` → `expectedKey`), CI 8/8 green, post-merge `tsc` 0 errors and auth tests 10/10 re-verified on `main`. |
+| 1 | 2026-11-13 23:05 | perch | ✅ COMPLETE | PR #33 merged to `main` as `47ad231` — IDOR suite rewritten (28 cases, mutation-verified), CI 8/8 green. See `logs/2026-11-13_2240_perch_to_all.md` |
+| 1 | 2026-11-13 13:30 | antigravity | ✅ COMPLETE | Completed IDOR/object-level authz fixes (V1–V24), unit/RBAC tests, and draft PR on `fix/object-level-authz` |
 | 1 | 2026-11-10 09:11 | cursor | ✅ COMPLETE | Gated `/login` Quick Demo panel on `NEXT_PUBLIC_DEMO_MODE===true`. Credential module omitted from the production build when the flag is off. Seed still creates `*@demo.com` users (follow-up) |
 | 0 | 2026-11-10 08:59 | cursor | ✅ COMPLETE | Removed tracked `cloudflared.exe` going forward; `.gitignore` blocks re-add; tunnel scripts/docs call `cloudflared` on PATH. History not rewritten. Credential scan: presence only, no tracked tunnel secret. |
 | 2 | 2026-08-23 20:15 | cline | ✅ COMPLETE | BullMQ worker bootstrap — `src/worker.ts` + schedulers wired; escalation verified E2E against real Redis (`{"processed":0}` tick + hourly repeatable) |

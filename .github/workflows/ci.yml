@@ -119,14 +119,84 @@ jobs:
         run: npm run build
 
       - name: Unit & integration tests (Jest)
-        # Security tests (src/tests/security/**) are E2E-style and require a
-        # live Express server + Redis. They are designed to run separately via
-        #   npm test -- --testPathPattern=security
-        # against a running backend. Excluded here so CI runs only the fast
-        # unit + integration suites. To add security tests to CI, create a
-        # dedicated job with service containers (Redis) and a backend startup
-        # step.
+        # Security tests are split by how they reach the app:
+        #
+        # - In-process suites (Supertest against the exported `app`) need only
+        #   a throwaway SQLite file. They run in the `security-authz` job below,
+        #   hard-fail, on every PR.
+        # - Live-server suites (src/tests/security/{api,auth,infra,injection} and
+        #   authz/privilege-escalation) drive a running backend over HTTP and
+        #   need Redis. They run nightly in `security-e2e.yml`.
+        #
+        # Excluded here so this job stays fast and DB-free.
         run: npm test -- --testPathIgnorePatterns=src/tests/security
+
+  # ---------------------------------------------------------------------------
+  # Backend · authorization suites (in-process, hard-fail)
+  #
+  # Runs the two Supertest suites that import the Express `app` directly:
+  #
+  #   authz/idor.test.ts         object-level authorization (OWASP A01)
+  #   authz/rbac-matrix.test.ts  role x route x method matrix (218 cases)
+  #
+  # Why a separate job rather than part of `backend`:
+  # - `idor.test.ts` mutates stock quantities and request statuses, so it needs
+  #   a real database. `checkDatabaseIsolation` in `idor.fixture.ts` refuses
+  #   anything whose DATABASE_URL does not start with `file:`, which keeps the
+  #   suite off shared MySQL/TiDB servers by construction.
+  # - It creates and tears down its own namespaced fixture, so no `db seed` is
+  #   needed and the suite is safe against a database that also holds demo data.
+  #
+  # No service containers: `requireAuth` reads headers only (no DB round-trip),
+  # and the rate limiter uses express-rate-limit's in-memory store, so neither
+  # Redis nor a listening server is required.
+  #
+  # This job is deliberately NOT `continue-on-error`. A security suite that
+  # cannot fail the build is documentation, not a gate.
+  # ---------------------------------------------------------------------------
+  security-authz:
+    name: Backend · authz (IDOR + RBAC matrix)
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      # Throwaway SQLite file, created by `prisma db push` below. The path is
+      # resolved relative to prisma/schema.prisma, so this lands at
+      # backend/prisma/security-authz.db.
+      DATABASE_URL: file:./security-authz.db
+      JWT_SECRET: ci-dummy-secret-do-not-use-in-production
+      INTERNAL_API_KEY: test-internal-key
+      NODE_ENV: test
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma Client
+        run: npm run prisma:generate
+
+      - name: Create throwaway SQLite database
+        # --skip-generate: the client was generated in the previous step.
+        run: npx prisma db push --schema prisma/schema.prisma --skip-generate
+
+      - name: Run authorization suites
+        # Both suites are in-process (Supertest against the exported app), so
+        # this needs no server startup and no seed data.
+        run: >-
+          npx jest
+          --testPathPatterns='src/tests/security/authz/(idor|rbac-matrix)\.test\.ts$'
+          --runInBand
 
   # ---------------------------------------------------------------------------
   # Vercel-parity build

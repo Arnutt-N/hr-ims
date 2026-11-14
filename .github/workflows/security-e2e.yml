@@ -7,6 +7,13 @@ name: Security E2E
 #   - A seeded database (requires superadmin@demo.com / admin@demo.com / user@demo.com)
 #   - Redis for rate-limiting middleware
 #
+# Scope split (2026-11-14): the in-process authorization suites —
+# `authz/idor.test.ts` and `authz/rbac-matrix.test.ts` — do NOT belong here.
+# They import the Express `app` directly via Supertest, need no server and no
+# Redis, and run hard-fail on every PR in the `security-authz` job of ci.yml.
+# This workflow covers the remaining suites, which all drive a live backend
+# over HTTP through `SecurityHttpClient` and therefore need the setup below.
+#
 # Triggers:
 #   - workflow_dispatch:     manual run from the Actions tab
 #   - schedule (nightly):    Phase F of the audit PRP — re-enabled once the
@@ -115,12 +122,18 @@ jobs:
 
       - name: Run security test suite
         working-directory: backend
-        # Phase F note: keep continue-on-error: true for the first 7 nightly
-        # runs so we can establish which tests are reliably green before
-        # tightening to a hard fail. The matrix test (Phase B) is excluded
-        # because it already runs in-memory in the main `backend` CI job.
-        continue-on-error: true
-        run: npm test -- --testPathPattern=src/tests/security --testPathIgnorePatterns=rbac-matrix
+        # Hard fail. This was `continue-on-error: true` for the first 7 nightly
+        # runs while the suites were being stabilised; that window is over and
+        # a security suite that cannot fail the build is documentation, not a
+        # gate.
+        #
+        # The two in-process suites are excluded because they run hard-fail on
+        # every PR in ci.yml's `security-authz` job — running them here too
+        # would duplicate work against a seeded database they do not need.
+        run: >-
+          npm test --
+          --testPathPatterns='src/tests/security'
+          --testPathIgnorePatterns='authz/(idor|rbac-matrix)\.test\.ts$'
 
       - name: Dump backend log on failure
         if: failure()
