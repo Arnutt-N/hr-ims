@@ -101,6 +101,11 @@ describe('Object-level authorization (IDOR remediation)', () => {
     });
 
     it('ignores body-spoofed requestedBy on POST /api/stock-transfers', async () => {
+        // V22 (2026-11-14): the route now requires source-warehouse scope before
+        // it reads stock, so the caller has to manage warehouse 1 for this case
+        // to reach the controller at all. The assertion is unchanged: the body
+        // value must never win over the session identity.
+        mockPrisma.warehouse.findMany.mockResolvedValue([{ id: 1 }]);
         mockPrisma.stockLevel.findUnique.mockResolvedValue({ quantity: 20 });
         mockPrisma.stockTransfer.create.mockImplementation(({ data }: any) =>
             Promise.resolve({ id: 1, ...data })
@@ -178,25 +183,27 @@ describe('Object-level authorization (IDOR remediation)', () => {
         expect(res.status).toBe(404);
     });
 
-    it('allows warehouse-null request when non-admin approver is not the requester', async () => {
-        mockPrisma.request.findUnique
-            .mockResolvedValueOnce({ id: 1, warehouseId: null, userId: 99 })
-            .mockResolvedValueOnce({
-                id: 1,
-                warehouseId: null,
-                userId: 99,
-                status: 'pending',
-                type: 'return',
-                user: { name: 'Requester', email: null },
-                requestItems: [],
-            });
-        mockPrisma.request.update.mockResolvedValue({ id: 1, status: 'rejected', type: 'return' });
+    it('refuses a warehouse-null request to a non-admin approver who is not the requester', async () => {
+        // V21 (2026-11-14): this case used to assert 200 — the guard let any
+        // non-owner through when warehouseId was null, and the controller then
+        // allowed it because this fixture request carries no items. That made
+        // 'no items' a bypass: an approver could reject a stranger's request
+        // purely because it had nothing to release.
+        //
+        // The guard now refuses everyone but the admin tier with 404, so the
+        // controller is never reached.
+        mockPrisma.request.findUnique.mockResolvedValueOnce({
+            id: 1,
+            warehouseId: null,
+            userId: 99,
+        });
 
         const res = await request(app)
             .patch('/api/requests/1/status')
             .set(proxyHeaders(5, 'approver'))
             .send({ status: 'rejected' });
 
-        expect(res.status).toBe(200);
+        expect(res.status).toBe(404);
+        expect(mockPrisma.request.update).not.toHaveBeenCalled();
     });
 });
