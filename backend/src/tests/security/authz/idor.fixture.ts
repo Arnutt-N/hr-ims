@@ -47,8 +47,10 @@ export type IdorFixture = {
         unassignedApprover: { id: number; email: string };
         /** `admin` role — the positive control for admin-only routes. */
         admin: { id: number; email: string };
-        /** `technician` role — used to pin the request-visibility policy. */
+        /** `technician` role — scoped to their own requests (V20). */
         technician: { id: number; email: string };
+        /** `auditor` role — read-only, scoped to their own requests (V20). */
+        auditor: { id: number; email: string };
     };
     items: {
         /** Item stocked in both warehouses. */
@@ -65,6 +67,8 @@ export type IdorFixture = {
         victimPending: { id: number; userId: number; warehouseId: number };
         /** Owned by `users.victim`, targets `warehouses.unassigned`, pending. */
         victimUnassigned: { id: number; userId: number; warehouseId: number };
+        /** Owned by `users.victim`, no warehouse at all — the V21 case. */
+        victimNoWarehouse: { id: number; userId: number; warehouseId: null };
     };
 };
 
@@ -130,6 +134,19 @@ export async function teardownIdorFixture(): Promise<void> {
     await prisma.requestItem.deleteMany({ where: { requestId: { in: requestIds } } });
     await prisma.history.deleteMany({ where: { userId: { in: userIds } } });
     await prisma.stockTransaction.deleteMany({ where: { userId: { in: userIds } } });
+    // Stock transfers reference both warehouses and the requesting user, so
+    // they must go before either parent. The V22 suite creates real transfers,
+    // and leaving them behind breaks the warehouse delete below with a foreign
+    // key violation.
+    await prisma.stockTransfer.deleteMany({
+        where: {
+            OR: [
+                { requestedBy: { in: userIds } },
+                { fromWarehouseId: { in: warehouseIds } },
+                { toWarehouseId: { in: warehouseIds } },
+            ],
+        },
+    });
     await prisma.request.deleteMany({ where: { id: { in: requestIds } } });
     await prisma.stockLevel.deleteMany({ where: { warehouseId: { in: warehouseIds } } });
     await prisma.departmentMapping.deleteMany({
@@ -170,6 +187,7 @@ export async function createIdorFixture(): Promise<IdorFixture> {
     const unassignedApprover = await mkUser('approver-unassigned', 'approver');
     const admin = await mkUser('admin', 'admin');
     const technician = await mkUser('technician', 'technician');
+    const auditor = await mkUser('auditor', 'auditor');
 
     const assignedWarehouse = await prisma.warehouse.create({
         data: {
@@ -259,6 +277,19 @@ export async function createIdorFixture(): Promise<IdorFixture> {
     const victimPending = await mkRequest(victim.id, assignedWarehouse.id, 3);
     const victimUnassigned = await mkRequest(victim.id, unassignedWarehouse.id, 1);
 
+    // A request with no warehouse. Created directly rather than through
+    // `mkRequest` because that helper reserves stock, which needs a warehouse.
+    const noWarehouseRequest = await prisma.request.create({
+        data: {
+            userId: victim.id,
+            type: 'withdraw',
+            status: 'pending',
+            warehouseId: null,
+            requestItems: { create: [{ itemId: item.id, quantity: 1 }] },
+        },
+        select: { id: true, userId: true },
+    });
+
     return {
         warehouses: {
             assigned: { id: assignedWarehouse.id, code: assignedWarehouse.code },
@@ -271,6 +302,7 @@ export async function createIdorFixture(): Promise<IdorFixture> {
             unassignedApprover,
             admin,
             technician,
+            auditor,
         },
         items: { shared: item },
         stockLevels: {
@@ -281,6 +313,11 @@ export async function createIdorFixture(): Promise<IdorFixture> {
             ownerPending,
             victimPending,
             victimUnassigned,
+            victimNoWarehouse: {
+                id: noWarehouseRequest.id,
+                userId: noWarehouseRequest.userId,
+                warehouseId: null,
+            },
         },
     };
 }
