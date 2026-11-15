@@ -213,8 +213,8 @@ export async function getTransferSourceWarehouses() {
 
         const warehouses = await prisma.warehouse.findMany({
             where: isAdmin
-                ? { isActive: true }
-                : { isActive: true, id: { in: await getManagedWarehouseIds(userId) } },
+                ? {}
+                : { id: { in: await getManagedWarehouseIds(userId) } },
             select: { id: true, name: true, code: true, type: true, isActive: true },
             orderBy: { name: 'asc' },
         });
