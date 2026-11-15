@@ -16,6 +16,8 @@
     "db:push:tidb": "node scripts/prisma-tidb.js db push",
     "db:seed:tidb": "node scripts/prisma-tidb.js generate && node scripts/prisma-tidb.js db seed",
     "test": "jest",
+    "test:unit": "jest --testPathIgnorePatterns=src/tests/security",
+    "test:authz": "jest --runInBand src/tests/security/authz/idor.test.ts src/tests/security/authz/rbac-matrix.test.ts",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
     "audit": "npm audit"

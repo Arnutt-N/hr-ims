@@ -129,7 +129,7 @@ jobs:
         #   need Redis. They run nightly in `security-e2e.yml`.
         #
         # Excluded here so this job stays fast and DB-free.
-        run: npm test -- --testPathIgnorePatterns=src/tests/security
+        run: npm run test:unit
 
   # ---------------------------------------------------------------------------
   # Backend · authorization suites (in-process, hard-fail)
@@ -193,10 +193,7 @@ jobs:
       - name: Run authorization suites
         # Both suites are in-process (Supertest against the exported app), so
         # this needs no server startup and no seed data.
-        run: >-
-          npx jest
-          --testPathPatterns='src/tests/security/authz/(idor|rbac-matrix)\.test\.ts$'
-          --runInBand
+        run: npm run test:authz
 
   # ---------------------------------------------------------------------------
   # Vercel-parity build
