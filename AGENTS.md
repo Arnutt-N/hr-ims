@@ -28,6 +28,43 @@
 7. **ห้ามพิมพ์หรือแสดงค่าในไฟล์ `.env`** (ห้าม `cat` / print ค่า) — อ่านได้เฉพาะชื่อตัวแปรและตรวจว่าไฟล์มีอยู่ (ดู §7.4)
 8. **อ้างถึงกฎชุดนี้ในทุก handoff** (เช่น ใส่บรรทัด "Iron Rules acknowledged" ใน handoff log)
 
+### Enforcement table — อะไรบังคับได้จริง อะไรเป็นแค่ความหวัง
+
+กฎที่ไม่มีอะไรบังคับคือคำแนะนำ ไม่ใช่กฎ ตารางนี้บอกตรง ๆ ว่าชั้นไหนกันอะไรไว้
+
+| ชั้น | บังคับอะไร | บังคับด้วยอะไร |
+|---|---|---|
+| **เครื่อง** | ไม่มี | ไม่มี husky, ไม่มี pre-commit hook |
+| **GitHub** | ไม่มี branch protection | เปิดได้ที่ Settings → Branches (ยังไม่ได้เปิด) |
+| **CI** | typecheck, unit, E2E, Lighthouse, TiDB schema, Vercel build | `.github/workflows/ci.yml` — แต่**ไม่บล็อก merge** จนกว่าจะเปิด required checks |
+| **คำพูด** | ที่เหลือทั้งหมดในเอกสารนี้ | ไม่มีอะไรบังคับ |
+
+ผลที่ต้องรู้: **ทุกอย่างใน Iron Rules พึ่งวินัยของ agent ล้วน ๆ** ถ้า agent ข้าม ไม่มีอะไรแดงขึ้น
+
+> **สถานะ ณ 2026-11-15:** job `Backend · authz (IDOR + RBAC matrix)` และ script `test:unit` / `test:authz` ยัง**ไม่อยู่บน `main`** — อยู่ใน PR #34 และ #35 ที่รอ merge จนกว่าจะ merge ตาราง mistake #2 ด้านล่างยังใช้ `npm test -- --testPathIgnorePatterns=src/tests/security` แบบเดิม
+>
+> **หนี้ที่รู้อยู่:** security suite อีก 8 ไฟล์ (`api/rate-limiting`, `auth/brute-force`, `auth/jwt-attacks`, `auth/session-security`, `authz/privilege-escalation`, `infra/security-headers`, `injection/sql-injection`, `injection/xss`) ยัง**ไม่มี assertion เลย** — สร้าง `SecurityTestResult` แล้วเรียก `recordResult()` เท่านั้น จึงผ่านเสมอ ดูได้ด้วย `node scripts/check-test-assertions.cjs` (ไม่ใส่ argument = สแกนทั้ง repo)
+
+### Mistake classes ที่เกิดซ้ำจริงในโปรเจคนี้
+
+แต่ละข้อมีหลักฐานจาก git history ไม่ใช่การคาดเดา อ่านก่อนเริ่มงาน
+
+| # | Mistake | หลักฐาน | กันด้วยอะไร |
+|---|---|---|---|
+| 1 | **เขียนเทสต์ที่ไม่มี `expect()`** แล้วนับว่าผ่าน | `06f0092` — `idor.test.ts` เดิม 13/13 ผ่าน แต่ไม่มี assertion เลย และยิง route ที่ไม่มีอยู่ 5 เส้น | **บังคับได้แล้ว** — `node scripts/check-test-assertions.cjs <files>` ใน CI step `Assertion guard` (ratchet: เฉพาะไฟล์ที่แก้แล้ว) |
+| 2 | **รันเทสต์แคบ ๆ แล้วเขียว แต่ CI แดง** | `cba3f6b` (unit cases ที่ pin พฤติกรรมเก่า), `c44f220` (ตั้งชื่อ `test:unit`/`test:authz`) | ยังไม่มีอะไรบังคับ — รันทั้ง `npm test` ก่อน commit ไม่ใช่แค่ pattern ที่ตัวเองสนใจ (หลัง PR #34/#35 merge จะใช้ `npm run test:unit` + `npm run test:authz`) |
+| 3 | **เทสต์ pin พฤติกรรมเก่าไว้ แล้วกลายเป็นอุปสรรคตอนแก้ policy** | `cba3f6b`, `d00a247` | ไม่มีอะไรบังคับ — ถ้าแก้ policy ต้องอัปเดตเทสต์ในคอมมิตเดียวกัน |
+| 4 | **คอมเมนต์เล่าเหตุผลยาว แล้วล้าสมัย** | `ea8e790` (comment drift), `78b4871` (ลบ 146 บรรทัด) | ไม่มี lint (backend ไม่มี ESLint) — เขียนคอมเมนต์เฉพาะสิ่งที่โค้ดบอกไม่ได้ |
+| 5 | **merge แล้ว build พัง** เพราะสองฝั่งแก้คนละบรรทัด | `ac5ded8` — `TS2552` จาก `INTERNAL_API_KEY` ที่ main ลบไปแล้ว | รัน `npm run build` หลัง merge ก่อนสรุปว่าผ่าน |
+| 6 | **frontend กับ backend บังคับ policy ต่างกัน** | V20: `lib/actions/requests.ts` เข้มกว่า `requestController.getRequests` | ไม่มีอะไรบังคับ — ถ้าแตะ visibility/scope ต้องเช็คทั้งสองฝั่ง |
+
+### กฎที่ต่อจากตารางนี้
+
+- **แตะ authorization หรือ visibility → แก้ทั้ง backend และ frontend ในคอมมิตเดียวกัน** ไม่งั้นผู้ใช้คนเดียวจะเห็นข้อมูลต่างกันตามว่าเรียก surface ไหน (นี่คือ V20)
+- **เทสต์ใหม่ต้องมี positive control คู่กับ negative control บน route เดียวกัน** ไม่งั้น 404 จาก route ที่ไม่มีอยู่จะดูเหมือนการป้องกัน (นี่คือ mistake #1 — `scripts/check-test-assertions.cjs` จับได้ว่ามี `expect()` ไหม แต่ไม่รู้ว่า control คู่กันหรือเปล่า ข้อนี้ยังต้องใช้ตา)
+- **ก่อนบอกว่าเสร็จ ให้รันคำสั่งที่ CI รัน** ไม่ใช่คำสั่งที่ตัวเองถนัด — ตอนนี้คือ `npm test` เต็มชุด (นี่คือ mistake #2)
+- **หลัง merge ให้ build จริง** ไม่ใช่เชื่อว่า merge สะอาดแล้วแปลว่า compile ผ่าน (นี่คือ mistake #5)
+
 ---
 
 ## 0. 📖 Project Overview & Tech Stack
