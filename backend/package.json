@@ -20,9 +20,7 @@
     "test:authz": "jest --runInBand src/tests/security/authz/idor.test.ts src/tests/security/authz/rbac-matrix.test.ts",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
-    "audit": "npm audit",
-    "test:unit": "jest --testPathIgnorePatterns=src/tests/security",
-    "test:authz": "jest --runInBand src/tests/security/authz/idor.test.ts src/tests/security/authz/rbac-matrix.test.ts"
+    "audit": "npm audit"
   },
   "dependencies": {
     "@prisma/client": "^5.7.0",
