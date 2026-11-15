@@ -113,7 +113,8 @@ const ANY_AUTH: MatrixRule[] = [
     { path: '/api/email/status', method: 'GET', allowedRoles: '*' },
     { path: '/api/stock-transfers', method: 'GET', allowedRoles: '*' },
     { path: '/api/stock-transfers/:id', method: 'GET', allowedRoles: '*' },
-    { path: '/api/stock-transfers', method: 'POST', allowedRoles: '*', body: { fromWarehouseId: 1, toWarehouseId: 2, itemId: 1, quantity: 1 } },
+    // POST /api/stock-transfers is absent by design: its outcome depends on
+    // object scope, not role. `idor.test.ts` covers both halves.
     { path: '/api/stock-levels', method: 'GET', allowedRoles: '*' },
     { path: '/api/stock-levels/:warehouseId/:itemId', method: 'GET', allowedRoles: '*', pathParams: { warehouseId: '1', itemId: '1' } },
     { path: '/api/stock-transactions/history/:itemId', method: 'GET', allowedRoles: '*', pathParams: { itemId: '1' } },

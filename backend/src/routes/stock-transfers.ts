@@ -126,6 +126,18 @@ router.post('/', requireAuth, async (req: AuthRequest, res) => {
 
         const user = req.user!;
 
+        try {
+            await assertWarehouseAccess(prisma, user, fromWarehouseId);
+        } catch (err) {
+            if (err instanceof NotFoundError) {
+                return res.status(403).json({
+                    error: 'Forbidden',
+                    message: 'You do not have access to the source warehouse.',
+                });
+            }
+            throw err;
+        }
+
         // ตรวจสอบว่าคลังต้นทางมีของเพียงพอหรือไม่
         const stockLevel = await prisma.stockLevel.findUnique({
             where: {

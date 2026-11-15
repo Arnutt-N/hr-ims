@@ -6,6 +6,8 @@ import { revalidatePath } from 'next/cache';
 import { logActivity } from '@/lib/actions/audit';
 import { z } from 'zod';
 import { requireRole, ADMIN_ROLES } from '@/lib/auth-guards';
+import { sessionHasAnyRole } from '@/lib/role-access';
+import { getManagedWarehouseIds } from '@/lib/warehouse-scope';
 
 // Validation Schemas
 const warehouseSchema = z.object({
@@ -192,5 +194,34 @@ export async function getProvinces() {
     } catch (error) {
         console.error('Failed to fetch provinces:', error);
         return { error: 'Failed to fetch provinces' };
+    }
+}
+
+/**
+ * Warehouses the current user may move stock OUT of.
+ *
+ * Must stay in step with the scope check on `POST /api/stock-transfers`, which
+ * uses the same `getManagedWarehouseIds` helper. Admin tier gets everything.
+ */
+export async function getTransferSourceWarehouses() {
+    const session = await auth();
+    if (!session?.user?.id) return { error: 'Unauthorized' };
+
+    try {
+        const userId = parseInt(session.user.id);
+        const isAdmin = sessionHasAnyRole(session, ...ADMIN_ROLES);
+
+        const warehouses = await prisma.warehouse.findMany({
+            where: isAdmin
+                ? {}
+                : { id: { in: await getManagedWarehouseIds(userId) } },
+            select: { id: true, name: true, code: true, type: true, isActive: true },
+            orderBy: { name: 'asc' },
+        });
+
+        return { success: true, warehouses };
+    } catch (error) {
+        console.error('Failed to fetch transfer source warehouses:', error);
+        return { error: 'Failed to fetch transfer source warehouses' };
     }
 }

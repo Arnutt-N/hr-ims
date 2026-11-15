@@ -2,6 +2,7 @@
 import { Request, Response } from 'express';
 import { z } from 'zod';
 import prisma from '../utils/prisma';
+import { isApproverTier } from '../lib/authz';
 import {
     sendEmail,
     sendTelegramAlert,
@@ -49,13 +50,9 @@ const formatItemsList = (items: any[]): string => {
 
 export const getRequests = async (req: AuthRequest, res: Response) => {
     try {
-        const { role } = req.user;
         const userId = req.user.userId ?? req.user.id;
 
-        let where = {};
-        if (role === 'user') {
-            where = { userId };
-        }
+        const where = isApproverTier(req.user) ? {} : { userId };
 
         const requests = await prisma.request.findMany({
             where,

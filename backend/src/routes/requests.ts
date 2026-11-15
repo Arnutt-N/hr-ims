@@ -28,10 +28,7 @@ const scopeRequestWarehouse = async (req: any, res: any, next: any) => {
         }
 
         if (existing.warehouseId === null) {
-            if (existing.userId === Number(user.id ?? user.userId)) {
-                return res.status(404).json({ error: 'Request not found' });
-            }
-            return next();
+            return res.status(404).json({ error: 'Request not found' });
         }
 
         await assertWarehouseAccess(prisma, user, existing.warehouseId);

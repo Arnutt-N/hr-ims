@@ -229,23 +229,41 @@ describe('🔒 IDOR — object-level authorization', () => {
         });
 
         /**
-         * Pins the *current* behaviour for non-`user` roles rather than
-         * asserting it is correct. `requestController.getRequests` only filters
-         * by owner when the primary role is exactly `user`, so a technician
-         * sees every request. That is an open policy question (V20/V21 in the
-         * handoff), not something this suite should silently bless or fix.
-         *
-         * If the policy is tightened, this test will fail — which is the point:
-         * the change becomes visible instead of shipping unnoticed.
+         * V20/V21: only the approver tier sees every request.
          */
-        it('documents that a technician currently sees other users\' requests', async () => {
+        it('scopes a technician to their own requests', async () => {
             const res = await request(app)
                 .get('/api/requests')
                 .set(asUser(fx.users.technician, 'technician'));
 
             expect(res.status).toBe(200);
             const ids = res.body.map((r: any) => r.id);
+            expect(ids).not.toContain(fx.requests.victimPending.id);
+            expect(ids).not.toContain(fx.requests.ownerPending.id);
+            expect(ids).not.toContain(fx.requests.victimUnassigned.id);
+        });
+
+        it('scopes an auditor to their own requests', async () => {
+            const res = await request(app)
+                .get('/api/requests')
+                .set(asUser(fx.users.auditor, 'auditor'));
+
+            expect(res.status).toBe(200);
+            const ids = res.body.map((r: any) => r.id);
+            expect(ids).not.toContain(fx.requests.victimPending.id);
+            expect(ids).not.toContain(fx.requests.ownerPending.id);
+        });
+
+        it('still lets an approver see every request (positive control)', async () => {
+            const res = await request(app)
+                .get('/api/requests')
+                .set(asUser(fx.users.assignedApprover, 'approver'));
+
+            expect(res.status).toBe(200);
+            const ids = res.body.map((r: any) => r.id);
+            expect(ids).toContain(fx.requests.ownerPending.id);
             expect(ids).toContain(fx.requests.victimPending.id);
+            expect(ids).toContain(fx.requests.victimUnassigned.id);
         });
     });
 
@@ -286,6 +304,127 @@ describe('🔒 IDOR — object-level authorization', () => {
 
             expect(res.status).toBe(200);
             expect(res.body.status).toBe('rejected');
+        });
+
+        /**
+         * V21: a warehouse-less request has no scope to check, so only an admin
+         * tier may transition it.
+         */
+        it('refuses an approver a warehouse-less request they do not own (404)', async () => {
+            const res = await request(app)
+                .patch(`/api/requests/${fx.requests.victimNoWarehouse.id}/status`)
+                .set(asUser(fx.users.assignedApprover, 'approver'))
+                .send({ status: 'rejected' });
+
+            expect(res.status).toBe(404);
+
+            const check = await request(app)
+                .get('/api/requests')
+                .set(asUser(fx.users.admin, 'admin'));
+            const row = check.body.find((r: any) => r.id === fx.requests.victimNoWarehouse.id);
+            expect(row?.status).toBe('pending');
+        });
+
+        it('lets an admin past the scope guard on a warehouse-less request', async () => {
+            const res = await request(app)
+                .patch(`/api/requests/${fx.requests.victimNoWarehouse.id}/status`)
+                .set(asUser(fx.users.admin, 'admin'))
+                .send({ status: 'rejected' });
+
+            // 400, not 404: the admin clears the scope guard, then the
+            // controller refuses because a request holding items but no
+            // warehouse cannot release a reservation.
+            expect(res.status).toBe(400);
+            expect(res.body.message).toMatch(/warehouse not found/i);
+        });
+    });
+
+    // ------------------------------------------------------------------
+    // Horizontal: stock-transfer creation (V22)
+    // ------------------------------------------------------------------
+    describe('stock transfers — source warehouse scope', () => {
+        it('refuses a transfer from a warehouse the caller does not manage (403)', async () => {
+            const res = await request(app)
+                .post('/api/stock-transfers')
+                .set(asUser(fx.users.owner, 'user'))
+                .send({
+                    fromWarehouseId: fx.warehouses.unassigned.id,
+                    toWarehouseId: fx.warehouses.assigned.id,
+                    itemId: fx.items.shared.id,
+                    // More than the unassigned warehouse holds, so a missing
+                    // scope check would answer 400 with `available`.
+                    quantity: 999,
+                });
+
+            // 403, not 404: the warehouse exists, the caller may not draw from it.
+            expect(res.status).toBe(403);
+            // The response must not leak the stock figure it never had the
+            // right to read.
+            expect(res.body.available).toBeUndefined();
+        });
+
+        /**
+         * The regression V22's first cut missed: a plain user reaches a
+         * warehouse through a department mapping, not management.
+         */
+        it('lets a plain user create a transfer from their department warehouse (positive control)', async () => {
+            const res = await request(app)
+                .post('/api/stock-transfers')
+                .set(asUser(fx.users.departmentUser, 'user'))
+                .send({
+                    fromWarehouseId: fx.warehouses.assigned.id,
+                    toWarehouseId: fx.warehouses.unassigned.id,
+                    itemId: fx.items.shared.id,
+                    quantity: 1,
+                });
+
+            expect(res.status).toBe(201);
+            expect(res.body.requestedBy).toBe(fx.users.departmentUser.id);
+        });
+
+        it('refuses a plain user with no department mapping (403)', async () => {
+            const res = await request(app)
+                .post('/api/stock-transfers')
+                .set(asUser(fx.users.victim, 'user'))
+                .send({
+                    fromWarehouseId: fx.warehouses.assigned.id,
+                    toWarehouseId: fx.warehouses.unassigned.id,
+                    itemId: fx.items.shared.id,
+                    quantity: 1,
+                });
+
+            expect(res.status).toBe(403);
+            expect(res.body.available).toBeUndefined();
+        });
+
+        it('lets the warehouse manager create a transfer from their own warehouse (positive control)', async () => {
+            const res = await request(app)
+                .post('/api/stock-transfers')
+                .set(asUser(fx.users.assignedApprover, 'approver'))
+                .send({
+                    fromWarehouseId: fx.warehouses.assigned.id,
+                    toWarehouseId: fx.warehouses.unassigned.id,
+                    itemId: fx.items.shared.id,
+                    quantity: 1,
+                });
+
+            expect(res.status).toBe(201);
+            expect(res.body.fromWarehouseId).toBe(fx.warehouses.assigned.id);
+        });
+
+        it('still reports available stock to the manager who owns the warehouse', async () => {
+            const res = await request(app)
+                .post('/api/stock-transfers')
+                .set(asUser(fx.users.assignedApprover, 'approver'))
+                .send({
+                    fromWarehouseId: fx.warehouses.assigned.id,
+                    toWarehouseId: fx.warehouses.unassigned.id,
+                    itemId: fx.items.shared.id,
+                    quantity: 999,
+                });
+
+            expect(res.status).toBe(400);
+            expect(res.body.available).toBe(fx.stockLevels.assigned.quantity);
         });
     });
 

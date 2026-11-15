@@ -26,10 +26,16 @@ export class NotFoundError extends Error {
 }
 
 const ADMIN_TIER = ['superadmin', 'admin'];
+const APPROVER_TIER = ['superadmin', 'admin', 'approver'];
 
 export function isAdminTier(user: AuthzUser): boolean {
     const roles = user.roles?.length ? user.roles : [user.role];
     return roles.some((r) => ADMIN_TIER.includes(String(r).toLowerCase()));
+}
+
+export function isApproverTier(user: AuthzUser): boolean {
+    const roles = user.roles?.length ? user.roles : [user.role];
+    return roles.some((r) => APPROVER_TIER.includes(String(r).toLowerCase()));
 }
 
 export async function getManagedWarehouseIds(
