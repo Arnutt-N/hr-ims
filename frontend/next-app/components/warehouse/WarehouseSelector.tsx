@@ -23,8 +23,8 @@ interface WarehouseSelectorProps {
     placeholder?: string;
     /**
      * `'source'` lists only warehouses the user may move stock OUT of, matching
-     * what `POST /api/stock-transfers` accepts (V22). `'all'` lists every
-     * warehouse, which is correct for a destination.
+     * what `POST /api/stock-transfers` accepts. `'all'` lists every warehouse,
+     * which is correct for a destination.
      */
     scope?: 'all' | 'source';
 }
@@ -74,9 +74,6 @@ export default function WarehouseSelector({
         );
     }
 
-    // An empty scoped list is a permission outcome, not a loading glitch. Say so,
-    // otherwise the field looks broken and the user retries a request the
-    // backend will refuse anyway.
     if (warehouses.length === 0) {
         return (
             <Select disabled>

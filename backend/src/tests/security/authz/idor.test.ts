@@ -229,15 +229,7 @@ describe('🔒 IDOR — object-level authorization', () => {
         });
 
         /**
-         * Visibility policy (V20/V21, decided 2026-11-14): only the approver
-         * tier sees every request. `technician` and `auditor` are scoped to
-         * their own, matching what the frontend already enforced in
-         * `lib/actions/requests.ts`.
-         *
-         * This test previously pinned the opposite behaviour (a technician
-         * seeing everyone's requests) to keep the gap visible. It is now an
-         * assertion, because the policy is decided: if someone loosens the
-         * controller again, this fails.
+         * V20/V21: only the approver tier sees every request.
          */
         it('scopes a technician to their own requests', async () => {
             const res = await request(app)
@@ -315,14 +307,8 @@ describe('🔒 IDOR — object-level authorization', () => {
         });
 
         /**
-         * V21 (decided 2026-11-14): a request with no warehouse has no scope to
-         * check against, so only an admin tier may transition it.
-         *
-         * Before this, `scopeRequestWarehouse` called `next()` for any
-         * non-owner when `warehouseId === null`, so an approver could reach the
-         * controller with a request belonging to someone else. The controller
-         * then threw 'Request warehouse not found' — a guaranteed 400 that
-         * looked like an authorization pass.
+         * V21: a warehouse-less request has no scope to check, so only an admin
+         * tier may transition it.
          */
         it('refuses an approver a warehouse-less request they do not own (404)', async () => {
             const res = await request(app)
@@ -345,12 +331,9 @@ describe('🔒 IDOR — object-level authorization', () => {
                 .set(asUser(fx.users.admin, 'admin'))
                 .send({ status: 'rejected' });
 
-            // 400, not 404: the admin clears the scope guard, and then the
-            // controller refuses on its own terms because a request that holds
-            // items but has no warehouse cannot release a reservation
-            // (`requestController.ts:351`). That distinction is what this test
-            // pins — 404 would mean the guard blocked an admin, 400 means the
-            // guard let them through and the controller made the call.
+            // 400, not 404: the admin clears the scope guard, then the
+            // controller refuses because a request holding items but no
+            // warehouse cannot release a reservation.
             expect(res.status).toBe(400);
             expect(res.body.message).toMatch(/warehouse not found/i);
         });
@@ -360,16 +343,6 @@ describe('🔒 IDOR — object-level authorization', () => {
     // Horizontal: stock-transfer creation (V22)
     // ------------------------------------------------------------------
     describe('stock transfers — source warehouse scope', () => {
-        /**
-         * V22 (decided 2026-11-14): creating a transfer must be scoped to the
-         * source warehouse.
-         *
-         * The route reads the source stock level and echoes its quantity back
-         * in the `available` field of the 400 response. Without a scope check
-         * that field is a stock oracle: any authenticated user could learn how
-         * much of any item sits in any warehouse by asking to move one more
-         * than it holds.
-         */
         it('refuses a transfer from a warehouse the caller does not manage (403)', async () => {
             const res = await request(app)
                 .post('/api/stock-transfers')
@@ -378,14 +351,12 @@ describe('🔒 IDOR — object-level authorization', () => {
                     fromWarehouseId: fx.warehouses.unassigned.id,
                     toWarehouseId: fx.warehouses.assigned.id,
                     itemId: fx.items.shared.id,
-                    // Deliberately more than the unassigned warehouse holds, so
-                    // the old code would have answered 400 with `available`.
+                    // More than the unassigned warehouse holds, so a missing
+                    // scope check would answer 400 with `available`.
                     quantity: 999,
                 });
 
-            // 403, not 404: the warehouse exists, the caller just may not draw
-            // from it. A 404 would send them looking for a warehouse that is
-            // visible in their own dropdown.
+            // 403, not 404: the warehouse exists, the caller may not draw from it.
             expect(res.status).toBe(403);
             // The response must not leak the stock figure it never had the
             // right to read.
@@ -393,12 +364,8 @@ describe('🔒 IDOR — object-level authorization', () => {
         });
 
         /**
-         * The regression this suite missed the first time.
-         *
-         * V22 shipped with only manager-based positive controls, so nothing
-         * proved a plain `user` could still create a transfer. A plain user
-         * reaches a warehouse through a department mapping, not through
-         * management, and that path was never exercised.
+         * The regression V22's first cut missed: a plain user reaches a
+         * warehouse through a department mapping, not management.
          */
         it('lets a plain user create a transfer from their department warehouse (positive control)', async () => {
             const res = await request(app)

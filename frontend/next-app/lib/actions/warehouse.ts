@@ -200,14 +200,8 @@ export async function getProvinces() {
 /**
  * Warehouses the current user may move stock OUT of.
  *
- * The backend enforces this on `POST /api/stock-transfers` (V22, 2026-11-14):
- * a transfer is only accepted when the caller manages the source warehouse or
- * their department is mapped to it. Without this action the UI offers every
- * warehouse in the system, so a user picks one and gets a 404 that reads like
- * "this warehouse does not exist" when it plainly does.
- *
- * Admin tier gets everything. Everyone else gets the same set the backend will
- * accept, computed by the same helper, so the dropdown and the API cannot drift.
+ * Must stay in step with the scope check on `POST /api/stock-transfers`, which
+ * uses the same `getManagedWarehouseIds` helper. Admin tier gets everything.
  */
 export async function getTransferSourceWarehouses() {
     const session = await auth();

@@ -52,10 +52,8 @@ export type IdorFixture = {
         /** `auditor` role — read-only, scoped to their own requests (V20). */
         auditor: { id: number; email: string };
         /**
-         * Plain `user` whose department is mapped to `warehouses.assigned`.
-         *
-         * This is how a non-manager legitimately reaches a warehouse, and it is
-         * the path V22's first cut broke without noticing.
+         * Plain `user` whose department maps to `warehouses.assigned`. This is
+         * how a non-manager legitimately reaches a warehouse.
          */
         departmentUser: { id: number; email: string };
     };
@@ -141,10 +139,7 @@ export async function teardownIdorFixture(): Promise<void> {
     await prisma.requestItem.deleteMany({ where: { requestId: { in: requestIds } } });
     await prisma.history.deleteMany({ where: { userId: { in: userIds } } });
     await prisma.stockTransaction.deleteMany({ where: { userId: { in: userIds } } });
-    // Stock transfers reference both warehouses and the requesting user, so
-    // they must go before either parent. The V22 suite creates real transfers,
-    // and leaving them behind breaks the warehouse delete below with a foreign
-    // key violation.
+    // Must precede the warehouse and user deletes: transfers reference both.
     await prisma.stockTransfer.deleteMany({
         where: {
             OR: [
@@ -281,9 +276,6 @@ export async function createIdorFixture(): Promise<IdorFixture> {
         };
     };
 
-    // Map the department user's department to the assigned warehouse. This is
-    // the only way a plain `user` reaches a warehouse, so the fixture has to
-    // model it explicitly rather than relying on management.
     await prisma.departmentMapping.create({
         data: {
             department: `${IDOR_FIXTURE_PREFIX}dept`,
