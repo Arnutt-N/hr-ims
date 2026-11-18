@@ -8,39 +8,94 @@ import { requireRole, APPROVER_ROLES, sessionHasAnyRole } from '@/lib/auth-guard
 import { getCachedAuth } from '@/lib/auth-cache';
 import { getManagedWarehouseIds, isAdminSession } from '@/lib/warehouse-scope';
 
-export async function getRequests(status?: string) {
+export interface GetRequestsOptions {
+    status?: string;
+    page?: number;
+    perPage?: number;
+}
+
+export async function getRequests(statusOrOptions?: string | GetRequestsOptions) {
     const session = await getCachedAuth();
     if (!session) return { error: 'Unauthorized' };
+
+    const options: GetRequestsOptions = typeof statusOrOptions === 'string'
+        ? { status: statusOrOptions }
+        : statusOrOptions ?? {};
+    const page = Math.max(1, Math.floor(options.page ?? 1));
+    const perPage = Math.min(100, Math.max(1, Math.floor(options.perPage ?? 20)));
+    const skip = (page - 1) * perPage;
 
     const isAdmin = sessionHasAnyRole(session, ...APPROVER_ROLES);
 
     // Admins/approvers see all requests; regular users see only their own
-    const where: any = status ? { status } : {};
+    const scope: any = {};
+    if (!isAdmin) {
+        scope.userId = parseInt(session.user.id);
+    }
+    const where: any = { ...scope, ...(options.status ? { status: options.status } : {}) };
+
+    const emptyPagination = { page, perPage, total: 0, totalPages: 0 };
+
+    try {
+        const [requests, total, pendingCount] = await Promise.all([
+            prisma.request.findMany({
+                where,
+                include: {
+                    user: {
+                        select: { name: true, email: true, department: true, avatar: true }
+                    },
+                    requestItems: {
+                        include: {
+                            item: true
+                        }
+                    }
+                },
+                orderBy: [
+                    { createdAt: 'desc' },
+                    { id: 'desc' }
+                ],
+                take: perPage,
+                skip
+            }),
+            prisma.request.count({ where }),
+            prisma.request.count({ where: { ...scope, status: 'pending' } })
+        ]);
+        return {
+            success: true,
+            data: requests,
+            pendingCount,
+            pagination: { page, perPage, total, totalPages: Math.ceil(total / perPage) }
+        };
+    } catch (error) {
+        console.error('Failed to fetch requests:', error);
+        return { error: 'Failed to fetch requests', pagination: emptyPagination };
+    }
+}
+
+export async function getRequestForPrint(id: number) {
+    const session = await getCachedAuth();
+    if (!session) return { error: 'Unauthorized' };
+
+    const isAdmin = sessionHasAnyRole(session, ...APPROVER_ROLES);
+    const where: any = { id };
     if (!isAdmin) {
         where.userId = parseInt(session.user.id);
     }
 
     try {
-        const requests = await prisma.request.findMany({
+        const request = await prisma.request.findFirst({
             where,
             include: {
-                user: {
-                    select: { name: true, email: true, department: true, avatar: true }
-                },
-                requestItems: {
-                    include: {
-                        item: true
-                    }
-                }
-            },
-            orderBy: {
-                createdAt: 'desc'
+                user: { select: { name: true, email: true, department: true } },
+                warehouse: { select: { name: true, code: true } },
+                requestItems: { include: { item: true } }
             }
         });
-        return { success: true, data: requests };
+        if (!request) return { error: 'Request not found' };
+        return { success: true, data: request };
     } catch (error) {
-        console.error('Failed to fetch requests:', error);
-        return { error: 'Failed to fetch requests' };
+        console.error('Failed to fetch request for print:', error);
+        return { error: 'Failed to fetch request' };
     }
 }
 
@@ -128,6 +183,18 @@ export async function updateRequestStatus(id: number, status: 'approved' | 'reje
                             data: { stock: { decrement: reqItem.quantity } }
                         });
 
+                        await tx.stockTransaction.create({
+                            data: {
+                                warehouseId,
+                                itemId: reqItem.itemId,
+                                quantity: -reqItem.quantity,
+                                type: 'outbound',
+                                referenceId: `Request:${request.id}`,
+                                note: `Approved ${request.type} request #${request.id}`,
+                                userId: parseInt(session.user.id)
+                            }
+                        });
+
                         await tx.history.create({
                             data: {
                                 userId: request.userId,
@@ -156,7 +223,20 @@ export async function updateRequestStatus(id: number, status: 'approved' | 'reje
                             data: { stock: { increment: reqItem.quantity } }
                         });
 
-                        // Create History
+                        if (warehouseId) {
+                            await tx.stockTransaction.create({
+                                data: {
+                                    warehouseId,
+                                    itemId: reqItem.itemId,
+                                    quantity: reqItem.quantity,
+                                    type: 'inbound',
+                                    referenceId: `Request:${request.id}`,
+                                    note: `Approved return request #${request.id}`,
+                                    userId: parseInt(session.user.id)
+                                }
+                            });
+                        }
+
                         await tx.history.create({
                             data: {
                                 userId: request.userId,
@@ -168,14 +248,16 @@ export async function updateRequestStatus(id: number, status: 'approved' | 'reje
                     }
                 }
 
-                // Update Request Status
-                await tx.request.update({
-                    where: { id },
+                const claimed = await tx.request.updateMany({
+                    where: { id, status: 'pending' },
                     data: {
                         status,
                         dueDate: dueDate // Save due date if provided
                     }
                 });
+                if (claimed.count !== 1) {
+                    throw new Error('Request is already processed');
+                }
             });
 
         } else {
@@ -195,10 +277,13 @@ export async function updateRequestStatus(id: number, status: 'approved' | 'reje
                         }
                     }
                 }
-                await tx.request.update({
-                    where: { id },
+                const claimed = await tx.request.updateMany({
+                    where: { id, status: 'pending' },
                     data: { status }
                 });
+                if (claimed.count !== 1) {
+                    throw new Error('Request is already processed');
+                }
             });
         }
 

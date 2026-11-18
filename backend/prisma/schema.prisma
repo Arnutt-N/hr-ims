@@ -46,6 +46,10 @@ model User {
   categoryAssigneeRules       CategoryAssigneeRule[] @relation("CategoryAssignee")
   // PRP v6 Phase 6 (engagement)
   maintenanceWatchers         MaintenanceRequestWatcher[] @relation("MaintenanceWatchers")
+  // Stock count rounds (2026-11-18 examples review, proposal 3)
+  stockCountRoundsCreated     StockCountRound[]          @relation("StockCountRoundCreatedBy")
+  stockCountRoundsAssigned    StockCountRound[]          @relation("StockCountRoundAssignedTo")
+  stockCountRoundsApproved    StockCountRound[]          @relation("StockCountRoundApprovedBy")
 }
 
 // Note: SQLite doesn't support enums, so Role is now String
@@ -90,6 +94,7 @@ model InventoryItem {
   stockLevels             StockLevel[] // NEW: Stock per warehouse
   stockTransfers          StockTransfer[] // NEW: Transfer history
   stockTransactions       StockTransaction[]
+  stockCountLines         StockCountLine[]
   // @deprecated since PRP v6 (2026-05-09) — new flow stores per-item resolution
   // on MaintenanceRequestItem.resolution. Existing values stay as legacy data;
   // UI shows them under "Legacy repair note" disclosure on item detail page.
@@ -187,6 +192,7 @@ model Warehouse {
   stockTransactions  StockTransaction[]
   departmentMappings DepartmentMapping[]
   requests           Request[] // Requests targeting this warehouse
+  stockCountRounds   StockCountRound[]
 }
 
 model DepartmentMapping {
@@ -496,6 +502,56 @@ model Personnel {
   // Timestamps
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+// ==========================================
+// Stock Count (รอบตรวจนับสต็อก)
+// 2026-11-18 examples review proposal 3.
+// System quantity is snapshotted when the round opens. Counted quantity and
+// variance are recorded separately; applying an approved round calls the
+// existing adjustment path so stock movement history stays consistent.
+// ==========================================
+
+model StockCountRound {
+  id           Int      @id @default(autoincrement())
+  warehouseId  Int
+  warehouse    Warehouse @relation(fields: [warehouseId], references: [id])
+  createdById  Int
+  createdBy    User     @relation("StockCountRoundCreatedBy", fields: [createdById], references: [id])
+  assignedToId Int
+  assignedTo   User     @relation("StockCountRoundAssignedTo", fields: [assignedToId], references: [id])
+  approvedById Int?
+  approvedBy   User?    @relation("StockCountRoundApprovedBy", fields: [approvedById], references: [id])
+
+  status       String   @default("counting") // counting | review | approved | applied | cancelled
+  countedAt    DateTime?
+  approvedAt   DateTime?
+  appliedAt    DateTime?
+  note         String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  lines StockCountLine[]
+
+  @@index([warehouseId])
+  @@index([status])
+}
+
+model StockCountLine {
+  id             Int            @id @default(autoincrement())
+  roundId        Int
+  round          StockCountRound @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  itemId         Int
+  item           InventoryItem  @relation(fields: [itemId], references: [id])
+  systemQuantity Int
+  countedQuantity Int?
+  variance       Int?
+  note           String?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  @@unique([roundId, itemId])
+  @@index([itemId])
 }
 
 // ==========================================

@@ -18,6 +18,41 @@ describe('stock-management Server Actions', () => {
         stockMgmt = await import('@/lib/actions/stock-management');
     });
 
+    describe('getStockCard', () => {
+        it('filters movements by warehouse, item, and validated date range', async () => {
+            prismaMock.stockTransaction.findMany.mockResolvedValue([] as any);
+            prismaMock.stockLevel.findMany.mockResolvedValue([] as any);
+
+            const result = await stockMgmt.getStockCard({
+                warehouseId: 3,
+                itemId: 7,
+                startDate: '2026-11-01',
+                endDate: '2026-11-18'
+            });
+
+            expect(result).toMatchObject({ success: true, transactions: [], stockLevels: [] });
+            const txCall = prismaMock.stockTransaction.findMany.mock.calls[0][0];
+            expect(txCall.where.warehouseId).toBe(3);
+            expect(txCall.where.itemId).toBe(7);
+            expect(txCall.where.createdAt.gte).toEqual(new Date('2026-11-01'));
+            expect(txCall.where.createdAt.lte.getHours()).toBe(23);
+            expect(prismaMock.stockLevel.findMany.mock.calls[0][0].where).toEqual({
+                warehouseId: 3,
+                itemId: 7
+            });
+        });
+
+        it('rejects an invalid date before querying', async () => {
+            const result = await stockMgmt.getStockCard({
+                warehouseId: 3,
+                startDate: 'not-a-date'
+            });
+
+            expect(result).toEqual({ error: 'Invalid start date' });
+            expect(prismaMock.stockTransaction.findMany).not.toHaveBeenCalled();
+        });
+    });
+
     describe('adjustStockQuantity', () => {
         it('rejects unauthenticated', async () => {
             authMock.mockResolvedValue(null);

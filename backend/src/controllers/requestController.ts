@@ -231,7 +231,7 @@ export const createRequest = async (req: AuthRequest, res: Response) => {
     }
 };
 
-export const updateRequestStatus = async (req: Request, res: Response) => {
+export const updateRequestStatus = async (req: AuthRequest, res: Response) => {
     try {
         const { id } = req.params;
         const parsedBody = UpdateRequestStatusSchema.safeParse(req.body);
@@ -242,6 +242,7 @@ export const updateRequestStatus = async (req: Request, res: Response) => {
 
         const requestIdNum = parseInt(id);
         const lowStockChecks: Array<{ itemId: number; warehouseId: number }> = [];
+        const actorId = req.user ? (req.user.userId ?? req.user.id) : 0;
 
         const result = await prisma.$transaction(async (tx: any) => {
             // Fetch request with items and user info
@@ -275,10 +276,44 @@ export const updateRequestStatus = async (req: Request, res: Response) => {
                         },
                     });
 
-                    // With reservation system, quantity should already be reserved.
                     if (!stockLevel) {
                         throw new Error(`Stock level not found for item ${ri.itemId} in warehouse ${existingRequest.warehouseId}`);
                     }
+
+                    if (existingRequest.type === 'return') {
+                        await tx.stockLevel.update({
+                            where: { id: stockLevel.id },
+                            data: { quantity: { increment: ri.quantity } },
+                        });
+
+                        await tx.inventoryItem.update({
+                            where: { id: ri.itemId },
+                            data: { stock: { increment: ri.quantity } },
+                        });
+
+                        await tx.stockTransaction.create({
+                            data: {
+                                warehouseId: existingRequest.warehouseId,
+                                itemId: ri.itemId,
+                                quantity: ri.quantity,
+                                type: 'inbound',
+                                referenceId: `Request:${existingRequest.id}`,
+                                note: `Approved return request #${existingRequest.id}`,
+                                userId: actorId,
+                            },
+                        });
+
+                        await tx.history.create({
+                            data: {
+                                item: ri.item.name,
+                                action: 'return',
+                                status: 'completed',
+                                userId: existingRequest.userId,
+                            },
+                        });
+                        continue;
+                    }
+
                     if (stockLevel.reserved < ri.quantity) {
                         throw new Error(`Reserved stock mismatch for item ${ri.itemId} in warehouse ${existingRequest.warehouseId}`);
                     }
@@ -286,14 +321,8 @@ export const updateRequestStatus = async (req: Request, res: Response) => {
                         throw new Error(`Insufficient stock for item ${ri.itemId} in warehouse ${existingRequest.warehouseId}`);
                     }
 
-                    // Convert reservation to actual deduction
                     await tx.stockLevel.update({
-                        where: {
-                            warehouseId_itemId: {
-                                warehouseId: existingRequest.warehouseId,
-                                itemId: ri.itemId,
-                            },
-                        },
+                        where: { id: stockLevel.id },
                         data: {
                             quantity: { decrement: ri.quantity },
                             reserved: { decrement: ri.quantity },
@@ -302,12 +331,21 @@ export const updateRequestStatus = async (req: Request, res: Response) => {
 
                     await tx.inventoryItem.update({
                         where: { id: ri.itemId },
+                        data: { stock: { decrement: ri.quantity } },
+                    });
+
+                    await tx.stockTransaction.create({
                         data: {
-                            stock: { decrement: ri.quantity },
+                            warehouseId: existingRequest.warehouseId,
+                            itemId: ri.itemId,
+                            quantity: -ri.quantity,
+                            type: 'outbound',
+                            referenceId: `Request:${existingRequest.id}`,
+                            note: `Approved ${existingRequest.type} request #${existingRequest.id}`,
+                            userId: actorId,
                         },
                     });
 
-                    // Create history record
                     await tx.history.create({
                         data: {
                             item: ri.item.name,
@@ -317,7 +355,6 @@ export const updateRequestStatus = async (req: Request, res: Response) => {
                         },
                     });
 
-                    // Queue low stock check after transaction commits
                     lowStockChecks.push({
                         itemId: ri.itemId,
                         warehouseId: existingRequest.warehouseId,
@@ -364,11 +401,15 @@ export const updateRequestStatus = async (req: Request, res: Response) => {
                 }
             }
 
-            const updatedRequest = await tx.request.update({
-                where: { id: requestIdNum },
+            const claimed = await tx.request.updateMany({
+                where: { id: requestIdNum, status: 'pending' },
                 data: { status },
             });
+            if (claimed.count !== 1) {
+                throw new Error('Request is already processed');
+            }
 
+            const updatedRequest = await tx.request.findUnique({ where: { id: requestIdNum } });
             return { updatedRequest, existingRequest };
         });
 

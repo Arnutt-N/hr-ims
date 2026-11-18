@@ -28,14 +28,6 @@ export async function getReportStats() {
         });
 
         // 3. Department Stats
-        await prisma.user.groupBy({
-            by: ['department'],
-            _count: { id: true },
-            where: {
-                department: { not: null }
-            }
-        });
-
         // Calculate department usage from requests
         const departmentUsage = await prisma.request.groupBy({
             by: ['userId'],
@@ -45,12 +37,13 @@ export async function getReportStats() {
         const usersById = await prisma.user.findMany({
             select: { id: true, department: true }
         });
+        const departmentByUserId = new Map(usersById.map(u => [u.id, u.department]));
 
         const deptUsageMap: Record<string, number> = {};
         departmentUsage.forEach(item => {
-            const user = usersById.find(u => u.id === item.userId);
-            if (user?.department) {
-                deptUsageMap[user.department] = (deptUsageMap[user.department] || 0) + item._count.id;
+            const department = departmentByUserId.get(item.userId);
+            if (department) {
+                deptUsageMap[department] = (deptUsageMap[department] || 0) + item._count.id;
             }
         });
 
@@ -68,13 +61,18 @@ export async function getReportStats() {
                 date: { gte: sixMonthsAgo },
                 action: { in: ['withdraw', 'borrow'] }
             },
-            select: { date: true, action: true }
+            select: { date: true }
         });
 
-        // Group by month
+        const bangkokMonth = new Intl.DateTimeFormat('en-CA', {
+            timeZone: 'Asia/Bangkok',
+            year: 'numeric',
+            month: '2-digit'
+        });
+
         const monthMap: Record<string, number> = {};
         monthlyData.forEach(record => {
-            const monthKey = record.date.toISOString().substring(0, 7); // YYYY-MM
+            const monthKey = bangkokMonth.format(record.date);
             monthMap[monthKey] = (monthMap[monthKey] || 0) + 1;
         });
 

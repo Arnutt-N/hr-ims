@@ -62,6 +62,8 @@ const sidebarItems: SidebarItem[] = [
             { href: '/inventory', label: 'All Items', icon: Package },
             { href: '/inventory?type=durable', label: 'Borrow (Durable)', icon: History },
             { href: '/inventory?type=consumable', label: 'Withdraw', icon: ClipboardList },
+            { href: '/inventory/stock-card', label: 'Stock Card', icon: FileText },
+            { href: '/inventory/stock-count', label: 'Stock Count', icon: ClipboardList },
         ]
     },
     { href: '/cart', icon: ShoppingCart, label: 'Cart' },

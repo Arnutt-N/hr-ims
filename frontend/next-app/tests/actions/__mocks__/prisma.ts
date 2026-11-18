@@ -64,6 +64,8 @@ const MODELS = [
     'stockLevel',
     'stockTransfer',
     'stockTransaction',
+    'stockCountRound',
+    'stockCountLine',
     'department',
     'departmentMapping',
     'division',

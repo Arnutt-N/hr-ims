@@ -7,7 +7,9 @@ import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toast } from 'sonner';
 import { updateRequestStatus } from '@/lib/actions/requests';
-import { Check, X, Clock, Package } from 'lucide-react';
+import { Check, X, Clock, Package, Printer } from 'lucide-react';
+import Link from 'next/link';
+import Pagination from '@/components/ui/pagination';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     Dialog,
@@ -21,7 +23,12 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { useI18n } from "@/lib/i18n/provider";
 
-export default function RequestsTable({ initialRequests }: { initialRequests: any[] }) {
+interface RequestsTableProps {
+    initialRequests: any[];
+    pagination: { page: number; perPage: number; total: number; totalPages: number };
+}
+
+export default function RequestsTable({ initialRequests, pagination }: RequestsTableProps) {
     const { t } = useI18n();
     const [requests, setRequests] = useState(initialRequests);
     const [loadingId, setLoadingId] = useState<number | null>(null);
@@ -86,13 +93,16 @@ export default function RequestsTable({ initialRequests }: { initialRequests: an
 
     if (requests.length === 0) {
         return (
-            <div className="text-center py-20 bg-white rounded-xl border border-dashed border-slate-200">
-                <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <Package className="text-slate-300" size={32} />
+            <>
+                <div className="text-center py-20 bg-white rounded-xl border border-dashed border-slate-200">
+                    <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <Package className="text-slate-300" size={32} />
+                    </div>
+                    <h3 className="text-lg font-medium text-slate-900">No requests found</h3>
+                    <p className="text-slate-500">There are no pending inventory requests.</p>
                 </div>
-                <h3 className="text-lg font-medium text-slate-900">No requests found</h3>
-                <p className="text-slate-500">There are no pending inventory requests.</p>
-            </div>
+                {pagination.totalPages > 1 ? <Pagination totalPages={pagination.totalPages} /> : null}
+            </>
         );
     }
 
@@ -190,6 +200,14 @@ export default function RequestsTable({ initialRequests }: { initialRequests: an
                             </div>
 
                             {/* Card Actions */}
+                            <div className="px-4 pb-3 flex justify-end">
+                                <Link
+                                    href={`/requests/${req.id}/print`}
+                                    className="inline-flex items-center gap-1 text-sm text-indigo-600 hover:text-indigo-800"
+                                >
+                                    <Printer size={14} /> พิมพ์ใบเบิก
+                                </Link>
+                            </div>
                             {req.status === 'pending' ? (
                                 <div className="p-4 pt-0 flex gap-2">
                                     <Button
@@ -297,6 +315,13 @@ export default function RequestsTable({ initialRequests }: { initialRequests: an
                                         </Badge>
                                     </TableCell>
                                     <TableCell className="text-right">
+                                        <Link
+                                            href={`/requests/${req.id}/print`}
+                                            aria-label={`Print request ${req.id}`}
+                                            className="inline-flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-800 mr-2"
+                                        >
+                                            <Printer size={14} /> พิมพ์
+                                        </Link>
                                         {req.status === 'pending' ? (
                                             <div className="flex justify-end gap-2 opacity-100 transition-opacity">
                                                 <Button
@@ -331,6 +356,8 @@ export default function RequestsTable({ initialRequests }: { initialRequests: an
                     </TableBody>
                 </Table>
             </div>
+
+            {pagination.totalPages > 1 ? <Pagination totalPages={pagination.totalPages} /> : null}
         </>
     );
 }
