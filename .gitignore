@@ -146,6 +146,9 @@ switch_mode.bat
 # Perch: project-level skill junctions are per-machine, not portable.
 .perch/skills/
 
+# Perch: plugin skills are per-machine copies of ~/.agents/skills, not portable.
+.perch/plugins/
+
 # Perch: per-machine project config (MCP servers, local manual).
 .perch/mcp.json
 .perch/PERCH.md
