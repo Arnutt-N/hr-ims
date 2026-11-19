@@ -152,6 +152,66 @@ export async function getItemDetail(itemId: number) {
     }
 }
 
+export interface StockCardFilters {
+    warehouseId: number;
+    itemId?: number;
+    startDate?: string;
+    endDate?: string;
+}
+
+export async function getStockCard(filters: StockCardFilters) {
+    const session = await auth();
+    if (!session?.user?.id) return { error: 'Unauthorized' };
+    if (!(await canAccessWarehouse(session, filters.warehouseId))) {
+        return { error: 'Warehouse not found' };
+    }
+    if (filters.startDate && Number.isNaN(Date.parse(filters.startDate))) {
+        return { error: 'Invalid start date' };
+    }
+    if (filters.endDate && Number.isNaN(Date.parse(filters.endDate))) {
+        return { error: 'Invalid end date' };
+    }
+
+    const where: any = { warehouseId: filters.warehouseId };
+    if (filters.itemId) where.itemId = filters.itemId;
+    if (filters.startDate || filters.endDate) {
+        where.createdAt = {};
+        if (filters.startDate) where.createdAt.gte = new Date(filters.startDate);
+        if (filters.endDate) {
+            const endDate = new Date(filters.endDate);
+            endDate.setHours(23, 59, 59, 999);
+            where.createdAt.lte = endDate;
+        }
+    }
+
+    try {
+        const transactions = await prisma.stockTransaction.findMany({
+            where,
+            include: {
+                item: { select: { id: true, name: true } },
+                warehouse: { select: { id: true, name: true, code: true } },
+                user: { select: { name: true } }
+            },
+            orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+            take: 500
+        });
+
+        const stockLevels = await prisma.stockLevel.findMany({
+            where: {
+                warehouseId: filters.warehouseId,
+                ...(filters.itemId ? { itemId: filters.itemId } : {})
+            },
+            include: { item: { select: { id: true, name: true } } },
+            orderBy: { item: { name: 'asc' } }
+        });
+
+        return { success: true, transactions, stockLevels };
+    } catch (error) {
+        logActionError('getStockCard', error);
+        return { error: 'Failed to fetch stock card' };
+    }
+}
+
 export async function getStockHistory(itemId: number, page: number = 1, perPage: number = 20) {
     const session = await auth();
     if (!session?.user?.id) {

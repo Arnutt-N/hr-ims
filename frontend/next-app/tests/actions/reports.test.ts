@@ -34,6 +34,7 @@ describe('reports Server Action', () => {
         prismaMock.history.groupBy = vi.fn().mockResolvedValue([]);
         prismaMock.user.groupBy = vi.fn().mockResolvedValue([]);
         prismaMock.request.groupBy = vi.fn().mockResolvedValue([]);
+        prismaMock.user.findMany.mockResolvedValue([] as any);
         prismaMock.history.findMany.mockResolvedValue([]);
 
         const result = await reports.getReportStats();
@@ -74,6 +75,24 @@ describe('reports Server Action', () => {
         ]);
         // 2 distinct months: 2026-04 and 2026-05
         expect(result.stats.monthlyTrend).toHaveLength(2);
+    });
+
+    it('groups monthly trend by Bangkok calendar month', async () => {
+        authMock.mockResolvedValue(sessionFor('admin'));
+        prismaMock.inventoryItem.groupBy = vi.fn().mockResolvedValue([]) as any;
+        prismaMock.history.groupBy = vi.fn().mockResolvedValue([]) as any;
+        prismaMock.request.groupBy = vi.fn().mockResolvedValue([]) as any;
+        prismaMock.user.findMany.mockResolvedValue([] as any);
+        prismaMock.history.findMany.mockResolvedValue([
+            { date: new Date('2026-04-30T17:30:00.000Z') },
+            { date: new Date('2026-05-01T00:30:00.000Z') },
+        ] as any);
+
+        const result = (await reports.getReportStats()) as any;
+
+        expect(result.stats.monthlyTrend).toEqual([
+            { month: '2026-05', count: 2 },
+        ]);
     });
 
     it('returns error when DB throws', async () => {

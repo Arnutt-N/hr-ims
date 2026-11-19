@@ -9,6 +9,7 @@ jest.mock('../../utils/prisma', () => ({
             request: {
                 findUnique: jest.fn(),
                 update: jest.fn(),
+                updateMany: jest.fn(),
             },
             stockLevel: {
                 findUnique: jest.fn(),
@@ -16,6 +17,9 @@ jest.mock('../../utils/prisma', () => ({
             },
             inventoryItem: {
                 update: jest.fn(),
+            },
+            stockTransaction: {
+                create: jest.fn(),
             },
             history: {
                 create: jest.fn(),
@@ -47,18 +51,21 @@ describe('updateRequestStatus', () => {
     it('should convert reservation to actual deduction on approved', async () => {
         const txMock = {
             request: {
-                findUnique: jest.fn().mockResolvedValue({
-                    id: 1,
-                    warehouseId: 10,
-                    userId: 99,
-                    type: 'withdraw',
-                    status: 'pending',
-                    user: { name: 'Test', email: 'test@example.com' },
-                    requestItems: [
-                        { itemId: 101, quantity: 5, item: { name: 'Pen' } },
-                    ],
-                }),
+                findUnique: jest.fn()
+                    .mockResolvedValueOnce({
+                        id: 1,
+                        warehouseId: 10,
+                        userId: 99,
+                        type: 'withdraw',
+                        status: 'pending',
+                        user: { name: 'Test', email: 'test@example.com' },
+                        requestItems: [
+                            { itemId: 101, quantity: 5, item: { name: 'Pen' } },
+                        ],
+                    })
+                    .mockResolvedValueOnce({ id: 1, status: 'approved' }),
                 update: jest.fn().mockResolvedValue({ id: 1, status: 'approved' }),
+                updateMany: jest.fn().mockResolvedValue({ count: 1 }),
             },
             stockLevel: {
                 findUnique: jest.fn().mockResolvedValue({ quantity: 100, reserved: 5 }),
@@ -66,6 +73,9 @@ describe('updateRequestStatus', () => {
             },
             inventoryItem: {
                 update: jest.fn().mockResolvedValue({}),
+            },
+            stockTransaction: {
+                create: jest.fn().mockResolvedValue({}),
             },
             history: {
                 create: jest.fn().mockResolvedValue({}),
@@ -90,6 +100,17 @@ describe('updateRequestStatus', () => {
                 data: { stock: { decrement: 5 } },
             })
         );
+        expect(txMock.stockTransaction.create).toHaveBeenCalledWith(
+            expect.objectContaining({
+                data: expect.objectContaining({
+                    warehouseId: 10,
+                    itemId: 101,
+                    quantity: -5,
+                    type: 'outbound',
+                    referenceId: 'Request:1',
+                }),
+            })
+        );
         expect(txMock.history.create).toHaveBeenCalledWith(
             expect.objectContaining({
                 data: expect.objectContaining({ status: 'approved', item: 'Pen' }),
@@ -98,21 +119,75 @@ describe('updateRequestStatus', () => {
         expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ status: 'approved' }));
     });
 
+    it('should increase stock and record inbound on approved return', async () => {
+        const txMock = {
+            request: {
+                findUnique: jest.fn()
+                    .mockResolvedValueOnce({
+                        id: 9,
+                        warehouseId: 10,
+                        userId: 99,
+                        type: 'return',
+                        status: 'pending',
+                        user: { name: 'Test', email: 'test@example.com' },
+                        requestItems: [
+                            { itemId: 101, quantity: 3, item: { name: 'Pen' } },
+                        ],
+                    })
+                    .mockResolvedValueOnce({ id: 9, status: 'approved' }),
+                updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+            },
+            stockLevel: {
+                findUnique: jest.fn().mockResolvedValue({ quantity: 10, reserved: 0 }),
+                update: jest.fn().mockResolvedValue({}),
+            },
+            inventoryItem: { update: jest.fn().mockResolvedValue({}) },
+            stockTransaction: { create: jest.fn().mockResolvedValue({}) },
+            history: { create: jest.fn().mockResolvedValue({}) },
+        };
+        (prisma.$transaction as jest.Mock).mockImplementation((cb: any) => cb(txMock));
+
+        const req: any = {
+            params: { id: '9' },
+            body: { status: 'approved' },
+            user: { id: 5, userId: 5 },
+        };
+        const res = createRes();
+        await updateRequestStatus(req, res);
+
+        expect(txMock.stockLevel.update).toHaveBeenCalledWith(
+            expect.objectContaining({ data: { quantity: { increment: 3 } } })
+        );
+        expect(txMock.stockTransaction.create).toHaveBeenCalledWith(
+            expect.objectContaining({
+                data: expect.objectContaining({
+                    quantity: 3,
+                    type: 'inbound',
+                    referenceId: 'Request:9',
+                    userId: 5,
+                }),
+            })
+        );
+    });
+
     it.each(['rejected', 'cancelled'])('should release reservation on %s', async (status) => {
         const txMock = {
             request: {
-                findUnique: jest.fn().mockResolvedValue({
-                    id: 2,
-                    warehouseId: 20,
-                    userId: 88,
-                    type: 'borrow',
-                    status: 'pending',
-                    user: { name: 'User', email: 'user@example.com' },
-                    requestItems: [
-                        { itemId: 202, quantity: 3, item: { name: 'Notebook' } },
-                    ],
-                }),
+                findUnique: jest.fn()
+                    .mockResolvedValueOnce({
+                        id: 2,
+                        warehouseId: 20,
+                        userId: 88,
+                        type: 'borrow',
+                        status: 'pending',
+                        user: { name: 'User', email: 'user@example.com' },
+                        requestItems: [
+                            { itemId: 202, quantity: 3, item: { name: 'Notebook' } },
+                        ],
+                    })
+                    .mockResolvedValueOnce({ id: 2, status }),
                 update: jest.fn().mockResolvedValue({ id: 2, status }),
+                updateMany: jest.fn().mockResolvedValue({ count: 1 }),
             },
             stockLevel: {
                 findUnique: jest.fn().mockResolvedValue({ quantity: 100, reserved: 3 }),
@@ -120,6 +195,9 @@ describe('updateRequestStatus', () => {
             },
             inventoryItem: {
                 update: jest.fn().mockResolvedValue({}),
+            },
+            stockTransaction: {
+                create: jest.fn().mockResolvedValue({}),
             },
             history: {
                 create: jest.fn().mockResolvedValue({}),
@@ -150,18 +228,21 @@ describe('updateRequestStatus', () => {
     it('should not decrement reserved below zero', async () => {
         const txMock = {
             request: {
-                findUnique: jest.fn().mockResolvedValue({
-                    id: 4,
-                    warehouseId: 20,
-                    userId: 88,
-                    type: 'borrow',
-                    status: 'pending',
-                    user: { name: 'User', email: 'user@example.com' },
-                    requestItems: [
-                        { itemId: 202, quantity: 3, item: { name: 'Notebook' } },
-                    ],
-                }),
+                findUnique: jest.fn()
+                    .mockResolvedValueOnce({
+                        id: 4,
+                        warehouseId: 20,
+                        userId: 88,
+                        type: 'borrow',
+                        status: 'pending',
+                        user: { name: 'User', email: 'user@example.com' },
+                        requestItems: [
+                            { itemId: 202, quantity: 3, item: { name: 'Notebook' } },
+                        ],
+                    })
+                    .mockResolvedValueOnce({ id: 4, status: 'rejected' }),
                 update: jest.fn().mockResolvedValue({ id: 4, status: 'rejected' }),
+                updateMany: jest.fn().mockResolvedValue({ count: 1 }),
             },
             stockLevel: {
                 findUnique: jest.fn().mockResolvedValue({ quantity: 100, reserved: 1 }),
@@ -169,6 +250,9 @@ describe('updateRequestStatus', () => {
             },
             inventoryItem: {
                 update: jest.fn().mockResolvedValue({}),
+            },
+            stockTransaction: {
+                create: jest.fn().mockResolvedValue({}),
             },
             history: {
                 create: jest.fn().mockResolvedValue({}),
@@ -206,6 +290,7 @@ describe('updateRequestStatus', () => {
                     ],
                 }),
                 update: jest.fn(),
+                updateMany: jest.fn().mockResolvedValue({ count: 1 }),
             },
             stockLevel: {
                 findUnique: jest.fn().mockResolvedValue(null),
@@ -213,6 +298,9 @@ describe('updateRequestStatus', () => {
             },
             inventoryItem: {
                 update: jest.fn(),
+            },
+            stockTransaction: {
+                create: jest.fn(),
             },
             history: {
                 create: jest.fn(),
@@ -247,6 +335,7 @@ describe('updateRequestStatus', () => {
                     ],
                 }),
                 update: jest.fn(),
+                updateMany: jest.fn().mockResolvedValue({ count: 1 }),
             },
             stockLevel: {
                 findUnique: jest.fn().mockResolvedValue({ quantity: 50, reserved: 2 }),
@@ -254,6 +343,9 @@ describe('updateRequestStatus', () => {
             },
             inventoryItem: {
                 update: jest.fn(),
+            },
+            stockTransaction: {
+                create: jest.fn(),
             },
             history: {
                 create: jest.fn(),

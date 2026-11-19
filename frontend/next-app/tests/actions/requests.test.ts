@@ -61,6 +61,24 @@ describe('requests Server Actions', () => {
             const call = prismaMock.request.findMany.mock.calls[0][0];
             expect(call.where.status).toBe('pending');
         });
+
+        it('paginates with stable ordering and returns totals', async () => {
+            getCachedAuth.mockResolvedValue(sessionFor('admin'));
+            prismaMock.request.findMany.mockResolvedValue([] as any);
+            prismaMock.request.count.mockResolvedValueOnce(45).mockResolvedValueOnce(12);
+
+            const result = await requests.getRequests({ page: 2, perPage: 20 });
+
+            const call = prismaMock.request.findMany.mock.calls[0][0];
+            expect(call.take).toBe(20);
+            expect(call.skip).toBe(20);
+            expect(call.orderBy).toEqual([{ createdAt: 'desc' }, { id: 'desc' }]);
+            expect(result).toMatchObject({
+                success: true,
+                pendingCount: 12,
+                pagination: { page: 2, perPage: 20, total: 45, totalPages: 3 }
+            });
+        });
     });
 
     describe('updateRequestStatus — approve borrow/withdraw', () => {
@@ -132,6 +150,7 @@ describe('requests Server Actions', () => {
                 type: 'return',
             } as any);
             prismaMock.request.update.mockResolvedValue({} as any);
+            prismaMock.request.updateMany.mockResolvedValue({ count: 1 } as any);
             prismaMock.user.findUnique.mockResolvedValue({ email: null, name: 'Owner' } as any);
 
             const result = await requests.updateRequestStatus(11, 'approved');
@@ -149,8 +168,10 @@ describe('requests Server Actions', () => {
             } as any);
             prismaMock.stockLevel.update.mockResolvedValue({} as any);
             prismaMock.inventoryItem.update.mockResolvedValue({} as any);
+            prismaMock.stockTransaction.create.mockResolvedValue({} as any);
             prismaMock.history.create.mockResolvedValue({} as any);
             prismaMock.request.update.mockResolvedValue({} as any);
+            prismaMock.request.updateMany.mockResolvedValue({ count: 1 } as any);
             prismaMock.user.findUnique.mockResolvedValue({
                 email: 'u@x.com',
                 name: 'U',
@@ -159,6 +180,15 @@ describe('requests Server Actions', () => {
             const result = await requests.updateRequestStatus(11, 'approved');
 
             expect(result).toEqual({ success: true });
+            expect(prismaMock.stockTransaction.create).toHaveBeenCalledWith({
+                data: expect.objectContaining({
+                    warehouseId: 7,
+                    itemId: 100,
+                    quantity: -2,
+                    type: 'outbound',
+                    referenceId: 'Request:11'
+                })
+            });
             expect(prismaMock.stockLevel.update).toHaveBeenCalledWith({
                 where: { id: 555 },
                 data: {
@@ -173,9 +203,29 @@ describe('requests Server Actions', () => {
             expect(prismaMock.history.create).toHaveBeenCalledWith({
                 data: expect.objectContaining({ action: 'borrow', status: 'approved' }),
             });
-            expect(prismaMock.request.update).toHaveBeenCalledWith({
-                where: { id: 11 },
+            expect(prismaMock.request.updateMany).toHaveBeenCalledWith({
+                where: { id: 11, status: 'pending' },
                 data: { status: 'approved', dueDate: undefined },
+            });
+        });
+
+        it('claims approval atomically with a pending-only status guard', async () => {
+            getCachedAuth.mockResolvedValue(sessionFor('admin', { id: 4 }));
+            prismaMock.request.findUnique.mockResolvedValue(baseRequest as any);
+            prismaMock.stockLevel.findFirst.mockResolvedValue({
+                id: 555, quantity: 5, reserved: 2, minStock: 0
+            } as any);
+            prismaMock.stockLevel.update.mockResolvedValue({} as any);
+            prismaMock.inventoryItem.update.mockResolvedValue({} as any);
+            prismaMock.stockTransaction.create.mockResolvedValue({} as any);
+            prismaMock.history.create.mockResolvedValue({} as any);
+            prismaMock.user.findUnique.mockResolvedValue({ email: null, name: 'U' } as any);
+
+            await requests.updateRequestStatus(11, 'approved');
+
+            expect(prismaMock.request.updateMany).toHaveBeenCalledWith({
+                where: { id: 11, status: 'pending' },
+                data: { status: 'approved', dueDate: undefined }
             });
         });
 
@@ -193,6 +243,7 @@ describe('requests Server Actions', () => {
             prismaMock.history.create.mockResolvedValue({} as any);
             prismaMock.notification.create.mockResolvedValue({} as any);
             prismaMock.request.update.mockResolvedValue({} as any);
+            prismaMock.request.updateMany.mockResolvedValue({ count: 1 } as any);
             prismaMock.user.findUnique.mockResolvedValue({ email: 'u@x' } as any);
 
             await requests.updateRequestStatus(11, 'approved');
@@ -215,7 +266,7 @@ describe('requests Server Actions', () => {
             const result = await requests.updateRequestStatus(11, 'approved');
 
             expect(result).toEqual({ error: 'Failed to update request' });
-            expect(prismaMock.request.update).not.toHaveBeenCalled();
+            expect(prismaMock.request.updateMany).not.toHaveBeenCalled();
             err.mockRestore();
         });
 
@@ -233,7 +284,7 @@ describe('requests Server Actions', () => {
             const result = await requests.updateRequestStatus(11, 'approved');
 
             expect(result).toEqual({ error: 'Failed to update request' });
-            expect(prismaMock.request.update).not.toHaveBeenCalled();
+            expect(prismaMock.request.updateMany).not.toHaveBeenCalled();
             err.mockRestore();
         });
 
@@ -290,6 +341,7 @@ describe('requests Server Actions', () => {
             prismaMock.inventoryItem.update.mockResolvedValue({} as any);
             prismaMock.history.create.mockResolvedValue({} as any);
             prismaMock.request.update.mockResolvedValue({} as any);
+            prismaMock.request.updateMany.mockResolvedValue({ count: 1 } as any);
             prismaMock.user.findUnique.mockResolvedValue({ email: 'u@x' } as any);
 
             const result = await requests.updateRequestStatus(11, 'approved');
@@ -330,6 +382,7 @@ describe('requests Server Actions', () => {
             } as any);
             prismaMock.stockLevel.update.mockResolvedValue({} as any);
             prismaMock.request.update.mockResolvedValue({} as any);
+            prismaMock.request.updateMany.mockResolvedValue({ count: 1 } as any);
             prismaMock.user.findUnique.mockResolvedValue({ email: 'u@x' } as any);
 
             const result = await requests.updateRequestStatus(11, 'rejected');
@@ -354,6 +407,7 @@ describe('requests Server Actions', () => {
                 reserved: 1, // less than requested 2
             } as any);
             prismaMock.request.update.mockResolvedValue({} as any);
+            prismaMock.request.updateMany.mockResolvedValue({ count: 1 } as any);
             prismaMock.user.findUnique.mockResolvedValue({ email: 'u@x' } as any);
 
             await requests.updateRequestStatus(11, 'cancelled');

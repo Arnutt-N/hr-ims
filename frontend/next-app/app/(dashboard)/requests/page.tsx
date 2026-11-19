@@ -11,9 +11,22 @@ export const metadata = {
     description: 'Manage inventory requests',
 };
 
-export default async function RequestsPage() {
-    const [result, session, { t }] = await Promise.all([getRequests(), getCachedAuth(), getServerT()]);
-    const requests = result.success ? result.data : [];
+export default async function RequestsPage({
+    searchParams
+}: {
+    searchParams: Promise<{ page?: string; status?: string }>;
+}) {
+    const params = await searchParams;
+    const page = Math.max(1, Number.parseInt(params.page ?? '1', 10) || 1);
+    const status = params.status;
+    const [result, session, { t }] = await Promise.all([
+        getRequests({ page, status }),
+        getCachedAuth(),
+        getServerT()
+    ]);
+    const requests = result.data ?? [];
+    const pagination = result.pagination ?? { page, perPage: 20, total: 0, totalPages: 0 };
+    const pendingCount = result.pendingCount ?? 0;
     const canCheckOverdue = sessionHasAnyRole(session, ...APPROVER_ROLES);
 
     return (
@@ -28,7 +41,7 @@ export default async function RequestsPage() {
                     <div className="bg-white px-4 py-2 rounded-lg border border-slate-200 shadow-sm flex items-center gap-2">
                         <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
                         <span className="text-sm font-medium text-slate-700">
-                            {t('requests.pending-badge', { count: requests.filter(r => r.status === 'pending').length })}
+                            {t('requests.pending-badge', { count: pendingCount })}
                         </span>
                     </div>
                     {canCheckOverdue ? <CheckOverdueButton /> : null}
@@ -36,7 +49,7 @@ export default async function RequestsPage() {
             </div>
 
             <Suspense fallback={<div className="h-64 bg-slate-50 rounded-xl animate-pulse" />}>
-                <RequestsTable initialRequests={requests} />
+                <RequestsTable initialRequests={requests} pagination={pagination} />
             </Suspense>
         </div >
     );

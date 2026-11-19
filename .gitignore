@@ -142,3 +142,17 @@ switch_mode.bat
 
 # graft's local graph cache — regenerable, not committed (run `graft build`).
 /graft/
+
+# Perch: project-level skill junctions are per-machine, not portable.
+.perch/skills/
+
+# Perch: plugin skills are per-machine copies of ~/.agents/skills, not portable.
+.perch/plugins/
+
+# Perch: per-machine project config (MCP servers, local manual).
+.perch/mcp.json
+.perch/PERCH.md
+.perch/rules/
+
+# Audit scratch space: holds a full copy of the app with node_modules (~867 MB).
+.audit/
