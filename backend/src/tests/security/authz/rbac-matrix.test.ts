@@ -15,6 +15,7 @@
 
 import request from 'supertest';
 import { app } from '../../../index';
+import prisma from '../../../utils/prisma';
 import securityConfig from '../config';
 import {
     ALL_ROLES,
@@ -69,6 +70,10 @@ function authHeaders(role: RoleSlug): Record<string, string> {
 }
 
 describe('🔒 RBAC Matrix — backend route × role × method', () => {
+    afterAll(async () => {
+        await prisma.$disconnect();
+    });
+
     describe('public endpoints respond without 401', () => {
         for (const rule of RBAC_MATRIX.filter((r) => r.allowedRoles === null)) {
             it(`${rule.method} ${rule.path} (no auth)`, async () => {

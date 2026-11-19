@@ -29,6 +29,7 @@
 
 import request from 'supertest';
 import { app } from '../../../index';
+import prisma from '../../../utils/prisma';
 import securityConfig from '../config';
 import {
     checkDatabaseIsolation,
@@ -71,6 +72,7 @@ describe('🔒 IDOR — object-level authorization', () => {
 
     afterAll(async () => {
         await teardownIdorFixture();
+        await prisma.$disconnect();
     });
 
     // ------------------------------------------------------------------
