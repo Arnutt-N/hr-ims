@@ -1,6 +1,6 @@
 ﻿# 🤝 Cross-Agent Handoff Board
 
-> **Last Updated:** 2026-11-19 06:47 | **Updated By:** perch
+> **Last Updated:** 2026-11-19 12:44 | **Updated By:** perch
 >
 > ไฟล์นี้เป็น Dashboard กลาง ทุก Agent ต้องอ่านก่อนเริ่มงาน และอัพเดทเมื่อจบงาน
 >
@@ -19,7 +19,7 @@
 | **kilo** | ⚪ IDLE | 2026-01-30 | Codebase Analysis Report | [session_2026-01-30](../kilo/session_2026-01-30_185739.md) |
 | **claude_code** | 🟢 AVAILABLE | 2026-11-13 12:14 | IDOR/object-level authz — handed off mid-task; completed by antigravity | [2026-11-13_1214_claude_code_to_all](logs/2026-11-13_1214_claude_code_to_all.md) |
 | **codex** | 🟡 PENDING_HANDOFF | 2026-11-13 21:31 | PR #26 review and IDOR test repair remain in progress | [2026-11-13_2131_codex_to_all](logs/2026-11-13_2131_codex_to_all.md) |
-| **perch** | 🟡 PENDING_HANDOFF | 2026-11-19 06:47 | Stock workflow work committed as `95aa20b` on `feat/stock-workflow-readiness` (23 files, +1697/−101). Not pushed, no PR. Test results not yet bound to that commit | [2026-11-19_0647_session-summary](../perch/2026-11-19_0647_session-summary.md) |
+| **perch** | 🟢 AVAILABLE | 2026-11-19 12:44 | PR #38 merged to `main` as `e27cfd9` — all checks green. Also fixed Perch CLI skill caps (pstack 80/80 loadable). Go-live owner decisions still open | [2026-11-19_1244_session-summary](../perch/2026-11-19_1244_session-summary.md) |
 | **cline** | 🟢 AVAILABLE | 2026-08-23 20:15 | BullMQ worker bootstrap — escalation worker wired & verified E2E | [2026-08-23_2015_cline_to_all](logs/2026-08-23_2015_cline_to_all.md) |
 | **cursor** | 🟢 AVAILABLE | 2026-11-10 09:24 | Gate login Quick Demo panel behind `NEXT_PUBLIC_DEMO_MODE`; removed tracked `cloudflared.exe` | [demo](logs/2026-11-10_0911_cursor_to_all.md), [cloudflared](logs/2026-11-10_0859_cursor_to_all.md) |
 | **gemini_cli** | ⚪ IDLE | - | - | - |
@@ -48,7 +48,7 @@
 | 16 | Merge PR #35 (V20/V21/V22 policy) | ✅ Done | perch | 🔴 High | Merged to `main` as `a5e4938` on 2026-11-15 16:09; CI 8/8 green |
 | 17 | Deep Audit Cursor Pointer (Round 2) | ✅ Done | codex | 🟡 Medium | Audit remaining dashboard pages |
 | 18 | Canonicalize AI workspace and handoff path | ✅ Done | codex | 🟡 Medium | `.agent` -> `.agents`, handoff path now `project-log-md/handoff/logs/` |
-| 19 | Bind test evidence to `95aa20b` | ⌛ Pending | - | 🔴 High | 249/249 authz, 76/76 unit, 517/517 Vitest all predate the commit. Re-run on `feat/stock-workflow-readiness` and record command, time, exit code |
+| 19 | Bind test evidence to `95aa20b` | ✅ Done | perch | 🔴 High | Closed by PR #38 CI on 2026-11-19: authz, backend typecheck+test, frontend lint+test, TiDB schema, E2E, Lighthouse, Vercel parity — all pass. Merge commit `e27cfd9` |
 | 20 | Close TiDB migration + concurrency evidence | ⌛ Pending | - | 🔴 High | Runbook exists (`perch/2026-11-18_tidb-test-runbook.md`) but nothing executed against a test TiDB |
 | 21 | Owner sign-off: approver matrix, Express return path, opening balances | ⌛ Pending | - | 🔴 High | Three decisions block go-live. Approver matrix drafted at `perch/2026-11-18_approver-signoff-matrix.md` |
 
@@ -115,6 +115,7 @@
 
 | # | Date | Agent | Action | Details |
 |---|------|-------|--------|
+| 0 | 2026-11-19 12:44 | perch | ✅ COMPLETE | **PR #38 merged to `main` as `e27cfd9`** — 6 commits (stock workflow, test fixes, skill cap config, handoff docs, Claude skills, Gemini IDOR report). All 9 checks green including the 4 required ones. Also solved the Perch CLI skill cap: 40 per directory / 96 global, split pstack into two plugins and cut `python-data-assistant` so all 80 pstack skills load. Go-live owner decisions remain open. See `perch/2026-11-19_1244_session-summary.md` |
 | 0 | 2026-11-19 06:47 | perch | ✅ COMPLETE | **Committed the stock workflow work as `95aa20b`** on new branch `feat/stock-workflow-readiness` (23 files, +1697/−101): stock count rounds, stock card, printable requisition, request pagination, Asia/Bangkok report grouping, conditional `updateMany` on both surfaces. Also closed the `.audit/` trap in `.gitignore` (867 MB app copy with `node_modules` was stageable). Wrote a point-by-point reply to Codex's gates review. **Not pushed, no PR.** Test evidence still predates the commit. See `perch/2026-11-19_0647_session-summary.md` |
 | 0 | 2026-11-17 07:24 | perch | 📝 PLAN | **Wrote and validated the PRD + PRP for `lib/thai-procurement/`.** 6 modules (money, baht-text, tax-id, fiscal, vat-wht, thresholds), 7 tasks, 72 tests. Extracted every module from the plan verbatim, placed it at the stated path, and ran the project's Vitest: **7 files, 72 tests, all passed**. Validation caught 7 real defects including a Bangkok/UTC day-arithmetic bug that treated every Thai Monday as a Sunday, a tier gap that threw on 5,000.50 baht, and a taxId fixture that failed its own checksum. Also fixed Perch's skill-registration cap with 21 project-level junctions. **No app code touched, no commit.** See `PRPs/perch/plan_reviews/2026-11-17_PRP_thai-procurement-utils-validate-3.md` |
 | 0 | 2026-11-16 15:05 | perch | 🛠️ SETUP | **Cleaned the board of items older than 6 months.** Archived 4 sprint tasks, 6 queue entries, 2 issues and 10 activity entries to `HANDOFF_BOARD_ARCHIVE.md` — but only after verifying each is actually closed, not merely old: `swagger-jsdoc` is now a real dependency in `backend/package.json`; `frontend/next-app/middleware.ts` no longer exists (only `proxy.ts`); **tag `v1.5.0` exists (2026-02-13 12:12)**, followed by `v1.5.1` and up to `v4.1.0`; the `.agents` cutover is live in `AGENTS.md`. Nothing was deleted — all 20 source logs remain in `handoff/logs/`. Items that are old but still genuinely open (`cloudflared.exe` history, Quick Demo seed follow-up) stayed on the board. |
